@@ -2,6 +2,7 @@
 *.class
 *.jar
 build/
+**/build/
 target/
 .gradle/
 
