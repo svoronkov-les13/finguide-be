@@ -1,0 +1,21 @@
+[Unit]
+Description=FinGuide Java 21 Mock API
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/finguide-mock
+Environment=PORT=3092
+Environment=OPENAPI_PATH=/opt/finguide-mock/openapi.json
+ExecStart=/usr/bin/java -XX:MaxRAM=160m -jar /opt/finguide-mock/finguide-mock.jar
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

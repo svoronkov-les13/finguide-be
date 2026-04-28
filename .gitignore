@@ -1,0 +1,15 @@
+# Java
+*.class
+*.jar
+build/
+target/
+.gradle/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Runtime
+*.log
+.env
