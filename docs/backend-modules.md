@@ -3,7 +3,7 @@
 The backend starts as a modular monolith. Every package is a bounded context with a narrow public model/service surface, so we can extract heavy modules later without splitting the financial-plan core too early.
 
 ```txt
-world.finguide.backend
+les13.finguide.backend
   auth/              Keycloak JWT integration, SecurityConfig, current user
   users/             local business profile synced with Keycloak identity
   plans/             financial plan aggregate and access policy

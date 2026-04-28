@@ -9,7 +9,7 @@
     <relativePath/>
   </parent>
 
-  <groupId>world.finguide</groupId>
+  <groupId>les13.finguide</groupId>
   <artifactId>finguide-be</artifactId>
   <version>0.1.0-SNAPSHOT</version>
   <name>FinGuide Backend</name>

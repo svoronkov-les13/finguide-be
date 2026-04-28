@@ -4,7 +4,7 @@ Backend artifacts for **FinGuide / «Финансовый капитал»**.
 
 Current contents:
 
-- `src/main/java/world/finguide/backend/` — Spring Boot 3 / Java 21 modular backend skeleton.
+- `src/main/java/les13/finguide/backend/` — Spring Boot 3 / Java 21 modular backend skeleton.
 - `docs/backend-modules.md` — package/module map.
 - `openapi/openapi.json` — backend/frontend OpenAPI contract.
 - `openapi/openapi-mock.json` — same contract configured for deployed mock Swagger.
