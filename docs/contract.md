@@ -28,6 +28,97 @@
 - Все write-запросы возвращают актуальный ресурс; frontend может делать optimistic update, но затем обязан принять ответ backend.
 - Расчёты (`dashboard`, `analytics`, `pension`, `budget spent`) делает backend, чтобы фронт не дублировал финансовую логику.
 
+## Общие конвенции API
+
+### Пагинация
+
+Все list-эндпоинты, которые могут вырасти неограниченно (`contributions`, `notifications`, `monthly-tracker`, `export jobs`), используют курсорную пагинацию:
+
+```txt
+GET /plans/{planId}/contributions?cursor=<opaque>&limit=50
+```
+
+- `limit` по умолчанию `50`, максимум `200`.
+- `cursor` — непрозрачная строка, выдаваемая сервером; клиент не интерпретирует.
+- Ответ:
+
+```json
+{
+  "data": [ ... ],
+  "page": {
+    "nextCursor": "eyJpZCI6...",
+    "hasMore": true
+  }
+}
+```
+
+Короткие справочные коллекции (`incomes`, `expenses`, `goals`, `envelopes`, пользовательские `scenarios`) возвращаются целиком без пагинации — они ограничены по бизнес-смыслу (например, до 10 сценариев).
+
+### Идемпотентность write-запросов
+
+Все небезопасные `POST`-запросы, повторное выполнение которых создаёт дубликаты, поддерживают заголовок:
+
+```txt
+Idempotency-Key: <client-generated UUIDv4>
+```
+
+Применимо к:
+
+- `POST /plans/{planId}/contributions`
+- `POST /plans/{planId}/incomes`, `POST /plans/{planId}/expenses`, `POST /plans/{planId}/goals`
+- `POST /import`, `POST /export`
+- `POST /scenarios`, `POST /scenarios/compare`
+
+Backend хранит `(user_id, idempotency_key)` минимум 24 часа. Повтор с тем же ключом и тем же телом возвращает ранее сохранённый ответ; повтор с другим телом — `409 CONFLICT`.
+
+`PATCH`/`PUT`/`DELETE` идемпотентны по семантике HTTP и заголовок не требуют.
+
+### Оптимистическая конкуренция
+
+Сущности, редактируемые из нескольких вкладок/устройств (`Goal`, `IncomeSource`, `ExpenseItem`, `PensionSettings`, `BudgetSettings`, `UserProfile`), включают поле `version: int` в payload и заголовок `ETag` в ответе.
+
+Клиент при `PATCH`/`PUT` присылает:
+
+```txt
+If-Match: "<etag>"
+```
+
+Если версия в БД новее — backend отвечает `412 PRECONDITION_FAILED` с актуальным состоянием в `error.details.current`. Frontend обязан показать конфликт пользователю и не перезаписывать молча.
+
+`Contribution` версионирование не требует — это append-only журнал.
+
+### Коды ошибок
+
+Стандартный конверт ошибки:
+
+```json
+{
+  "error": {
+    "code": "PLAN_NOT_FOUND",
+    "message": "Plan not found or access denied",
+    "details": { ... },
+    "requestId": "01HF..."
+  }
+}
+```
+
+Перечень `code` (расширяется, но без переименований существующих):
+
+| code | HTTP | Когда |
+| --- | --- | --- |
+| `VALIDATION_FAILED` | 400 | Невалидный payload; `details.fields[]` содержит per-field ошибки |
+| `UNAUTHENTICATED` | 401 | Нет/невалиден JWT |
+| `FORBIDDEN` | 403 | JWT валиден, но нет доступа к ресурсу |
+| `PLAN_NOT_FOUND` | 404 | План не найден или скрыт по правам |
+| `RESOURCE_NOT_FOUND` | 404 | Generic 404 для goal/income/expense/contribution |
+| `CONFLICT` | 409 | Бизнес-конфликт (например, idempotency mismatch, дубликат) |
+| `PRECONDITION_FAILED` | 412 | `If-Match` не совпал с текущей версией |
+| `RATE_LIMITED` | 429 | Превышен лимит; `details.retryAfterSec` |
+| `INTERNAL` | 500 | Непредвиденная ошибка; всегда логируется с `requestId` |
+| `DEPENDENCY_UNAVAILABLE` | 503 | Keycloak / БД / внешний сервис недоступны |
+
+Frontend маппит `code` на UX (тост / диалог конфликта / редирект на login), а не на `message` — текст может локализоваться.
+
 ## Главные сущности
 
 ### UserProfile
