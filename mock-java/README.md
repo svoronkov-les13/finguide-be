@@ -1,6 +1,6 @@
 # Java 21 mock server
 
-Small dependency-free Java 21 HTTP server for FinGuide mock Swagger and deterministic stub responses. Source lives in the shared repo source tree: `src/mock/java`.
+Small dependency-free Java 21 HTTP server for FinGuide mock Swagger and deterministic stub responses. Source lives in the classic main source tree: `src/main/java`.
 
 ## Build and run
 
@@ -14,7 +14,7 @@ Or manually:
 
 ```bash
 mkdir -p mock-java/build/classes
-javac --release 21 -d mock-java/build/classes src/mock/java/les13/finguide/mock/FinGuideMockServer.java
+javac --release 21 -d mock-java/build/classes src/main/java/les13/finguide/mock/FinGuideMockServer.java
 jar --create --file mock-java/build/finguide-mock.jar --main-class les13.finguide.mock.FinGuideMockServer -C mock-java/build/classes .
 PORT=3092 OPENAPI_PATH=openapi/openapi-mock.json java -jar mock-java/build/finguide-mock.jar
 ```

@@ -10,7 +10,7 @@ Current contents:
 - `openapi/openapi-mock.json` — same contract configured for deployed mock Swagger.
 - `docs/contract.md` — human-readable API contract.
 - `docs/backend-architecture-keycloak.md` — proposed backend architecture with Keycloak auth.
-- `src/mock/java/` — Java 21 stub server with deterministic mock responses and Swagger UI.
+- `src/main/java/` — Java 21 stub server with deterministic mock responses and Swagger UI.
 
 Deployed preview:
 
@@ -27,7 +27,7 @@ Bearer mock-access-token-java21
 
 ## Run Java 21 mock locally
 
-The repo keeps one shared `src/` tree: Spring Boot code is in `src/main/java`, mock server code is in `src/mock/java`.
+The repo keeps one shared `src/` tree: Spring Boot code is in `src/main/java`, mock server code is in `src/main/java`.
 
 ```bash
 ./scripts/run-mock.sh
