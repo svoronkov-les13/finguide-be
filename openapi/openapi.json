@@ -2534,6 +2534,29 @@
           }
         }
       }
+    },
+    "/api/v1": {
+      "get": {
+        "tags": [
+          "Plan"
+        ],
+        "summary": "API service index",
+        "description": "Returns service status and links to Swagger/OpenAPI and the currently implemented real backend endpoints.",
+        "operationId": "getApiIndex",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "API index",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiIndexEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3920,6 +3943,65 @@
                   "$ref": "#/components/schemas/PensionSpendDownPoint"
                 }
               }
+            }
+          }
+        }
+      },
+      "ApiIndexEnvelope": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ApiIndex"
+          }
+        }
+      },
+      "ApiIndex": {
+        "type": "object",
+        "required": [
+          "name",
+          "version",
+          "status",
+          "basePath",
+          "swaggerUi",
+          "openApi",
+          "endpoints"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "FinGuide API"
+          },
+          "version": {
+            "type": "string",
+            "example": "v1"
+          },
+          "status": {
+            "type": "string",
+            "example": "ok"
+          },
+          "basePath": {
+            "type": "string",
+            "example": "/api/v1"
+          },
+          "publicBasePath": {
+            "type": "string",
+            "example": "/finguide-api/api/v1"
+          },
+          "swaggerUi": {
+            "type": "string",
+            "example": "/finguide-api/swagger-ui.html"
+          },
+          "openApi": {
+            "type": "string",
+            "example": "/finguide-api/v3/api-docs"
+          },
+          "endpoints": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
             }
           }
         }

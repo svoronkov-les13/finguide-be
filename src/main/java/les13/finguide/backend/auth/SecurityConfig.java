@@ -38,7 +38,7 @@ public class SecurityConfig {
                             "/h2-console/**"
                     ).permitAll();
                     if (demoMode) {
-                        authorize.requestMatchers("/api/v1/**").permitAll();
+                        authorize.requestMatchers("/api/v1", "/api/v1/", "/api/v1/**").permitAll();
                     }
                     authorize.anyRequest().authenticated();
                 })

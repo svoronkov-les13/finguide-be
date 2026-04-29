@@ -20,7 +20,8 @@ Primary real backend services:
 - Frontend: http://66.42.121.18/fg/
 - Real Swagger UI: http://66.42.121.18/finguide-api/swagger-ui.html
 - Real OpenAPI JSON: http://66.42.121.18/finguide-api/v3/api-docs
-- Real API base: http://66.42.121.18/finguide-api/api/v1
+- Real API base/index: http://66.42.121.18/finguide-api/api/v1
+- Example real endpoint: http://66.42.121.18/finguide-api/api/v1/plans/current
 - Markdown contract: http://66.42.121.18/finguide-contract/contract.md
 
 Transition-only mock services:
@@ -39,6 +40,7 @@ Then open:
 ```txt
 http://127.0.0.1:8080/swagger-ui.html
 http://127.0.0.1:8080/v3/api-docs
+http://127.0.0.1:8080/api/v1
 http://127.0.0.1:8080/api/v1/plans/current
 ```
 

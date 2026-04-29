@@ -18,6 +18,19 @@ class PlanReadControllerTests {
     private MockMvc mockMvc;
 
     @Test
+    void returnsApiRootWithoutAuthentication() throws Exception {
+        mockMvc.perform(get("/api/v1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("ok"))
+                .andExpect(jsonPath("$.data.swaggerUi").value("/finguide-api/swagger-ui.html"))
+                .andExpect(jsonPath("$.data.endpoints.currentPlan").value("/api/v1/plans/current"));
+
+        mockMvc.perform(get("/api/v1/"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("ok"));
+    }
+
+    @Test
     void returnsCurrentPlanEnvelope() throws Exception {
         mockMvc.perform(get("/api/v1/plans/current"))
                 .andExpect(status().isOk())

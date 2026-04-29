@@ -21,6 +21,26 @@ public class PlanReadController {
         this.mapper = mapper;
     }
 
+    @GetMapping({"", "/"})
+    public ApiEnvelope<Map<String, Object>> apiRoot() {
+        return ApiEnvelope.of(Map.of(
+                "name", "FinGuide API",
+                "version", "v1",
+                "status", "ok",
+                "basePath", "/api/v1",
+                "publicBasePath", "/finguide-api/api/v1",
+                "swaggerUi", "/finguide-api/swagger-ui.html",
+                "openApi", "/finguide-api/v3/api-docs",
+                "endpoints", Map.of(
+                        "currentPlan", "/api/v1/plans/current",
+                        "dashboard", "/api/v1/plans/{planId}/dashboard",
+                        "health", "/api/v1/plans/{planId}/analytics/health",
+                        "cashflow", "/api/v1/plans/{planId}/analytics/cashflow",
+                        "scenarios", "/api/v1/scenarios"
+                )
+        ));
+    }
+
     @GetMapping("/plans/current")
     public ApiEnvelope<Map<String, Object>> currentPlan() {
         return ApiEnvelope.of(mapper.planState(planReadService.currentPlan()));

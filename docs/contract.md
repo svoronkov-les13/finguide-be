@@ -27,6 +27,7 @@
 
 - Базовый URL внутри сервиса: `/api/v1`.
 - Публичный URL реального бэкенда на текущем сервере: `http://66.42.121.18/finguide-api/api/v1`.
+- `GET /api/v1` возвращает JSON-индекс сервиса со ссылками на Swagger/OpenAPI и основные endpoints.
 - Swagger UI реального бэкенда: `http://66.42.121.18/finguide-api/swagger-ui.html`.
 - Legacy mock Swagger остаётся только для переходного сравнения: `http://66.42.121.18/finguide-mock/`.
 - Авторизация: `Authorization: Bearer <JWT>`; в demo/H2 режиме текущий `/api/v1/**` временно открыт для интеграции фронтенда с real backend без Keycloak.
