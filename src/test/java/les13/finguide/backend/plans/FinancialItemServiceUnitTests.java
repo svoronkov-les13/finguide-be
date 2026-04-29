@@ -53,6 +53,30 @@ class FinancialItemServiceUnitTests {
     }
 
     @Test
+    void rejectsGoalTargetYearBeforeContractMinimum() {
+        when(repository.findById(PLAN_ID)).thenReturn(Optional.of(mock(PlanState.class)));
+        var request = new FinancialItemRequests.GoalRequest(
+                null,
+                "Слишком ранняя цель",
+                "target",
+                BigDecimal.valueOf(1000),
+                BigDecimal.ZERO,
+                "RUB",
+                2023,
+                "one_time",
+                "manual",
+                BigDecimal.ZERO,
+                null,
+                1
+        );
+
+        assertThatThrownBy(() -> service.createGoal(PLAN_ID, request))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting(error -> ((ResponseStatusException) error).getStatusCode())
+                .isEqualTo(BAD_REQUEST);
+    }
+
+    @Test
     void rejectsGoalReorderWhenListDoesNotMatchCurrentGoals() {
         Goal first = goal("33333333-3333-4333-8333-333333333333", 1);
         Goal second = goal("44444444-4444-4444-8444-444444444444", 2);

@@ -1,6 +1,7 @@
 package les13.finguide.backend.plans;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -12,6 +13,7 @@ final class FinancialItemRequests {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
+    @Schema(description = "Income create/patch request. For PATCH, omitted fields keep current values; nullable fields set to null are treated as unchanged in the current H2 implementation.")
     record IncomeRequest(
             String id,
             String name,
@@ -26,6 +28,7 @@ final class FinancialItemRequests {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
+    @Schema(description = "Expense create/patch request. For PATCH, omitted fields keep current values; nullable fields set to null are treated as unchanged in the current H2 implementation.")
     record ExpenseRequest(
             String id,
             String name,
@@ -42,6 +45,7 @@ final class FinancialItemRequests {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
+    @Schema(description = "Goal create/patch request. For PATCH, omitted fields keep current values; nullable fields set to null are treated as unchanged in the current H2 implementation.")
     record GoalRequest(
             String id,
             String name,
@@ -49,6 +53,7 @@ final class FinancialItemRequests {
             BigDecimal currentCost,
             BigDecimal savedAmount,
             String currency,
+            @Schema(minimum = "2024", description = "Target year, aligned with the public OpenAPI contract minimum.")
             Integer targetYear,
             String type,
             String growthType,

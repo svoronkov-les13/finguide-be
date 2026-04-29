@@ -46,4 +46,22 @@ class FinancialItemOpenApiTests {
             methods.forEach(method -> assertThat(paths.get(path).has(method)).as(path + " " + method).isTrue());
         });
     }
+
+    @Test
+    void swaggerDocumentsFinancialItemSchemasAndErrors() throws Exception {
+        JsonNode api = objectMapper.readTree(mockMvc.perform(get("/v3/api-docs"))
+                        .andExpect(status().isOk())
+                        .andReturn().getResponse().getContentAsString());
+
+        assertThat(api.at("/paths/~1api~1v1~1plans~1{planId}~1goals~1{id}/patch/requestBody/content/application~1json/schema/$ref").asText())
+                .contains("GoalRequest");
+        assertThat(api.at("/paths/~1api~1v1~1plans~1{planId}~1goals~1{id}/patch/responses/400").isMissingNode())
+                .isFalse();
+        assertThat(api.at("/paths/~1api~1v1~1plans~1{planId}~1goals~1{id}/patch/responses/404").isMissingNode())
+                .isFalse();
+        assertThat(api.at("/components/schemas/GoalRequest/properties/targetYear/minimum").asInt())
+                .isEqualTo(2024);
+        assertThat(api.at("/components/schemas/GoalRequest/description").asText())
+                .contains("omitted fields keep current values");
+    }
 }

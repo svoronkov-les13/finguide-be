@@ -47,7 +47,7 @@ http://127.0.0.1:8080/api/v1/plans/{planId}/expenses
 http://127.0.0.1:8080/api/v1/plans/{planId}/goals
 ```
 
-Default local/demo mode uses embedded H2 and permits `/api/v1/**` without Keycloak so frontend integration can move off mock responses incrementally.
+Default local/demo mode uses embedded H2 and permits `/api/v1/**` without Keycloak so frontend integration can move off mock responses incrementally. Income/expense/goal PATCH requests are partial updates; omitted fields stay unchanged, and current H2 demo semantics also treat explicit `null` in nullable fields as unchanged.
 
 ## Run the legacy Java 21 mock locally
 

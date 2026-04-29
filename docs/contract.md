@@ -142,7 +142,7 @@ If-Match: "<etag>"
 
 `id`, `name`, `amount`, `currency`, `frequency: monthly|yearly|one_time`, `growthType: manual|inflation|none|schedule`, `growthPct`, `growthSchedule[]`, `startDate`, `endDate`, опционально `startYear`, `endYear`.
 
-Для `POST` id и timestamps генерирует сервер; `PATCH` принимает частичное тело и меняет только переданные поля. Текущая H2-реализация валидирует: суммы неотрицательные, `growthPct` от `0` до `100`, `endDate >= startDate`, `currency` — ISO-4217 alpha-3.
+Для `POST` id и timestamps генерирует сервер; `PATCH` принимает частичное тело и меняет только переданные поля. В текущей H2-реализации `null` в nullable-полях (`endDate`, `growthLabel`, `icon`, `indexLabel`) трактуется как «оставить текущее значение», поэтому очистка таких полей будет оформлена отдельной merge-patch/replace семантикой позже. Валидация: суммы неотрицательные, `growthPct` от `0` до `100`, `endDate >= startDate`, `currency` — ISO-4217 alpha-3.
 
 Для расходов дополнительно: `budgetClass: needs|wants|savings`, `growthLabel`.
 
@@ -150,7 +150,7 @@ If-Match: "<etag>"
 
 ### Цель (`Goal`)
 
-`id`, `name`, `icon`, `currentCost`, `savedAmount`, `currency`, `targetYear`, `type: one_time|recurring`, `growthType`, `growthPct`, `growthSchedule[]`, `priority`.
+`id`, `name`, `icon`, `currentCost`, `savedAmount`, `currency`, `targetYear`, `type: one_time|recurring`, `growthType`, `growthPct`, `growthSchedule[]`, `priority`. `targetYear` должен быть не меньше `2024`.
 
 Логика waterfall-распределения: ближайшая или приоритетная цель получает свободные накопления первой; порядок сохраняется через `/goals/reorder`.
 

@@ -23,6 +23,7 @@ public class FinancialItemService {
     private static final BigDecimal ZERO = BigDecimal.ZERO;
     private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
     private static final String DEFAULT_CURRENCY = "RUB";
+    private static final int MIN_TARGET_YEAR = 2024;
 
     private final PlanStateRepository repository;
 
@@ -184,7 +185,7 @@ public class FinancialItemService {
                 nonNegative(required(request.currentCost(), "currentCost"), "currentCost"),
                 nonNegative(defaultBigDecimal(request.savedAmount(), ZERO), "savedAmount"),
                 currency(request.currency()),
-                positiveInteger(required(request.targetYear(), "targetYear"), "targetYear"),
+                targetYear(required(request.targetYear(), "targetYear")),
                 enumValue(Goal.Type.class, request.type(), "type"),
                 enumValue(Goal.GrowthType.class, request.growthType(), "growthType"),
                 percent(defaultBigDecimal(request.growthPct(), ZERO), "growthPct"),
@@ -208,7 +209,7 @@ public class FinancialItemService {
                 nonNegative(valueOrCurrent(request.currentCost(), current.currentCost()), "currentCost"),
                 nonNegative(valueOrCurrent(request.savedAmount(), current.savedAmount()), "savedAmount"),
                 request.currency() == null ? current.currency() : currency(request.currency()),
-                positiveInteger(valueOrCurrent(request.targetYear(), current.targetYear()), "targetYear"),
+                request.targetYear() == null ? current.targetYear() : targetYear(request.targetYear()),
                 enumValueOrCurrent(Goal.Type.class, request.type(), current.type(), "type"),
                 enumValueOrCurrent(Goal.GrowthType.class, request.growthType(), current.growthType(), "growthType"),
                 percent(valueOrCurrent(request.growthPct(), current.growthPct()), "growthPct"),
@@ -290,6 +291,13 @@ public class FinancialItemService {
         nonNegative(value, field);
         if (value.compareTo(HUNDRED) > 0) {
             throw badRequest(field + " must be <= 100");
+        }
+        return value;
+    }
+
+    private static int targetYear(Integer value) {
+        if (value == null || value < MIN_TARGET_YEAR) {
+            throw badRequest("targetYear must be >= " + MIN_TARGET_YEAR);
         }
         return value;
     }

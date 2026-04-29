@@ -4089,7 +4089,7 @@
       },
       "IncomeSourcePatchRequest": {
         "type": "object",
-        "description": "Partial request to update an income; omitted fields stay unchanged.",
+        "description": "Partial request to update an income; omitted fields stay unchanged. Omitted fields keep current values; explicit null for nullable fields is treated as unchanged in the current H2 implementation.",
         "required": [],
         "properties": {
           "name": {
@@ -4195,7 +4195,7 @@
       },
       "ExpenseItemPatchRequest": {
         "type": "object",
-        "description": "Partial request to update an expense; omitted fields stay unchanged.",
+        "description": "Partial request to update an expense; omitted fields stay unchanged. Omitted fields keep current values; explicit null for nullable fields is treated as unchanged in the current H2 implementation.",
         "required": [],
         "properties": {
           "name": {
@@ -4318,7 +4318,7 @@
       },
       "GoalPatchRequest": {
         "type": "object",
-        "description": "Partial request to update a goal; omitted fields stay unchanged.",
+        "description": "Partial request to update a goal; omitted fields stay unchanged. Omitted fields keep current values; explicit null for nullable fields is treated as unchanged in the current H2 implementation.",
         "required": [],
         "properties": {
           "name": {

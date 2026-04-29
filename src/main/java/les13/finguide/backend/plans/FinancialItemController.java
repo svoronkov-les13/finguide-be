@@ -1,5 +1,7 @@
 package les13.finguide.backend.plans;
 
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import les13.finguide.backend.api.ApiEnvelope;
 import les13.finguide.backend.api.PlanApiMapper;
 import org.springframework.http.HttpStatus;
@@ -18,6 +20,10 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/plans/{planId}")
+@ApiResponses({
+        @ApiResponse(responseCode = "400", description = "Validation failed"),
+        @ApiResponse(responseCode = "404", description = "Resource was not found")
+})
 public class FinancialItemController {
     private final FinancialItemService service;
     private final PlanApiMapper mapper;
