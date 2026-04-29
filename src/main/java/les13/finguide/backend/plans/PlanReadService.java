@@ -1,0 +1,259 @@
+package les13.finguide.backend.plans;
+
+import les13.finguide.backend.analytics.CashFlowProjectionPoint;
+import les13.finguide.backend.analytics.HealthScore;
+import les13.finguide.backend.analytics.YearlyProjectionPoint;
+import les13.finguide.backend.expenses.ExpenseItem;
+import les13.finguide.backend.goals.Goal;
+import les13.finguide.backend.incomes.IncomeSource;
+import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Year;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import static org.springframework.http.HttpStatus.NOT_FOUND;
+
+@Service
+public class PlanReadService {
+    private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
+    private static final BigDecimal TWELVE = BigDecimal.valueOf(12);
+
+    private final PlanStateRepository repository;
+
+    public PlanReadService(PlanStateRepository repository) {
+        this.repository = repository;
+    }
+
+    public PlanState currentPlan() {
+        return repository.findCurrent().orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Current plan was not found"));
+    }
+
+    public PlanState plan(UUID planId) {
+        return repository.findById(planId).orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Plan was not found"));
+    }
+
+    public Map<String, Object> dashboard(UUID planId) {
+        PlanState state = plan(planId);
+        BigDecimal monthlyIncome = monthlyIncome(state);
+        BigDecimal yearlyIncome = yearlyIncome(state);
+        BigDecimal monthlyExpenses = monthlyExpenses(state);
+        BigDecimal yearlyExpenses = yearlyExpenses(state);
+        BigDecimal netMonthly = monthlyIncome.subtract(monthlyExpenses);
+        BigDecimal netYearly = yearlyIncome.subtract(yearlyExpenses);
+        BigDecimal totalGoalsCost = state.goals().stream().map(Goal::currentCost).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalGoalsSaved = state.goals().stream().map(Goal::savedAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalGoalsRemaining = totalGoalsCost.subtract(totalGoalsSaved).max(BigDecimal.ZERO);
+        BigDecimal savingsRate = yearlyIncome.signum() == 0
+                ? BigDecimal.ZERO
+                : netYearly.multiply(HUNDRED).divide(yearlyIncome, 1, RoundingMode.HALF_UP);
+        int currentYear = Math.max(Year.now().getValue(), state.modelAssumptions().startYear());
+        int latestGoalYear = state.goals().stream().mapToInt(Goal::targetYear).max().orElse(currentYear + 1);
+        int monthsToGoal = Math.max(1, (latestGoalYear - currentYear + 1) * state.modelAssumptions().monthsPerYear());
+        BigDecimal monthlyGoalContribution = totalGoalsRemaining.divide(BigDecimal.valueOf(monthsToGoal), 0, RoundingMode.HALF_UP);
+        BigDecimal availableForPension = netMonthly.subtract(monthlyGoalContribution).max(BigDecimal.ZERO);
+        int yearsToRetirement = Math.max(0, state.pension().retirementAge() - state.pension().currentAge());
+        BigDecimal projectedPensionCapital = state.modelAssumptions().initialCapital()
+                .add(availableForPension.multiply(TWELVE).multiply(BigDecimal.valueOf(yearsToRetirement)));
+        BigDecimal emergencyFundTarget = monthlyExpenses.multiply(BigDecimal.valueOf(6));
+        BigDecimal emergencyFundCurrent = state.goals().stream()
+                .filter(goal -> goal.name().toLowerCase().contains("подушка"))
+                .map(Goal::savedAmount)
+                .findFirst()
+                .orElse(BigDecimal.ZERO);
+        BigDecimal emergencyFundPct = emergencyFundTarget.signum() == 0
+                ? BigDecimal.ZERO
+                : emergencyFundCurrent.multiply(HUNDRED).divide(emergencyFundTarget, 1, RoundingMode.HALF_UP).min(HUNDRED);
+        List<Map<String, Object>> yearlyProjection = cashflow(planId).stream()
+                .limit(4)
+                .map(point -> Map.<String, Object>of(
+                        "year", point.year(),
+                        "income", point.totalIncome(),
+                        "expenses", point.totalExpenses(),
+                        "goalsCost", point.totalGoalExpenses(),
+                        "netSavings", point.netSavings()
+                ))
+                .toList();
+
+        return Map.ofEntries(
+                Map.entry("totalMonthlyIncome", monthlyIncome),
+                Map.entry("totalYearlyIncome", yearlyIncome),
+                Map.entry("totalMonthlyExpenses", monthlyExpenses),
+                Map.entry("totalYearlyExpenses", yearlyExpenses),
+                Map.entry("netMonthlyBalance", netMonthly),
+                Map.entry("netYearlyBalance", netYearly),
+                Map.entry("savingsRatePct", savingsRate),
+                Map.entry("totalGoalsCost", totalGoalsCost),
+                Map.entry("totalGoalsSaved", totalGoalsSaved),
+                Map.entry("totalGoalsRemaining", totalGoalsRemaining),
+                Map.entry("monthlyGoalContribution", monthlyGoalContribution),
+                Map.entry("availableForPension", availableForPension),
+                Map.entry("projectedPensionCapital", projectedPensionCapital),
+                Map.entry("yearsToRetirement", yearsToRetirement),
+                Map.entry("emergencyFundTarget", emergencyFundTarget),
+                Map.entry("emergencyFundCurrent", emergencyFundCurrent),
+                Map.entry("emergencyFundPct", emergencyFundPct),
+                Map.entry("yearlyProjection", yearlyProjection)
+        );
+    }
+
+    public HealthScore health(UUID planId) {
+        Map<String, Object> dashboard = dashboard(planId);
+        BigDecimal savingsRate = (BigDecimal) dashboard.get("savingsRatePct");
+        BigDecimal emergencyFundPct = (BigDecimal) dashboard.get("emergencyFundPct");
+        PlanState state = plan(planId);
+        int incomeSources = state.incomes().size();
+        int score = Math.min(100, savingsRate.intValue() + emergencyFundPct.divide(BigDecimal.valueOf(4), 0, RoundingMode.HALF_UP).intValue() + incomeSources * 5);
+        return new HealthScore(score, List.of(
+                new HealthScore.Item("savings_rate", "Норма сбережений", savingsRate, status(savingsRate, BigDecimal.valueOf(20), BigDecimal.valueOf(10)), "Цель — держать норму сбережений выше 20%"),
+                new HealthScore.Item("emergency_fund", "Подушка безопасности", emergencyFundPct, status(emergencyFundPct, BigDecimal.valueOf(100), BigDecimal.valueOf(50)), "Резерв на 6 месяцев расходов"),
+                new HealthScore.Item("diversification", "Диверсификация", incomeSources, incomeSources >= 3 ? HealthScore.Status.GOOD : HealthScore.Status.WARNING, "Добавьте 1-2 источника дохода для снижения риска")
+        ));
+    }
+
+    public List<CashFlowProjectionPoint> cashflow(UUID planId) {
+        PlanState state = plan(planId);
+        int startYear = Math.max(Year.now().getValue(), state.modelAssumptions().startYear());
+        int horizon = 12;
+        BigDecimal capital = state.modelAssumptions().initialCapital();
+        List<CashFlowProjectionPoint> result = new ArrayList<>();
+        for (int offset = 0; offset < horizon; offset++) {
+            int year = startYear + offset;
+            BigDecimal monthlyIncome = grow(monthlyIncome(state), averageIncomeGrowth(state), offset);
+            BigDecimal yearlyIncome = grow(yearlyOneTimeIncome(state), averageIncomeGrowth(state), offset);
+            BigDecimal totalIncome = monthlyIncome.multiply(TWELVE).add(yearlyIncome);
+            BigDecimal monthlyExpenses = grow(monthlyExpenses(state), averageExpenseGrowth(state), offset);
+            BigDecimal yearlyExpenses = grow(yearlyOneTimeExpenses(state), averageExpenseGrowth(state), offset);
+            BigDecimal totalExpenses = monthlyExpenses.multiply(TWELVE).add(yearlyExpenses);
+            BigDecimal yearlyGoalExpenses = goalsForYear(state, year);
+            BigDecimal netSavings = totalIncome.subtract(totalExpenses).subtract(yearlyGoalExpenses);
+            BigDecimal capitalStart = capital;
+            BigDecimal investmentReturn = state.modelAssumptions().investmentReturnPct();
+            capital = capital.add(netSavings).add(capital.max(BigDecimal.ZERO).multiply(investmentReturn).divide(HUNDRED, 2, RoundingMode.HALF_UP));
+            result.add(new CashFlowProjectionPoint(
+                    year,
+                    state.modelAssumptions().birthYear() == null ? null : year - state.modelAssumptions().birthYear(),
+                    offset + 1,
+                    monthlyIncome,
+                    yearlyIncome,
+                    totalIncome,
+                    monthlyExpenses,
+                    yearlyExpenses,
+                    totalExpenses,
+                    BigDecimal.ZERO,
+                    yearlyGoalExpenses,
+                    yearlyGoalExpenses,
+                    netSavings,
+                    investmentReturn,
+                    capitalStart,
+                    capital
+            ));
+        }
+        return result;
+    }
+
+    public List<Map<String, Object>> scenarios(UUID basePlanId) {
+        PlanState state = plan(basePlanId);
+        return List.of(
+                scenario("base", "Основной план", "📊", "Текущий финансовый план", true, state.plan().id(), Map.of("incomeAdjPct", 0, "expenseAdjPct", 0, "returnAdjPct", 0, "inflationAdjPct", 0, "retirementAgeShift", 0, "goalsCostAdjPct", 0), state.updatedAt()),
+                scenario("optimistic", "Оптимистичный", "🚀", "Доходы растут быстрее, расходы медленнее", false, state.plan().id(), Map.of("incomeAdjPct", 15, "expenseAdjPct", 5, "returnAdjPct", 1, "inflationAdjPct", -1, "retirementAgeShift", -2, "goalsCostAdjPct", 0), state.updatedAt()),
+                scenario("pessimistic", "Пессимистичный", "⚡", "Стресс-тест: снижение доходов и рост расходов", false, state.plan().id(), Map.of("incomeAdjPct", -10, "expenseAdjPct", 12, "returnAdjPct", -2, "inflationAdjPct", 2, "retirementAgeShift", 3, "goalsCostAdjPct", 15), state.updatedAt())
+        );
+    }
+
+    private Map<String, Object> scenario(String id, String name, String emoji, String description, boolean isBase, UUID basePlanId, Map<String, Object> adjustments, java.time.Instant updatedAt) {
+        return Map.of(
+                "id", id,
+                "name", name,
+                "emoji", emoji,
+                "description", description,
+                "isBase", isBase,
+                "basePlanId", basePlanId.toString(),
+                "adjustments", adjustments,
+                "createdAt", updatedAt,
+                "updatedAt", updatedAt
+        );
+    }
+
+    private static HealthScore.Status status(BigDecimal value, BigDecimal good, BigDecimal warning) {
+        if (value.compareTo(good) >= 0) {
+            return HealthScore.Status.GOOD;
+        }
+        if (value.compareTo(warning) >= 0) {
+            return HealthScore.Status.WARNING;
+        }
+        return HealthScore.Status.BAD;
+    }
+
+    private static BigDecimal monthlyIncome(PlanState state) {
+        return state.incomes().stream()
+                .filter(item -> item.frequency() == IncomeSource.Frequency.MONTHLY)
+                .map(IncomeSource::amount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private static BigDecimal yearlyIncome(PlanState state) {
+        return monthlyIncome(state).multiply(TWELVE).add(yearlyOneTimeIncome(state));
+    }
+
+    private static BigDecimal yearlyOneTimeIncome(PlanState state) {
+        return state.incomes().stream()
+                .filter(item -> item.frequency() == IncomeSource.Frequency.YEARLY || item.frequency() == IncomeSource.Frequency.ONE_TIME)
+                .map(IncomeSource::amount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private static BigDecimal monthlyExpenses(PlanState state) {
+        return state.expenses().stream()
+                .filter(item -> item.frequency() == ExpenseItem.Frequency.MONTHLY)
+                .map(ExpenseItem::amount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private static BigDecimal yearlyExpenses(PlanState state) {
+        return monthlyExpenses(state).multiply(TWELVE).add(yearlyOneTimeExpenses(state));
+    }
+
+    private static BigDecimal yearlyOneTimeExpenses(PlanState state) {
+        return state.expenses().stream()
+                .filter(item -> item.frequency() == ExpenseItem.Frequency.YEARLY || item.frequency() == ExpenseItem.Frequency.ONE_TIME)
+                .map(ExpenseItem::amount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private static BigDecimal averageIncomeGrowth(PlanState state) {
+        return average(state.incomes().stream().map(IncomeSource::growthPct).toList());
+    }
+
+    private static BigDecimal averageExpenseGrowth(PlanState state) {
+        return average(state.expenses().stream().map(ExpenseItem::growthPct).toList());
+    }
+
+    private static BigDecimal average(List<BigDecimal> values) {
+        if (values.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        return values.stream().reduce(BigDecimal.ZERO, BigDecimal::add).divide(BigDecimal.valueOf(values.size()), 4, RoundingMode.HALF_UP);
+    }
+
+    private static BigDecimal grow(BigDecimal value, BigDecimal growthPct, int years) {
+        BigDecimal result = value;
+        BigDecimal multiplier = BigDecimal.ONE.add(growthPct.divide(HUNDRED, 8, RoundingMode.HALF_UP));
+        for (int i = 0; i < years; i++) {
+            result = result.multiply(multiplier);
+        }
+        return result.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private static BigDecimal goalsForYear(PlanState state, int year) {
+        return state.goals().stream()
+                .filter(goal -> goal.targetYear() == year)
+                .map(goal -> goal.currentCost().subtract(goal.savedAmount()).max(BigDecimal.ZERO))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+}
