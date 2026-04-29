@@ -4,7 +4,7 @@ Backend artifacts for **FinGuide / «Финансовый капитал»**.
 
 ## Current contents
 
-- `src/main/java/les13/finguide/backend/` — Spring Boot 3 / Java 21 modular backend with embedded H2 demo persistence and real read API endpoints.
+- `src/main/java/les13/finguide/backend/` — Spring Boot 3 / Java 21 modular backend with embedded H2 demo persistence, real read API endpoints, and income/expense/goal CRUD.
 - `src/main/java/les13/finguide/mock/` — legacy Java 21 mock server kept only for transition and regression checks.
 - `openapi/openapi.json` — backend/frontend OpenAPI contract.
 - `openapi/openapi-mock.json` — legacy mock Swagger configuration.
@@ -42,13 +42,16 @@ http://127.0.0.1:8080/swagger-ui.html
 http://127.0.0.1:8080/v3/api-docs
 http://127.0.0.1:8080/api/v1
 http://127.0.0.1:8080/api/v1/plans/current
+http://127.0.0.1:8080/api/v1/plans/{planId}/incomes
+http://127.0.0.1:8080/api/v1/plans/{planId}/expenses
+http://127.0.0.1:8080/api/v1/plans/{planId}/goals
 ```
 
-Default local/demo mode uses embedded H2 and permits `/api/v1/**` without Keycloak so frontend integration can move off mock responses incrementally.
+Default local/demo mode uses embedded H2 and permits `/api/v1/**` without Keycloak so frontend integration can move off mock responses incrementally. Income/expense/goal PATCH requests are partial updates; omitted fields stay unchanged, and current H2 demo semantics also treat explicit `null` in nullable fields as unchanged.
 
 ## Run the legacy Java 21 mock locally
 
-The repo keeps one shared `src/` tree: Spring Boot code and legacy mock code both live under `src/main/java`.
+The repo keeps the legacy mock source in the shared `src/main/java` tree. It is transition-only; this root README is the single README kept in the repository.
 
 ```bash
 ./scripts/run-mock.sh

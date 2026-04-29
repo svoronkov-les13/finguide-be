@@ -18,6 +18,7 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -102,6 +103,274 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
             return Optional.empty();
         }
     }
+
+
+    @Override
+    public List<IncomeSource> findIncomes(UUID planId) {
+        return jdbcTemplate.query(
+                "select * from incomes where plan_id = ? order by sort_order, name",
+                this::mapIncome,
+                planId
+        );
+    }
+
+    @Override
+    public Optional<IncomeSource> findIncome(UUID planId, UUID incomeId) {
+        return queryOptional(
+                "select * from incomes where plan_id = ? and id = ?",
+                this::mapIncome,
+                planId,
+                incomeId
+        );
+    }
+
+    @Override
+    public IncomeSource createIncome(IncomeSource income) {
+        OffsetDateTime now = offset(income.updatedAt());
+        jdbcTemplate.update(
+                "insert into incomes (id, plan_id, name, amount, currency, frequency, growth_type, growth_pct, start_date, end_date, sort_order, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                income.id(),
+                income.planId(),
+                income.name(),
+                income.amount(),
+                income.currency(),
+                dbValue(income.frequency()),
+                dbValue(income.growthType()),
+                income.growthPct(),
+                income.startDate(),
+                income.endDate(),
+                nextSortOrder("incomes", income.planId()),
+                offset(income.createdAt()),
+                now
+        );
+        touchPlan(income.planId(), now);
+        return findIncome(income.planId(), income.id()).orElseThrow();
+    }
+
+    @Override
+    public IncomeSource updateIncome(IncomeSource income) {
+        OffsetDateTime now = offset(income.updatedAt());
+        jdbcTemplate.update(
+                "update incomes set name = ?, amount = ?, currency = ?, frequency = ?, growth_type = ?, growth_pct = ?, start_date = ?, end_date = ?, updated_at = ? where plan_id = ? and id = ?",
+                income.name(),
+                income.amount(),
+                income.currency(),
+                dbValue(income.frequency()),
+                dbValue(income.growthType()),
+                income.growthPct(),
+                income.startDate(),
+                income.endDate(),
+                now,
+                income.planId(),
+                income.id()
+        );
+        touchPlan(income.planId(), now);
+        return findIncome(income.planId(), income.id()).orElseThrow();
+    }
+
+    @Override
+    public boolean deleteIncome(UUID planId, UUID incomeId) {
+        int deleted = jdbcTemplate.update("delete from incomes where plan_id = ? and id = ?", planId, incomeId);
+        if (deleted > 0) {
+            touchPlan(planId, OffsetDateTime.now(ZoneOffset.UTC));
+        }
+        return deleted > 0;
+    }
+
+    @Override
+    public List<ExpenseItem> findExpenses(UUID planId) {
+        return jdbcTemplate.query(
+                "select * from expenses where plan_id = ? order by sort_order, name",
+                this::mapExpense,
+                planId
+        );
+    }
+
+    @Override
+    public Optional<ExpenseItem> findExpense(UUID planId, UUID expenseId) {
+        return queryOptional(
+                "select * from expenses where plan_id = ? and id = ?",
+                this::mapExpense,
+                planId,
+                expenseId
+        );
+    }
+
+    @Override
+    public ExpenseItem createExpense(ExpenseItem expense) {
+        OffsetDateTime now = offset(expense.updatedAt());
+        jdbcTemplate.update(
+                "insert into expenses (id, plan_id, name, amount, currency, frequency, growth_type, growth_pct, growth_label, budget_class, start_date, end_date, sort_order, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                expense.id(),
+                expense.planId(),
+                expense.name(),
+                expense.amount(),
+                expense.currency(),
+                dbValue(expense.frequency()),
+                dbValue(expense.growthType()),
+                expense.growthPct(),
+                expense.growthLabel(),
+                dbValue(expense.budgetClass()),
+                expense.startDate(),
+                expense.endDate(),
+                nextSortOrder("expenses", expense.planId()),
+                offset(expense.createdAt()),
+                now
+        );
+        touchPlan(expense.planId(), now);
+        return findExpense(expense.planId(), expense.id()).orElseThrow();
+    }
+
+    @Override
+    public ExpenseItem updateExpense(ExpenseItem expense) {
+        OffsetDateTime now = offset(expense.updatedAt());
+        jdbcTemplate.update(
+                "update expenses set name = ?, amount = ?, currency = ?, frequency = ?, growth_type = ?, growth_pct = ?, growth_label = ?, budget_class = ?, start_date = ?, end_date = ?, updated_at = ? where plan_id = ? and id = ?",
+                expense.name(),
+                expense.amount(),
+                expense.currency(),
+                dbValue(expense.frequency()),
+                dbValue(expense.growthType()),
+                expense.growthPct(),
+                expense.growthLabel(),
+                dbValue(expense.budgetClass()),
+                expense.startDate(),
+                expense.endDate(),
+                now,
+                expense.planId(),
+                expense.id()
+        );
+        touchPlan(expense.planId(), now);
+        return findExpense(expense.planId(), expense.id()).orElseThrow();
+    }
+
+    @Override
+    public boolean deleteExpense(UUID planId, UUID expenseId) {
+        int deleted = jdbcTemplate.update("delete from expenses where plan_id = ? and id = ?", planId, expenseId);
+        if (deleted > 0) {
+            touchPlan(planId, OffsetDateTime.now(ZoneOffset.UTC));
+        }
+        return deleted > 0;
+    }
+
+    @Override
+    public List<Goal> findGoals(UUID planId) {
+        return jdbcTemplate.query(
+                "select * from goals where plan_id = ? order by priority, name",
+                this::mapGoal,
+                planId
+        );
+    }
+
+    @Override
+    public Optional<Goal> findGoal(UUID planId, UUID goalId) {
+        return queryOptional(
+                "select * from goals where plan_id = ? and id = ?",
+                this::mapGoal,
+                planId,
+                goalId
+        );
+    }
+
+    @Override
+    public Goal createGoal(Goal goal) {
+        OffsetDateTime now = offset(goal.updatedAt());
+        jdbcTemplate.update(
+                "insert into goals (id, plan_id, name, icon, current_cost, saved_amount, currency, target_year, type, growth_type, growth_pct, index_label, priority, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                goal.id(),
+                goal.planId(),
+                goal.name(),
+                goal.icon(),
+                goal.currentCost(),
+                goal.savedAmount(),
+                goal.currency(),
+                goal.targetYear(),
+                dbValue(goal.type()),
+                dbValue(goal.growthType()),
+                goal.growthPct(),
+                goal.indexLabel(),
+                goal.priority(),
+                offset(goal.createdAt()),
+                now
+        );
+        touchPlan(goal.planId(), now);
+        return findGoal(goal.planId(), goal.id()).orElseThrow();
+    }
+
+    @Override
+    public Goal updateGoal(Goal goal) {
+        OffsetDateTime now = offset(goal.updatedAt());
+        jdbcTemplate.update(
+                "update goals set name = ?, icon = ?, current_cost = ?, saved_amount = ?, currency = ?, target_year = ?, type = ?, growth_type = ?, growth_pct = ?, index_label = ?, priority = ?, updated_at = ? where plan_id = ? and id = ?",
+                goal.name(),
+                goal.icon(),
+                goal.currentCost(),
+                goal.savedAmount(),
+                goal.currency(),
+                goal.targetYear(),
+                dbValue(goal.type()),
+                dbValue(goal.growthType()),
+                goal.growthPct(),
+                goal.indexLabel(),
+                goal.priority(),
+                now,
+                goal.planId(),
+                goal.id()
+        );
+        touchPlan(goal.planId(), now);
+        return findGoal(goal.planId(), goal.id()).orElseThrow();
+    }
+
+    @Override
+    public boolean deleteGoal(UUID planId, UUID goalId) {
+        int deleted = jdbcTemplate.update("delete from goals where plan_id = ? and id = ?", planId, goalId);
+        if (deleted > 0) {
+            touchPlan(planId, OffsetDateTime.now(ZoneOffset.UTC));
+        }
+        return deleted > 0;
+    }
+
+    @Override
+    public List<Goal> reorderGoals(UUID planId, List<UUID> goalIds) {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        for (int index = 0; index < goalIds.size(); index++) {
+            jdbcTemplate.update(
+                    "update goals set priority = ?, updated_at = ? where plan_id = ? and id = ?",
+                    index + 1,
+                    now,
+                    planId,
+                    goalIds.get(index)
+            );
+        }
+        touchPlan(planId, now);
+        return findGoals(planId);
+    }
+
+    private <T> Optional<T> queryOptional(String sql, org.springframework.jdbc.core.RowMapper<T> mapper, Object... args) {
+        try {
+            return Optional.ofNullable(jdbcTemplate.queryForObject(sql, mapper, args));
+        } catch (EmptyResultDataAccessException ignored) {
+            return Optional.empty();
+        }
+    }
+
+    private int nextSortOrder(String tableName, UUID planId) {
+        Integer value = jdbcTemplate.queryForObject("select coalesce(max(sort_order), 0) + 1 from " + tableName + " where plan_id = ?", Integer.class, planId);
+        return value == null ? 1 : value;
+    }
+
+    private void touchPlan(UUID planId, OffsetDateTime updatedAt) {
+        jdbcTemplate.update("update financial_plans set updated_at = ? where id = ?", updatedAt, planId);
+    }
+
+    private static OffsetDateTime offset(Instant instant) {
+        return OffsetDateTime.ofInstant(instant, ZoneOffset.UTC);
+    }
+
+    private static String dbValue(Enum<?> value) {
+        return value.name().toLowerCase();
+    }
+
 
     private FinancialPlan mapPlan(ResultSet rs, int rowNum) throws SQLException {
         return new FinancialPlan(

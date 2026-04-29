@@ -59,4 +59,5 @@ nav:
       - Бэкенд и Keycloak: backend-architecture-keycloak.md
       - Модули бэкенда: backend-modules.md
   - Спецификация OpenAPI: https://github.com/svoronkov-les13/finguide-be/blob/main/openapi/openapi.json
-  - Swagger mock-сервер: http://66.42.121.18/finguide-mock/
+  - Swagger UI real backend: http://66.42.121.18/finguide-api/swagger-ui.html
+  - Legacy mock Swagger: http://66.42.121.18/finguide-mock/

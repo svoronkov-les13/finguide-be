@@ -608,6 +608,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       },
@@ -621,7 +624,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/IncomeSource"
+                "$ref": "#/components/schemas/IncomeSourceCreateRequest"
               }
             }
           }
@@ -650,6 +653,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       }
@@ -702,6 +708,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       },
@@ -715,7 +724,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/IncomeSource"
+                "$ref": "#/components/schemas/IncomeSourcePatchRequest"
               }
             }
           }
@@ -744,6 +753,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       },
@@ -805,6 +817,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       },
@@ -818,7 +833,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ExpenseItem"
+                "$ref": "#/components/schemas/ExpenseItemCreateRequest"
               }
             }
           }
@@ -847,6 +862,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       }
@@ -899,6 +917,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       },
@@ -912,7 +933,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ExpenseItem"
+                "$ref": "#/components/schemas/ExpenseItemPatchRequest"
               }
             }
           }
@@ -941,6 +962,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       },
@@ -1002,6 +1026,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       },
@@ -1015,7 +1042,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Goal"
+                "$ref": "#/components/schemas/GoalCreateRequest"
               }
             }
           }
@@ -1044,6 +1071,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       }
@@ -1096,6 +1126,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       },
@@ -1109,7 +1142,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Goal"
+                "$ref": "#/components/schemas/GoalPatchRequest"
               }
             }
           }
@@ -1138,6 +1171,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       },
@@ -1377,18 +1413,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "required": [
-                  "goalIds"
-                ],
-                "properties": {
-                  "goalIds": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  }
-                }
+                "$ref": "#/components/schemas/GoalReorderRequest"
               }
             }
           }
@@ -1417,6 +1442,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       }
@@ -4003,6 +4031,361 @@
             "additionalProperties": {
               "type": "string"
             }
+          }
+        }
+      },
+      "IncomeSourceCreateRequest": {
+        "type": "object",
+        "description": "Request to create an income. id is optional and ignored by the current backend; server generates id/timestamps.",
+        "required": [
+          "name",
+          "amount",
+          "currency",
+          "frequency",
+          "growthType",
+          "growthPct",
+          "startDate"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "examples": [
+              "Зарплата"
+            ]
+          },
+          "amount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "currency": {
+            "$ref": "#/components/schemas/CurrencyCode"
+          },
+          "frequency": {
+            "$ref": "#/components/schemas/Frequency"
+          },
+          "growthType": {
+            "$ref": "#/components/schemas/GrowthType"
+          },
+          "growthPct": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          }
+        }
+      },
+      "IncomeSourcePatchRequest": {
+        "type": "object",
+        "description": "Partial request to update an income; omitted fields stay unchanged. Omitted fields keep current values; explicit null for nullable fields is treated as unchanged in the current H2 implementation.",
+        "required": [],
+        "properties": {
+          "name": {
+            "type": "string",
+            "examples": [
+              "Зарплата"
+            ]
+          },
+          "amount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "currency": {
+            "$ref": "#/components/schemas/CurrencyCode"
+          },
+          "frequency": {
+            "$ref": "#/components/schemas/Frequency"
+          },
+          "growthType": {
+            "$ref": "#/components/schemas/GrowthType"
+          },
+          "growthPct": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          }
+        }
+      },
+      "ExpenseItemCreateRequest": {
+        "type": "object",
+        "description": "Request to create an expense. id is optional and ignored by the current backend; server generates id/timestamps.",
+        "required": [
+          "name",
+          "amount",
+          "currency",
+          "frequency",
+          "growthType",
+          "growthPct",
+          "startDate"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "examples": [
+              "Ипотека"
+            ]
+          },
+          "amount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "currency": {
+            "$ref": "#/components/schemas/CurrencyCode"
+          },
+          "frequency": {
+            "$ref": "#/components/schemas/Frequency"
+          },
+          "growthType": {
+            "$ref": "#/components/schemas/GrowthType"
+          },
+          "growthPct": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "growthLabel": {
+            "type": "string"
+          },
+          "budgetClass": {
+            "type": "string",
+            "enum": [
+              "needs",
+              "wants",
+              "savings"
+            ]
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          }
+        }
+      },
+      "ExpenseItemPatchRequest": {
+        "type": "object",
+        "description": "Partial request to update an expense; omitted fields stay unchanged. Omitted fields keep current values; explicit null for nullable fields is treated as unchanged in the current H2 implementation.",
+        "required": [],
+        "properties": {
+          "name": {
+            "type": "string",
+            "examples": [
+              "Ипотека"
+            ]
+          },
+          "amount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "currency": {
+            "$ref": "#/components/schemas/CurrencyCode"
+          },
+          "frequency": {
+            "$ref": "#/components/schemas/Frequency"
+          },
+          "growthType": {
+            "$ref": "#/components/schemas/GrowthType"
+          },
+          "growthPct": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "growthLabel": {
+            "type": "string"
+          },
+          "budgetClass": {
+            "type": "string",
+            "enum": [
+              "needs",
+              "wants",
+              "savings"
+            ]
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          }
+        }
+      },
+      "GoalCreateRequest": {
+        "type": "object",
+        "description": "Request to create a goal. id is optional and ignored by the current backend; server generates id/timestamps.",
+        "required": [
+          "name",
+          "currentCost",
+          "savedAmount",
+          "currency",
+          "targetYear",
+          "type",
+          "growthType",
+          "growthPct",
+          "priority"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "examples": [
+              "Финансовая подушка"
+            ]
+          },
+          "icon": {
+            "type": "string",
+            "examples": [
+              "shield"
+            ]
+          },
+          "currentCost": {
+            "type": "number",
+            "minimum": 0
+          },
+          "savedAmount": {
+            "type": "number",
+            "minimum": 0,
+            "description": "denormalized current saved amount; server can also derive it from contributions"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/CurrencyCode"
+          },
+          "targetYear": {
+            "type": "integer",
+            "minimum": 2024
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "one_time",
+              "recurring"
+            ]
+          },
+          "growthType": {
+            "$ref": "#/components/schemas/GrowthType"
+          },
+          "growthPct": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "indexLabel": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "GoalPatchRequest": {
+        "type": "object",
+        "description": "Partial request to update a goal; omitted fields stay unchanged. Omitted fields keep current values; explicit null for nullable fields is treated as unchanged in the current H2 implementation.",
+        "required": [],
+        "properties": {
+          "name": {
+            "type": "string",
+            "examples": [
+              "Финансовая подушка"
+            ]
+          },
+          "icon": {
+            "type": "string",
+            "examples": [
+              "shield"
+            ]
+          },
+          "currentCost": {
+            "type": "number",
+            "minimum": 0
+          },
+          "savedAmount": {
+            "type": "number",
+            "minimum": 0,
+            "description": "denormalized current saved amount; server can also derive it from contributions"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/CurrencyCode"
+          },
+          "targetYear": {
+            "type": "integer",
+            "minimum": 2024
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "one_time",
+              "recurring"
+            ]
+          },
+          "growthType": {
+            "$ref": "#/components/schemas/GrowthType"
+          },
+          "growthPct": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "indexLabel": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "GoalReorderRequest": {
+        "type": "object",
+        "required": [
+          "goalIds"
+        ],
+        "properties": {
+          "goalIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "All current goal ids in the desired waterfall priority order, each exactly once."
           }
         }
       }
