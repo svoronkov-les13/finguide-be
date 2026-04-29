@@ -37,6 +37,9 @@
     </#if>
     <title>${msg("loginTitle",(realm.displayName!''))}</title>
     <link rel="icon" href="${url.resourcesPath}/img/favicon.ico" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap&subset=cyrillic" rel="stylesheet">
     <#if properties.stylesCommon?has_content>
         <#list properties.stylesCommon?split(' ') as style>
             <link href="${url.resourcesCommonPath}/${style}" rel="stylesheet" />
@@ -331,6 +334,66 @@ input[type="submit"]:hover {
   .pf-v5-c-login__main-header,
   .pf-v5-c-login__main-body,
   .pf-v5-c-login__main-footer-band { padding-left: 18px !important; padding-right: 18px !important; }
+}
+
+
+/* FinGuide app-level polish: same font, no external badge, no square default controls. */
+.pf-v5-c-login__header,
+#kc-header,
+#kc-header-wrapper,
+.pf-v5-c-brand {
+  display: none !important;
+}
+
+.pf-v5-c-login__container {
+  gap: 0 !important;
+}
+
+.pf-v5-c-login__main-header-utilities,
+#kc-locale,
+#kc-locale-dropdown,
+#kc-locale-dropdown-menu,
+#login-select-toggle {
+  display: none !important;
+}
+
+.pf-v5-c-check__input,
+input[type="checkbox"] {
+  width: 16px !important;
+  height: 16px !important;
+  border: 1px solid var(--fg-border) !important;
+  border-radius: 5px !important;
+  background-color: #fffdf8 !important;
+  accent-color: var(--fg-primary) !important;
+}
+
+.pf-v5-c-input-group,
+.pf-v5-c-input-group__item,
+.pf-v5-c-form-control,
+.pf-v5-c-form-control::before,
+.pf-v5-c-form-control::after,
+.pf-v5-c-button,
+button,
+select {
+  border-radius: 12px !important;
+}
+
+button[aria-label*="password"],
+button[aria-label*="Password"],
+button[aria-label*="парол"],
+.pf-v5-c-form-control .pf-v5-c-button,
+.pf-v5-c-input-group .pf-v5-c-button {
+  border-radius: 0 12px 12px 0 !important;
+  background: #fffdf8 !important;
+  color: var(--fg-muted) !important;
+}
+
+.pf-v5-c-login__main {
+  box-shadow: 0 2px 8px rgba(34, 29, 22, 0.05) !important;
+}
+
+#kc-page-title {
+  margin-bottom: 0 !important;
 }
 
     </style>
