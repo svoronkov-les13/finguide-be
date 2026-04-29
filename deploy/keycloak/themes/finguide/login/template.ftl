@@ -89,17 +89,14 @@
     </script>
 
     <style id="finguide-critical-auth-layout">
-      :root { color-scheme: dark; }
+      :root { color-scheme: light; }
       html, body, #keycloak-bg {
         min-height: 100vh !important;
         margin: 0 !important;
-        background:
-          radial-gradient(circle at 18% 18%, rgba(20, 184, 166, 0.26), transparent 32rem),
-          radial-gradient(circle at 86% 12%, rgba(139, 92, 246, 0.24), transparent 30rem),
-          linear-gradient(135deg, #020617 0%, #0f172a 58%, #111827 100%) !important;
+        background: #f4f1eb !important;
       }
       body #keycloak-bg, body, .login-pf, .pf-v5-c-login {
-        color: #e5f3ff !important;
+        color: #24202a !important;
         font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
       }
       body .pf-v5-c-login {
@@ -107,17 +104,17 @@
         align-items: center !important;
         justify-content: center !important;
         min-height: 100vh !important;
-        padding: 32px 16px !important;
-        background: transparent !important;
+        padding: 24px 16px !important;
+        background: #f4f1eb !important;
       }
       body .pf-v5-c-login__container {
         display: flex !important;
         flex-direction: column !important;
         align-items: center !important;
         justify-content: center !important;
-        gap: 22px !important;
-        width: min(100%, 540px) !important;
-        max-width: 540px !important;
+        gap: 14px !important;
+        width: min(100%, 460px) !important;
+        max-width: 460px !important;
         min-height: auto !important;
         margin: 0 auto !important;
         padding: 0 !important;
@@ -151,63 +148,67 @@
         justify-content: center !important;
         width: fit-content !important;
         margin: 0 auto !important;
-        padding: 10px 20px !important;
-        border: 1px solid rgba(94, 234, 212, 0.28) !important;
+        padding: 7px 13px !important;
+        border: 1px solid rgba(36, 32, 42, 0.14) !important;
         border-radius: 999px !important;
-        background: rgba(15, 23, 42, 0.72) !important;
-        color: #e5f3ff !important;
-        font-size: 34px !important;
-        font-weight: 850 !important;
-        letter-spacing: -0.04em !important;
+        background: rgba(251, 250, 246, 0.86) !important;
+        color: #24202a !important;
+        font-size: 18px !important;
+        font-weight: 800 !important;
+        letter-spacing: -0.03em !important;
         text-transform: none !important;
-        box-shadow: 0 16px 48px rgba(20, 184, 166, 0.16) !important;
+        box-shadow: 0 2px 8px rgba(34, 29, 22, 0.06) !important;
       }
       body .pf-v5-c-login__main,
       body .card-pf {
         display: block !important;
-        width: min(100%, 520px) !important;
-        max-width: 520px !important;
+        width: min(100%, 420px) !important;
+        max-width: 420px !important;
         margin: 0 auto !important;
         order: 1 !important;
         grid-area: auto !important;
-        border: 1px solid rgba(148, 163, 184, 0.22) !important;
-        border-radius: 32px !important;
-        background: rgba(15, 23, 42, 0.92) !important;
-        box-shadow: 0 28px 90px rgba(2, 6, 23, 0.56) !important;
-        backdrop-filter: blur(18px) !important;
+        border: 1px solid rgba(189, 150, 44, 0.2) !important;
+        border-radius: 22px !important;
+        background: rgba(251, 250, 246, 0.96) !important;
+        box-shadow: 0 10px 28px rgba(34, 29, 22, 0.07), 0 1px 1px rgba(34, 29, 22, 0.05) !important;
         overflow: hidden !important;
       }
       body .pf-v5-c-login__main-header,
       body .pf-v5-c-login__main-body,
       body .pf-v5-c-login__main-footer-band {
-        padding-left: 34px !important;
-        padding-right: 34px !important;
+        padding-left: 24px !important;
+        padding-right: 24px !important;
         background: transparent !important;
       }
       body .pf-v5-c-login__main-header {
-        padding-top: 34px !important;
-        padding-bottom: 18px !important;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.14) !important;
+        padding-top: 24px !important;
+        padding-bottom: 12px !important;
+        border-bottom: 1px solid rgba(36, 32, 42, 0.08) !important;
       }
-      body .pf-v5-c-login__main-body { padding-bottom: 28px !important; }
+      body .pf-v5-c-login__main-body {
+        padding-top: 18px !important;
+        padding-bottom: 20px !important;
+      }
       body .pf-v5-c-login__main-footer-band {
-        padding-top: 22px !important;
-        padding-bottom: 24px !important;
-        border-top: 1px solid rgba(148, 163, 184, 0.14) !important;
-        background: rgba(15, 23, 42, 0.58) !important;
+        padding-top: 16px !important;
+        padding-bottom: 18px !important;
+        border-top: 1px solid rgba(36, 32, 42, 0.08) !important;
+        background: rgba(241, 238, 232, 0.72) !important;
       }
       body #kc-page-title,
       body .pf-v5-c-title {
-        color: #e5f3ff !important;
+        color: #24202a !important;
         text-align: center !important;
+        font-size: 24px !important;
+        line-height: 1.15 !important;
         letter-spacing: -0.03em !important;
       }
       body #kc-page-title::after {
         content: "Финансовый план под вашим контролем";
         display: block;
-        margin-top: 10px;
-        color: #94a3b8;
-        font-size: 15px;
+        margin-top: 7px;
+        color: #756f67;
+        font-size: 13px;
         font-weight: 500;
         letter-spacing: 0;
       }
@@ -217,45 +218,48 @@
       body .instruction,
       body .pf-v5-c-helper-text__item-text,
       body #kc-form-options,
-      body #kc-info-wrapper { color: #94a3b8 !important; }
+      body #kc-info-wrapper { color: #756f67 !important; }
+      body .pf-v5-c-form__group { margin-bottom: 13px !important; }
       body .pf-v5-c-form-control,
       body .pf-v5-c-form-control > input,
       body input[type="text"],
       body input[type="password"],
       body input[type="email"],
       body select {
-        border-color: rgba(148, 163, 184, 0.3) !important;
-        border-radius: 16px !important;
-        background: rgba(2, 6, 23, 0.68) !important;
-        color: #e5f3ff !important;
+        min-height: 40px !important;
+        border-color: rgba(36, 32, 42, 0.14) !important;
+        border-radius: 14px !important;
+        background: rgba(251, 250, 246, 0.9) !important;
+        color: #24202a !important;
         box-shadow: none !important;
       }
       body .pf-v5-c-form-control:focus-within,
       body input:focus,
       body select:focus {
-        border-color: rgba(94, 234, 212, 0.72) !important;
-        box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.16) !important;
+        border-color: rgba(189, 150, 44, 0.65) !important;
+        box-shadow: 0 0 0 3px rgba(189, 150, 44, 0.18) !important;
       }
-      body a { color: #5eead4 !important; font-weight: 700 !important; }
+      body a { color: #9b761f !important; font-weight: 700 !important; }
       body .pf-v5-c-button.pf-m-primary,
       body input[type="submit"] {
         min-height: 44px !important;
         border: 0 !important;
         border-radius: 999px !important;
-        background: linear-gradient(135deg, #14b8a6, #8b5cf6) !important;
-        color: #fff !important;
-        font-weight: 800 !important;
-        box-shadow: 0 16px 36px rgba(20, 184, 166, 0.25) !important;
+        background: #bd962c !important;
+        color: #fff7dc !important;
+        font-size: 15px !important;
+        font-weight: 700 !important;
+        box-shadow: 0 2px 8px rgba(34, 29, 22, 0.06) !important;
       }
       body .pf-v5-c-button.pf-m-primary:hover,
-      body input[type="submit"]:hover { filter: brightness(1.07) !important; }
+      body input[type="submit"]:hover { background: #a98322 !important; }
       @media (max-width: 640px) {
-        body .pf-v5-c-login { padding: 18px 12px !important; }
-        body .pf-v5-c-login__main { border-radius: 24px !important; }
-        body #kc-header-wrapper::after, body .pf-v5-c-brand::after { font-size: 28px !important; }
+        body .pf-v5-c-login { padding: 16px 12px !important; }
+        body .pf-v5-c-login__main { border-radius: 20px !important; }
+        body #kc-header-wrapper::after, body .pf-v5-c-brand::after { font-size: 17px !important; }
         body .pf-v5-c-login__main-header,
         body .pf-v5-c-login__main-body,
-        body .pf-v5-c-login__main-footer-band { padding-left: 22px !important; padding-right: 22px !important; }
+        body .pf-v5-c-login__main-footer-band { padding-left: 20px !important; padding-right: 20px !important; }
       }
     </style>
 
