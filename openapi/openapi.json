@@ -3,7 +3,7 @@
   "info": {
     "title": "FinGuide / Финансовый капитал API",
     "version": "0.1.0",
-    "description": "Backend/frontend contract for the financial planning product reconstructed from the Figma Make mockup. Base path: /api/v1."
+    "description": "Backend/frontend contract for the financial planning product reconstructed from the Figma Make mockup. Base path: /api/v1. Excel model analytics are documented in docs/model-analytics.md."
   },
   "servers": [
     {
@@ -2284,6 +2284,252 @@
           }
         }
       }
+    },
+    "/plans/{planId}/analytics/assumptions": {
+      "parameters": [
+        {
+          "name": "planId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Get projection assumptions imported from UI or Excel model",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ModelAssumptions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Update projection assumptions",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelAssumptions"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ModelAssumptions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/plans/{planId}/analytics/balance/current": {
+      "parameters": [
+        {
+          "name": "planId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Current-year workbook-style balance snapshot",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/BalanceSnapshot"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/plans/{planId}/analytics/cashflow": {
+      "parameters": [
+        {
+          "name": "planId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "startYear",
+          "in": "query",
+          "schema": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "endYear",
+          "in": "query",
+          "schema": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "years",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 80
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Rich yearly cashflow projection based on the Excel model",
+        "description": "Returns income, expense, goal-spending, annual savings and accumulated capital per year. API outflows are positive; netSavings = income - expenses - goalExpenses.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CashFlowProjectionPoint"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/plans/{planId}/pension/projection": {
+      "parameters": [
+        {
+          "name": "planId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Pension",
+          "Analytics"
+        ],
+        "summary": "Pension projection with preserve-capital and spend-down variants",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PensionProjection"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2352,7 +2598,8 @@
         "enum": [
           "manual",
           "inflation",
-          "none"
+          "none",
+          "schedule"
         ]
       },
       "Gender": {
@@ -2573,6 +2820,16 @@
             "examples": [
               22000
             ]
+          },
+          "desiredMonthlyExpensesCurrentPrices": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Excel model row: desired retirement spending in current prices."
+          },
+          "projection": {
+            "$ref": "#/components/schemas/PensionProjection"
           }
         }
       },
@@ -2634,6 +2891,27 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "startYear": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Derived/imported active start year; startDate remains canonical for day precision."
+          },
+          "endYear": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Derived/imported active end year; endDate remains canonical for day precision."
+          },
+          "growthSchedule": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/YearRatePoint"
+            },
+            "description": "Optional per-year growth rates from the Excel model. Overrides growthPct for listed years."
           }
         }
       },
@@ -2706,6 +2984,27 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "startYear": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Derived/imported active start year; startDate remains canonical for day precision."
+          },
+          "endYear": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Derived/imported active end year; endDate remains canonical for day precision."
+          },
+          "growthSchedule": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/YearRatePoint"
+            },
+            "description": "Optional per-year growth rates from the Excel model. Overrides growthPct for listed years."
           }
         }
       },
@@ -2784,6 +3083,48 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "plannedAmount": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "For recurring goal-spending lines from the Excel model."
+          },
+          "frequency": {
+            "$ref": "#/components/schemas/Frequency"
+          },
+          "startDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "endDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "startYear": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "endYear": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "growthSchedule": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/YearRatePoint"
+            }
           }
         }
       },
@@ -2956,6 +3297,9 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "modelAssumptions": {
+            "$ref": "#/components/schemas/ModelAssumptions"
           }
         }
       },
@@ -3189,7 +3533,8 @@
               "incomes",
               "expenses",
               "goals",
-              "full_plan"
+              "full_plan",
+              "excel_model"
             ]
           },
           "mode": {
@@ -3245,6 +3590,333 @@
           "expiresAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "YearRatePoint": {
+        "type": "object",
+        "required": [
+          "year",
+          "ratePct"
+        ],
+        "properties": {
+          "year": {
+            "type": "integer",
+            "minimum": 1900,
+            "maximum": 2200
+          },
+          "ratePct": {
+            "type": "number",
+            "description": "Percent points. Example: 6 means 6% and is converted to 0.06 by calculation code."
+          }
+        }
+      },
+      "ModelAssumptions": {
+        "type": "object",
+        "required": [
+          "startYear",
+          "monthsPerYear",
+          "currency",
+          "investmentReturnPct",
+          "inflationSchedule"
+        ],
+        "properties": {
+          "startYear": {
+            "type": "integer",
+            "examples": [
+              2024
+            ]
+          },
+          "projectionEndYear": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "examples": [
+              2076
+            ]
+          },
+          "horizonYears": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 80,
+            "examples": [
+              53
+            ]
+          },
+          "birthYear": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "examples": [
+              1993
+            ]
+          },
+          "monthsPerYear": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12,
+            "default": 12
+          },
+          "currency": {
+            "$ref": "#/components/schemas/CurrencyCode"
+          },
+          "initialCapital": {
+            "type": "number",
+            "default": 0
+          },
+          "investmentReturnPct": {
+            "type": "number",
+            "description": "Nominal annual return in percent points. Excel sample: 6."
+          },
+          "inflationSchedule": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/YearRatePoint"
+            }
+          },
+          "sourceModel": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional import/source marker, e.g. uploaded Excel model checksum."
+          }
+        }
+      },
+      "BalanceSnapshot": {
+        "type": "object",
+        "required": [
+          "year",
+          "monthlyIncome",
+          "yearlyIncome",
+          "totalIncome",
+          "monthlyExpenses",
+          "yearlyExpenses",
+          "goalExpenses",
+          "totalOutflow",
+          "netSavings"
+        ],
+        "properties": {
+          "year": {
+            "type": "integer"
+          },
+          "monthlyIncome": {
+            "type": "number"
+          },
+          "yearlyIncome": {
+            "type": "number"
+          },
+          "totalIncome": {
+            "type": "number"
+          },
+          "monthlyExpenses": {
+            "type": "number"
+          },
+          "yearlyExpenses": {
+            "type": "number"
+          },
+          "monthlyGoalExpenses": {
+            "type": "number"
+          },
+          "yearlyGoalExpenses": {
+            "type": "number"
+          },
+          "goalExpenses": {
+            "type": "number"
+          },
+          "totalOutflow": {
+            "type": "number"
+          },
+          "netSavings": {
+            "type": "number"
+          }
+        }
+      },
+      "CashFlowProjectionPoint": {
+        "type": "object",
+        "required": [
+          "year",
+          "age",
+          "periodNo",
+          "totalIncome",
+          "totalExpenses",
+          "totalGoalExpenses",
+          "netSavings",
+          "capitalEndOfYear"
+        ],
+        "properties": {
+          "year": {
+            "type": "integer"
+          },
+          "age": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "periodNo": {
+            "type": "integer"
+          },
+          "monthlyIncome": {
+            "type": "number"
+          },
+          "yearlyIncome": {
+            "type": "number"
+          },
+          "totalIncome": {
+            "type": "number"
+          },
+          "monthlyExpenses": {
+            "type": "number"
+          },
+          "yearlyExpenses": {
+            "type": "number"
+          },
+          "totalExpenses": {
+            "type": "number"
+          },
+          "monthlyGoalExpenses": {
+            "type": "number"
+          },
+          "yearlyGoalExpenses": {
+            "type": "number"
+          },
+          "totalGoalExpenses": {
+            "type": "number"
+          },
+          "netSavings": {
+            "type": "number"
+          },
+          "investmentReturnPct": {
+            "type": "number"
+          },
+          "capitalStartOfYear": {
+            "type": "number"
+          },
+          "capitalEndOfYear": {
+            "type": "number"
+          }
+        }
+      },
+      "PensionSpendDownPoint": {
+        "type": "object",
+        "required": [
+          "year",
+          "age",
+          "beginningCapital",
+          "plannedExpense",
+          "endingCapital"
+        ],
+        "properties": {
+          "year": {
+            "type": "integer"
+          },
+          "age": {
+            "type": "integer"
+          },
+          "beginningCapital": {
+            "type": "number"
+          },
+          "plannedExpense": {
+            "type": "number",
+            "description": "Positive outflow amount."
+          },
+          "nominalReturnPct": {
+            "type": "number"
+          },
+          "endingCapital": {
+            "type": "number"
+          }
+        }
+      },
+      "PensionProjection": {
+        "type": "object",
+        "required": [
+          "currentAge",
+          "retirementAge",
+          "retirementYear",
+          "capitalAtRetirement",
+          "nominalReturnPct",
+          "averageInflationPct",
+          "realReturnPct",
+          "preserveCapital",
+          "spendDown"
+        ],
+        "properties": {
+          "currentAge": {
+            "type": "integer"
+          },
+          "retirementAge": {
+            "type": "integer"
+          },
+          "retirementYear": {
+            "type": "integer"
+          },
+          "capitalAtRetirement": {
+            "type": "number"
+          },
+          "nominalReturnPct": {
+            "type": "number"
+          },
+          "averageInflationPct": {
+            "type": "number"
+          },
+          "realReturnPct": {
+            "type": "number"
+          },
+          "preserveCapital": {
+            "type": "object",
+            "required": [
+              "annualSpendableAtRetirement",
+              "annualSpendableCurrentPrices",
+              "monthlySpendableCurrentPrices"
+            ],
+            "properties": {
+              "annualSpendableAtRetirement": {
+                "type": "number"
+              },
+              "annualSpendableCurrentPrices": {
+                "type": "number"
+              },
+              "monthlySpendableCurrentPrices": {
+                "type": "number"
+              }
+            }
+          },
+          "spendDown": {
+            "type": "object",
+            "required": [
+              "desiredMonthlyExpensesCurrentPrices",
+              "desiredAnnualExpensesAtRetirement",
+              "retirementYears",
+              "depletionAge",
+              "series"
+            ],
+            "properties": {
+              "desiredMonthlyExpensesCurrentPrices": {
+                "type": "number"
+              },
+              "desiredAnnualExpensesAtRetirement": {
+                "type": "number"
+              },
+              "retirementYears": {
+                "type": "integer"
+              },
+              "depletionAge": {
+                "type": "integer"
+              },
+              "series": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PensionSpendDownPoint"
+                }
+              }
+            }
           }
         }
       }

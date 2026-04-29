@@ -38,12 +38,86 @@ public final class FinGuideMockServer {
           "currentAge": 32,
           "retirementAge": 60,
           "monthlyExpenses": 120000,
+          "desiredMonthlyExpensesCurrentPrices": 120000,
           "currency": "RUB",
           "expectedReturnPct": 9,
           "inflationPct": 7,
           "withdrawalStrategy": "spend_down_30y",
           "statePensionEnabled": true,
           "statePensionMonthly": 22000
+        }
+        """;
+
+    private static final String MODEL_ASSUMPTIONS = """
+        {
+          "startYear": 2024,
+          "projectionEndYear": 2076,
+          "horizonYears": 53,
+          "birthYear": 1993,
+          "monthsPerYear": 12,
+          "currency": "USD",
+          "initialCapital": 0,
+          "investmentReturnPct": 6,
+          "inflationSchedule": [
+            {"year":2024,"ratePct":5},
+            {"year":2025,"ratePct":3},
+            {"year":2026,"ratePct":3},
+            {"year":2027,"ratePct":3}
+          ],
+          "sourceModel": "Модель_P sha256:9f5b900aa95dcb8bb75f60abb3bdbd4a9c3c8cb99154b35d08ac9e89eaf7aff2"
+        }
+        """;
+
+    private static final String BALANCE = """
+        {
+          "year": 2024,
+          "monthlyIncome": 156000,
+          "yearlyIncome": 0,
+          "totalIncome": 156000,
+          "monthlyExpenses": 96000,
+          "yearlyExpenses": 21000,
+          "monthlyGoalExpenses": 0,
+          "yearlyGoalExpenses": 20000,
+          "goalExpenses": 20000,
+          "totalOutflow": 137000,
+          "netSavings": 19000
+        }
+        """;
+
+    private static final String CASHFLOW = """
+        [
+          {"year":2024,"age":31,"periodNo":1,"monthlyIncome":156000,"yearlyIncome":0,"totalIncome":156000,"monthlyExpenses":96000,"yearlyExpenses":21000,"totalExpenses":117000,"monthlyGoalExpenses":0,"yearlyGoalExpenses":20000,"totalGoalExpenses":20000,"netSavings":19000,"investmentReturnPct":6,"capitalStartOfYear":0,"capitalEndOfYear":19000},
+          {"year":2025,"age":32,"periodNo":2,"monthlyIncome":192360,"yearlyIncome":0,"totalIncome":192360,"monthlyExpenses":98520,"yearlyExpenses":21360,"totalExpenses":119880,"monthlyGoalExpenses":0,"yearlyGoalExpenses":20600,"totalGoalExpenses":20600,"netSavings":51880,"investmentReturnPct":6,"capitalStartOfYear":19000,"capitalEndOfYear":70880},
+          {"year":2026,"age":33,"periodNo":3,"monthlyIncome":198130.8,"yearlyIncome":0,"totalIncome":198130.8,"monthlyExpenses":101115.6,"yearlyExpenses":18730.8,"totalExpenses":119846.4,"monthlyGoalExpenses":0,"yearlyGoalExpenses":21218,"totalGoalExpenses":21218,"netSavings":57066.4,"investmentReturnPct":6,"capitalStartOfYear":70880,"capitalEndOfYear":132199.2},
+          {"year":2027,"age":34,"periodNo":4,"monthlyIncome":204074.724,"yearlyIncome":0,"totalIncome":204074.724,"monthlyExpenses":103789.068,"yearlyExpenses":19112.724,"totalExpenses":122901.792,"monthlyGoalExpenses":0,"yearlyGoalExpenses":21854.54,"totalGoalExpenses":21854.54,"netSavings":59318.392,"investmentReturnPct":6,"capitalStartOfYear":132199.2,"capitalEndOfYear":199449.544}
+        ]
+        """;
+
+    private static final String PENSION_PROJECTION = """
+        {
+          "currentAge": 33,
+          "retirementAge": 50,
+          "retirementYear": 2043,
+          "capitalAtRetirement": 2614402.18,
+          "nominalReturnPct": 6,
+          "averageInflationPct": 3.1,
+          "realReturnPct": 2.8128,
+          "preserveCapital": {
+            "annualSpendableAtRetirement": 73537.99,
+            "annualSpendableCurrentPrices": 39940.65,
+            "monthlySpendableCurrentPrices": 3328.39
+          },
+          "spendDown": {
+            "desiredMonthlyExpensesCurrentPrices": 10000,
+            "desiredAnnualExpensesAtRetirement": 220941.76,
+            "retirementYears": 13,
+            "depletionAge": 63,
+            "series": [
+              {"year":2043,"age":50,"beginningCapital":2614402.18,"plannedExpense":220941.76,"nominalReturnPct":6,"endingCapital":2614402.18},
+              {"year":2044,"age":51,"beginningCapital":2614402.18,"plannedExpense":227790.96,"nominalReturnPct":6,"endingCapital":2529807.89},
+              {"year":2045,"age":52,"beginningCapital":2529807.89,"plannedExpense":234852.48,"nominalReturnPct":6,"endingCapital":2432652.74}
+            ]
+          }
         }
         """;
 
@@ -311,9 +385,10 @@ public final class FinGuideMockServer {
           "goals": %s,
           "contributions": %s,
           "budget": %s,
+          "modelAssumptions": %s,
           "updatedAt": "2026-04-28T09:00:00Z"
         }
-        """.formatted(PROFILE, PENSION, INCOMES, EXPENSES, GOALS, CONTRIBUTIONS, BUDGET);
+        """.formatted(PROFILE, PENSION, INCOMES, EXPENSES, GOALS, CONTRIBUTIONS, BUDGET, MODEL_ASSUMPTIONS);
 
     private static final String AUTH_TOKENS = """
         {
@@ -489,6 +564,10 @@ public final class FinGuideMockServer {
         if (api.matches("/plans/[^/]+/budget") && (method.equals("GET") || method.equals("PATCH"))) { json(exchange, 200, data(BUDGET)); return; }
         if (api.matches("/plans/[^/]+/budget/envelopes/autogenerate") && method.equals("POST")) { json(exchange, 200, data(BUDGET)); return; }
         if (api.matches("/plans/[^/]+/dashboard") && method.equals("GET")) { json(exchange, 200, data(DASHBOARD)); return; }
+        if (api.matches("/plans/[^/]+/analytics/assumptions") && (method.equals("GET") || method.equals("PATCH"))) { json(exchange, 200, data(MODEL_ASSUMPTIONS)); return; }
+        if (api.matches("/plans/[^/]+/analytics/balance/current") && method.equals("GET")) { json(exchange, 200, data(BALANCE)); return; }
+        if (api.matches("/plans/[^/]+/analytics/cashflow") && method.equals("GET")) { json(exchange, 200, data(CASHFLOW)); return; }
+        if (api.matches("/plans/[^/]+/pension/projection") && method.equals("GET")) { json(exchange, 200, data(PENSION_PROJECTION)); return; }
         if (api.matches("/plans/[^/]+/analytics/projection") && method.equals("GET")) {
             json(exchange, 200, data("""
                 [

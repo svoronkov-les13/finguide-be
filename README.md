@@ -6,6 +6,7 @@ Current contents:
 
 - `src/main/java/les13/finguide/backend/` — Spring Boot 3 / Java 21 modular backend skeleton.
 - `docs/backend-modules.md` — package/module map.
+- `docs/model-analytics.md` — Excel model analysis and calculation rules.
 - `openapi/openapi.json` — backend/frontend OpenAPI contract.
 - `openapi/openapi-mock.json` — same contract configured for deployed mock Swagger.
 - `docs/contract.md` — human-readable API contract.

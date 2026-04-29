@@ -8,6 +8,7 @@ public record PensionSettings(
         int currentAge,
         int retirementAge,
         BigDecimal monthlyExpenses,
+        BigDecimal desiredMonthlyExpensesCurrentPrices,
         String currency,
         BigDecimal expectedReturnPct,
         BigDecimal inflationPct,

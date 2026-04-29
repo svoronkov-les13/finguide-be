@@ -1,6 +1,11 @@
 # FinGuide / «Финансовый капитал» — контракт backend ↔ frontend
 
-Источник анализа: Figma site `https://smooth-try-70453479.figma.site/`, статически разобран Figma Make bundle. В прототипе все данные живут в `localStorage`; для боевого продукта источник истины должен быть backend.
+Источники анализа:
+
+- Figma site `https://smooth-try-70453479.figma.site/`, статически разобран Figma Make bundle.
+- Excel workbook `Модель_P---56630d2a-6465-4036-bd42-9117c7dc9bd6.xlsx` — расчётная модель FinGuide; подробный разбор: [`docs/model-analytics.md`](./model-analytics.md).
+
+В прототипе все данные живут в `localStorage`; для боевого продукта источник истины должен быть backend.
 
 ## Экраны из макета
 
@@ -27,6 +32,8 @@
 - Ответы: `{ "data": ... }`; ошибки: `{ "error": { "code", "message", "details", "requestId" } }`.
 - Все write-запросы возвращают актуальный ресурс; frontend может делать optimistic update, но затем обязан принять ответ backend.
 - Расчёты (`dashboard`, `analytics`, `pension`, `budget spent`) делает backend, чтобы фронт не дублировал финансовую логику.
+- Денежные input-amount для расходов и целей передаются положительными числами; backend сам нормализует outflow/sign. В derived output расходы и цели тоже положительные, а `netSavings = income - expenses - goalExpenses`.
+- Поля `*Pct` в API — процентные пункты (`6` означает 6%). Внутри расчётов backend переводит их в decimal-rate (`0.06`).
 
 ## Общие конвенции API
 
@@ -125,19 +132,33 @@ Frontend маппит `code` на UX (тост / диалог конфликта
 `id`, `name`, `email`, `phone`, `avatarUrl`, `age`, `gender`, `initialBalance`, `createdAt`, `updatedAt`.
 
 ### IncomeSource / ExpenseItem
-`id`, `name`, `amount`, `currency`, `frequency: monthly|yearly|one_time`, `growthType: manual|inflation|none`, `growthPct`, `startDate`, `endDate`.
+`id`, `name`, `amount`, `currency`, `frequency: monthly|yearly|one_time`, `growthType: manual|inflation|none|schedule`, `growthPct`, `growthSchedule[]`, `startDate`, `endDate`, optional `startYear`, `endYear`.
 Для расходов дополнительно: `budgetClass: needs|wants|savings`, `growthLabel`.
 
+`growthSchedule[]` нужен для Excel-модели: по каждой строке дохода/расхода могут быть разные ставки роста по годам, а не один постоянный процент.
+
 ### Goal
-`id`, `name`, `icon`, `currentCost`, `savedAmount`, `currency`, `targetYear`, `type: one_time|recurring`, `growthType`, `growthPct`, `priority`.
+`id`, `name`, `icon`, `currentCost`, `savedAmount`, `currency`, `targetYear`, `type: one_time|recurring`, `growthType`, `growthPct`, `growthSchedule[]`, `priority`.
 Waterfall-логика: ближайшая/приоритетная цель получает свободные накопления первой; порядок сохраняется через `/goals/reorder`.
+
+Для Excel-модели `Goal` также должен поддерживать плановые расходы на цели: `plannedAmount`, `frequency`, `startDate/endDate` или `startYear/endYear`. Это покрывает лист `Цели`: ежемесячные и ежегодные расходы на цели как отдельный cashflow-stream.
 
 ### Contribution
 `id`, `goalId`, `amount`, `currency`, `date`, `note`.
 Backend либо хранит `Goal.savedAmount` денормализованно, либо пересчитывает из contributions и возвращает в Goal.
 
 ### PensionSettings
-`currentAge`, `retirementAge`, `monthlyExpenses`, `currency`, `expectedReturnPct`, `inflationPct`, `withdrawalStrategy: preserve_capital|spend_down_30y`, `statePensionEnabled`, `statePensionMonthly`.
+`currentAge`, `retirementAge`, `monthlyExpenses`, `desiredMonthlyExpensesCurrentPrices`, `currency`, `expectedReturnPct`, `inflationPct`, `withdrawalStrategy: preserve_capital|spend_down_30y`, `statePensionEnabled`, `statePensionMonthly`.
+
+Excel-модель требует два пенсионных расчёта:
+
+- `preserve_capital`: тратить только реальную доходность от капитала;
+- `spend_down`: тратить желаемый уровень расходов и считать возраст исчерпания капитала.
+
+### ModelAssumptions
+`startYear`, `projectionEndYear` или `horizonYears`, `birthYear`, `monthsPerYear`, `currency`, `initialCapital`, `investmentReturnPct`, `inflationSchedule[]`, `sourceModel`.
+
+Это слой, который переносит лист `Вводные` в backend и делает расчёты воспроизводимыми без Excel.
 
 ### BudgetSettings
 `method: 503020|envelope`, `envelopes[]`, `classifications{expenseId: needs|wants|savings}`.
@@ -167,8 +188,14 @@ Envelope: `id`, `name`, `limit`, `icon`, `color`, computed `spent`, `remaining`,
 ### Analytics / derived data
 - `GET /plans/{planId}/dashboard`
 - `GET /plans/{planId}/analytics/projection?years=30`
+- `GET/PATCH /plans/{planId}/analytics/assumptions`
+- `GET /plans/{planId}/analytics/balance/current`
+- `GET /plans/{planId}/analytics/cashflow?startYear=2024&endYear=2076`
 - `GET /plans/{planId}/analytics/health`
 - `GET/POST /plans/{planId}/calendar/monthly-tracker`
+- `GET /plans/{planId}/pension/projection`
+
+`analytics/cashflow` — главный workbook-style endpoint. Он возвращает годовые строки: возраст, номер периода, доходы, расходы, расходы на цели, чистые сбережения, капитал на начало/конец года.
 
 ### Scenarios
 - `GET/POST /scenarios`
@@ -187,4 +214,4 @@ Envelope: `id`, `name`, `limit`, `icon`, `color`, computed `spent`, `remaining`,
 2. CRUD-экраны используют локальный optimistic state, но инвалидируют `dashboard`, `analytics`, `budget` после записи.
 3. Дашборд и графики не считают деньги сами — только отображают computed endpoints.
 4. Для миграции из прототипа можно один раз прочитать localStorage keys `finguide-data`, `finguide-user-profile`, `finguide-budgets`, `finguide-scenarios` и отправить `PUT /plans/current` / `POST /import`.
-5. Импорт/экспорт должен поддерживать JSON для полного плана и CSV/XLSX/PDF для отчётов.
+5. Импорт/экспорт должен поддерживать JSON для полного плана, `excel_model` для исходной модели и CSV/XLSX/PDF для отчётов.

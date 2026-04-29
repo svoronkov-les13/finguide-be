@@ -67,9 +67,9 @@ incomes/           income source CRUD
 expenses/          expense CRUD and budget classification
 goals/             goals and waterfall priority
 contributions/     actual savings contributions
-pension/           pension settings and calculations
+pension/           pension settings, preserve-capital and spend-down projections
 budget/            50/30/20 and envelopes
-analytics/         dashboard, projections, health score
+analytics/         Excel-model assumptions, balance, cashflow, savings, dashboard, health score
 scenarios/         scenario snapshots/adjustments/compare
 importexport/      JSON/CSV/XLSX/PDF jobs
 notifications/     derived alerts/milestones/tips
@@ -113,6 +113,29 @@ users
 - updated_at timestamptz
 ```
 
+## Calculation architecture
+
+The Excel workbook `Модель_P---56630d2a-6465-4036-bd42-9117c7dc9bd6.xlsx` is the reference model. Backend should reimplement it as deterministic calculation services:
+
+```txt
+PlanState + ModelAssumptions
+  -> normalize amounts/rates/dates
+  -> build yearly timeline
+  -> apply active flags by start/end year
+  -> apply yearly growth schedules
+  -> calculate income/expense/goal cashflow
+  -> calculate annual savings and accumulated capital
+  -> calculate pension preserve-capital and spend-down variants
+  -> cache snapshots for dashboard/scenarios
+```
+
+Important conventions:
+
+- API uses positive amounts for expenses and goal outflows.
+- API rates ending with `Pct` are percent points (`6` = 6%). Calculation code converts to decimal rates.
+- `analytics/cashflow` is the canonical derived projection. Dashboard, health score, scenarios and notifications should derive from it instead of duplicating formulas.
+- Persist raw inputs and optional snapshot outputs; do not persist every transient formula unless needed for audit/cache.
+
 ## Main persistence model
 
 ```txt
@@ -128,6 +151,9 @@ scenarios
 monthly_tracker_entries
 export_jobs
 notification_events
+model_assumptions
+analytics_snapshots
+pension_projection_snapshots
 ```
 
 Common columns:
@@ -155,7 +181,7 @@ Load balancer
 
 Add:
 
-- Redis cache for dashboard/projection snapshots.
+- Redis cache for dashboard/projection snapshots derived from `analytics/cashflow`.
 - Read models: `plan_dashboard_snapshot`, `plan_projection_snapshot`, `financial_health_snapshot`.
 - Outbox pattern for business events.
 - Async jobs for recalculation, export, notifications.
