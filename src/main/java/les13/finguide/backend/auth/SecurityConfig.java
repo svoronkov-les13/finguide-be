@@ -1,5 +1,6 @@
 package les13.finguide.backend.auth;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
@@ -23,19 +24,24 @@ import java.util.Map;
 @EnableMethodSecurity
 public class SecurityConfig {
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, @Value("${finguide.security.demo-mode:false}") boolean demoMode) throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers(
-                                "/actuator/health/**",
-                                "/actuator/info",
-                                "/v3/api-docs/**",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html"
-                        ).permitAll()
-                        .anyRequest().authenticated()
-                )
+                .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.sameOrigin()))
+                .authorizeHttpRequests(authorize -> {
+                    authorize.requestMatchers(
+                            "/actuator/health/**",
+                            "/actuator/info",
+                            "/v3/api-docs/**",
+                            "/swagger-ui/**",
+                            "/swagger-ui.html",
+                            "/h2-console/**"
+                    ).permitAll();
+                    if (demoMode) {
+                        authorize.requestMatchers("/api/v1/**").permitAll();
+                    }
+                    authorize.anyRequest().authenticated();
+                })
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
                 .build();
     }

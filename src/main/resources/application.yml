@@ -1,6 +1,18 @@
 spring:
   application:
     name: finguide-be
+  datasource:
+    url: ${FINGUIDE_DATASOURCE_URL:jdbc:h2:mem:finguide;MODE=PostgreSQL;DATABASE_TO_UPPER=false;DB_CLOSE_DELAY=-1}
+    username: ${FINGUIDE_DATASOURCE_USERNAME:sa}
+    password: ${FINGUIDE_DATASOURCE_PASSWORD:}
+    driver-class-name: org.h2.Driver
+  h2:
+    console:
+      enabled: ${FINGUIDE_H2_CONSOLE_ENABLED:true}
+      path: /h2-console
+  sql:
+    init:
+      mode: always
   security:
     oauth2:
       resourceserver:
@@ -28,4 +40,5 @@ springdoc:
 
 finguide:
   security:
+    demo-mode: ${FINGUIDE_DEMO_MODE:true}
     required-audience: ${KEYCLOAK_AUDIENCE:finguide-api}
