@@ -1,0 +1,62 @@
+site_name: FinGuide Docs
+site_description: Backend contract, architecture and analytics model for FinGuide.
+site_url: https://svoronkov-les13.github.io/finguide-be/
+repo_url: https://github.com/svoronkov-les13/finguide-be
+repo_name: svoronkov-les13/finguide-be
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  language: ru
+  palette:
+    - scheme: default
+      primary: amber
+      accent: teal
+      toggle:
+        icon: material/weather-night
+        name: Темная тема
+    - scheme: slate
+      primary: amber
+      accent: teal
+      toggle:
+        icon: material/weather-sunny
+        name: Светлая тема
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.footer
+    - content.code.copy
+    - content.action.edit
+    - search.suggest
+    - search.highlight
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+nav:
+  - Обзор: index.md
+  - API контракт: contract.md
+  - Excel-модель аналитики: model-analytics.md
+  - Архитектура:
+      - Backend + Keycloak: backend-architecture-keycloak.md
+      - Backend modules: backend-modules.md
+  - OpenAPI JSON: https://github.com/svoronkov-les13/finguide-be/blob/main/openapi/openapi.json
+  - Swagger mock: http://66.42.121.18/finguide-mock/
