@@ -20,6 +20,20 @@
 
 Бэкенд **не хранит пароли** и не владеет формами входа. Keycloak отвечает за идентификацию, учётные данные, MFA и пользовательские сессии. В demo/H2 режиме `/api/v1/**` временно открыт без JWT, чтобы фронтенд мог перейти с mock-запросов на реальные сервисы до подключения Keycloak.
 
+
+## Docker Compose deployment Keycloak
+
+Для первого production/demo deployment Keycloak разворачивается через `docker compose` из `deploy/keycloak/`:
+
+- сервис `keycloak-postgres` — PostgreSQL 16 только для Keycloak, persistent volume `keycloak-postgres-data`;
+- сервис `keycloak` — Keycloak 26 на `127.0.0.1:3094` с public path `/auth`;
+- `.env.example` содержит только placeholders; реальные admin/DB secrets не коммитим и не пишем в логи;
+- healthcheck и `restart: unless-stopped` включены для обоих сервисов;
+- custom theme `finguide` оформляет login/account/password reset screens в стиле FinGuide;
+- backup/restore PostgreSQL описан в `deploy/keycloak/README.md`.
+
+PostgreSQL в этом stack обязателен. Embedded/dev-file DB Keycloak запрещён. Миграция финансовых данных FinGuide с H2 на PostgreSQL остаётся отдельной задачей, если только deployment design не потребует иначе.
+
 ## Настройка Keycloak
 
 ```txt
@@ -199,3 +213,15 @@ notification-worker
 - Ограничение частоты запросов для auth-like и import/export методов API.
 - Журнал аудита для критичных изменений плана.
 - Персональные данные хранить минимально; секреты — только в переменных окружения или secret manager.
+
+## Реализация в текущем backend
+
+В рамках задачи #18 добавлен production auth boundary без удаления demo режима:
+
+- Spring Security OAuth2 Resource Server валидирует issuer/JWKS из `KEYCLOAK_ISSUER_URI`;
+- `KEYCLOAK_AUDIENCE` по умолчанию `finguide-api`, неподходящий `aud` даёт `403 FORBIDDEN`;
+- `JWT.sub` маппится в `user_profiles.keycloak_subject`, профиль создаётся лениво при первом запросе;
+- `GET /api/v1/me` возвращает текущий бизнес-профиль;
+- доступ к `/api/v1/plans/{planId}/...` проверяется по владельцу `financial_plans.owner_user_id`; роль `admin` может читать план для диагностики;
+- операции записи income/expense/goal проходят ту же проверку доступа и пишут audit log без секретов;
+- `FINGUIDE_DEMO_MODE=true` сохраняет прежний no-auth demo/H2 режим для локальных тестов и текущего публичного стенда до запуска Keycloak.

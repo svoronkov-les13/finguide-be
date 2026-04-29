@@ -14,9 +14,17 @@ public class KeycloakJwtAdapter {
         return new CurrentUser(
                 jwt.getSubject(),
                 jwt.getClaimAsString("email"),
-                jwt.getClaimAsString("name"),
+                displayName(jwt),
                 realmRoles(jwt)
         );
+    }
+
+    private String displayName(Jwt jwt) {
+        String name = jwt.getClaimAsString("name");
+        if (name != null && !name.isBlank()) {
+            return name;
+        }
+        return jwt.getClaimAsString("preferred_username");
     }
 
     @SuppressWarnings("unchecked")

@@ -6,8 +6,8 @@ import les13.finguide.backend.analytics.YearlyProjectionPoint;
 import les13.finguide.backend.expenses.ExpenseItem;
 import les13.finguide.backend.goals.Goal;
 import les13.finguide.backend.incomes.IncomeSource;
+import les13.finguide.backend.auth.PlanAccessService;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @Service
 public class PlanReadService {
@@ -25,17 +24,19 @@ public class PlanReadService {
     private static final BigDecimal TWELVE = BigDecimal.valueOf(12);
 
     private final PlanStateRepository repository;
+    private final PlanAccessService accessService;
 
-    public PlanReadService(PlanStateRepository repository) {
+    public PlanReadService(PlanStateRepository repository, PlanAccessService accessService) {
         this.repository = repository;
+        this.accessService = accessService;
     }
 
     public PlanState currentPlan() {
-        return repository.findCurrent().orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Current plan was not found"));
+        return accessService.requireCurrentPlan();
     }
 
     public PlanState plan(UUID planId) {
-        return repository.findById(planId).orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Plan was not found"));
+        return accessService.requirePlan(planId);
     }
 
     public Map<String, Object> dashboard(UUID planId) {

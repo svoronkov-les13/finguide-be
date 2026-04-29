@@ -46,6 +46,20 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     }
 
     @Override
+    public Optional<PlanState> findCurrentForOwner(UUID ownerUserId) {
+        try {
+            UUID planId = jdbcTemplate.queryForObject(
+                    "select id from financial_plans where owner_user_id = ? order by created_at limit 1",
+                    UUID.class,
+                    ownerUserId
+            );
+            return planId == null ? Optional.empty() : findById(planId);
+        } catch (EmptyResultDataAccessException ignored) {
+            return Optional.empty();
+        }
+    }
+
+    @Override
     public Optional<PlanState> findById(UUID planId) {
         try {
             FinancialPlan plan = jdbcTemplate.queryForObject(
@@ -104,6 +118,15 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
         }
     }
 
+
+    @Override
+    public Optional<UUID> findOwnerUserId(UUID planId) {
+        return queryOptional(
+                "select owner_user_id from financial_plans where id = ?",
+                (rs, rowNum) -> rs.getObject("owner_user_id", UUID.class),
+                planId
+        );
+    }
 
     @Override
     public List<IncomeSource> findIncomes(UUID planId) {

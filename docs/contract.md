@@ -32,7 +32,7 @@
 - Legacy mock Swagger остаётся только для переходного сравнения: `http://66.42.121.18/finguide-mock/`.
 
 Текущая real-реализация на H2 уже покрывает чтение плана/дашборда/health/cashflow/scenarios и CRUD для `IncomeSource`, `ExpenseItem`, `Goal`, включая `goals/reorder`. Остальные группы методов из карты ниже пока ведутся отдельными задачами.
-- Авторизация: `Authorization: Bearer <JWT>`; в demo/H2 режиме текущий `/api/v1/**` временно открыт для интеграции фронтенда с real backend без Keycloak.
+- Авторизация: `Authorization: Bearer <JWT>` с access token из Keycloak realm `finguide`. Бэкенд валидирует JWT как OAuth2 Resource Server и не владеет password-based `/auth/register/login/refresh/logout` endpoints. В demo/H2 режиме (`FINGUIDE_DEMO_MODE=true`) `/api/v1/**` временно открыт для интеграции фронтенда с real backend без Keycloak.
 - Все даты: ISO-8601 (`YYYY-MM-DD`, `date-time` UTC).
 - Деньги: число в валюте записи + `currency`; агрегаты возвращаются в базовой валюте плана.
 - Ответы: `{ "data": ... }`; ошибки: `{ "error": { "code", "message", "details", "requestId" } }`.
@@ -193,9 +193,11 @@ Excel-модель требует два пенсионных расчёта:
 
 ### Авторизация и профиль
 
-- `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`
-- `POST /auth/password/forgot`, `POST /auth/password/reset`
-- `GET/PATCH /me`, `PUT/DELETE /me/avatar`, `PUT /me/password`
+Keycloak владеет входом, регистрацией, refresh/logout, восстановлением пароля, MFA и пользовательскими сессиями. Эти endpoints доступны под публичным route `/auth/realms/finguide/protocol/openid-connect/...` и не входят в FinGuide API contract. Frontend использует Authorization Code + PKCE и передаёт access token в API.
+
+- `GET /me` — реализовано в real backend; возвращает локальный бизнес-профиль, связанный с `JWT.sub`.
+- `PATCH /me`, `PUT/DELETE /me/avatar` — отдельные задачи профиля.
+- Смена пароля — вне зоны ответственности backend; пароль меняется через Keycloak account/password reset screens.
 
 ### План и CRUD
 
@@ -236,7 +238,7 @@ Excel-модель требует два пенсионных расчёта:
 
 ## Интеграция фронтенда
 
-1. На старте: `GET /me` + `GET /plans/current` + `GET /plans/{id}/dashboard`.
+1. Если включён OIDC: пройти `/login` → Keycloak Authorization Code + PKCE → `/auth/callback`, сохранить access token и подставлять `Authorization`. Затем: `GET /me` + `GET /plans/current` + `GET /plans/{id}/dashboard`.
 2. CRUD-экраны используют локальное оптимистичное состояние, но инвалидируют `dashboard`, `analytics`, `budget` после записи.
 3. Дашборд и графики не считают деньги сами — только отображают расчётные методы API.
 4. Для миграции из прототипа можно один раз прочитать ключи localStorage `finguide-data`, `finguide-user-profile`, `finguide-budgets`, `finguide-scenarios` и отправить `PUT /plans/current` / `POST /import`.

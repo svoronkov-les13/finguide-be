@@ -4,7 +4,7 @@ Backend artifacts for **FinGuide / «Финансовый капитал»**.
 
 ## Current contents
 
-- `src/main/java/les13/finguide/backend/` — Spring Boot 3 / Java 21 modular backend with embedded H2 demo persistence, real read API endpoints, and income/expense/goal CRUD.
+- `src/main/java/les13/finguide/backend/` — Spring Boot 3 / Java 21 modular backend with embedded H2 demo persistence, real read API endpoints, income/expense/goal CRUD, and Keycloak/OIDC resource-server integration.
 - `src/main/java/les13/finguide/mock/` — legacy Java 21 mock server kept only for transition and regression checks.
 - `openapi/openapi.json` — backend/frontend OpenAPI contract.
 - `openapi/openapi-mock.json` — legacy mock Swagger configuration.
@@ -12,6 +12,7 @@ Backend artifacts for **FinGuide / «Финансовый капитал»**.
 - `docs/model-analytics.md` — Excel model analysis and calculation rules.
 - `docs/backend-architecture-keycloak.md` — target backend architecture with Keycloak auth.
 - `docs/backend-modules.md` — package/module map.
+- `deploy/keycloak/` — Docker Compose stack for Keycloak + PostgreSQL and FinGuide-branded Keycloak theme.
 
 ## Deployed services
 
@@ -47,7 +48,21 @@ http://127.0.0.1:8080/api/v1/plans/{planId}/expenses
 http://127.0.0.1:8080/api/v1/plans/{planId}/goals
 ```
 
-Default local/demo mode uses embedded H2 and permits `/api/v1/**` without Keycloak so frontend integration can move off mock responses incrementally. Income/expense/goal PATCH requests are partial updates; omitted fields stay unchanged, and current H2 demo semantics also treat explicit `null` in nullable fields as unchanged.
+Default local/demo mode uses embedded H2 and permits `/api/v1/**` without Keycloak so frontend integration can move off mock responses incrementally. To enable Keycloak validation set `FINGUIDE_DEMO_MODE=false`, `KEYCLOAK_ISSUER_URI`, and `KEYCLOAK_AUDIENCE=finguide-api`. Income/expense/goal PATCH requests are partial updates; omitted fields stay unchanged, and current H2 demo semantics also treat explicit `null` in nullable fields as unchanged.
+
+
+## Run Keycloak locally/on server
+
+Keycloak is deployed separately with PostgreSQL via Docker Compose:
+
+```bash
+cd deploy/keycloak
+cp .env.example .env
+# edit .env with real secrets outside git/logs
+docker compose --env-file .env up -d
+```
+
+Guide: [`deploy/keycloak/README.md`](deploy/keycloak/README.md). The frontend uses Authorization Code + PKCE (`/fg/login` → `/fg/auth/callback`), and the backend validates `Authorization: Bearer <JWT>`.
 
 ## Run the legacy Java 21 mock locally
 
