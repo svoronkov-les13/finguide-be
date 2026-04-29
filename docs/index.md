@@ -12,9 +12,12 @@
 ## Быстрые ссылки
 
 - Репозиторий GitHub: <https://github.com/svoronkov-les13/finguide-be>
-- Swagger UI mock-сервера: <http://66.42.121.18/finguide-mock/>
+- Swagger UI реального бэкенда: <http://66.42.121.18/finguide-api/swagger-ui.html>
+- OpenAPI JSON реального бэкенда: <http://66.42.121.18/finguide-api/v3/api-docs>
+- База реального API: <http://66.42.121.18/finguide-api/api/v1>
 - Публичный предпросмотр контракта: <http://66.42.121.18/finguide-contract/>
-- JSON-спецификация OpenAPI: <https://github.com/svoronkov-les13/finguide-be/blob/main/openapi/openapi.json>
+- JSON-спецификация OpenAPI в репозитории: <https://github.com/svoronkov-les13/finguide-be/blob/main/openapi/openapi.json>
+- Legacy mock Swagger, только на период перехода: <http://66.42.121.18/finguide-mock/>
 
 ## Главная договорённость
 

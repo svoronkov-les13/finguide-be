@@ -1,8 +1,23 @@
-# Java 21 mock server
+# Java 21 legacy mock server
 
-Small dependency-free Java 21 HTTP server for FinGuide mock Swagger and deterministic stub responses. Source lives in the classic main source tree: `src/main/java`.
+Small dependency-free Java 21 HTTP server for deterministic FinGuide stub responses. It is now a **transition-only** tool: primary Swagger/OpenAPI should point to the real Spring Boot backend services.
 
-## Build and run
+Primary real services:
+
+```txt
+http://66.42.121.18/finguide-api/swagger-ui.html
+http://66.42.121.18/finguide-api/v3/api-docs
+http://66.42.121.18/finguide-api/api/v1
+```
+
+Legacy mock services, kept for comparison during migration:
+
+```txt
+http://66.42.121.18/finguide-mock/
+http://66.42.121.18/finguide-mock/openapi.json
+```
+
+## Build and run mock locally
 
 From repo root:
 
@@ -25,7 +40,7 @@ Open:
 http://127.0.0.1:3092/
 ```
 
-Demo bearer:
+Demo bearer for old mock Swagger:
 
 ```txt
 Bearer mock-access-token-java21

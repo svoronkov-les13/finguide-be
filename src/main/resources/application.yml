@@ -21,6 +21,7 @@ spring:
 
 server:
   port: ${SERVER_PORT:8080}
+  forward-headers-strategy: framework
 
 management:
   endpoints:
@@ -35,6 +36,8 @@ management:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+    config-url: ${FINGUIDE_SWAGGER_CONFIG_URL:/v3/api-docs/swagger-config}
+    url: ${FINGUIDE_SWAGGER_API_DOCS_URL:/v3/api-docs}
   api-docs:
     path: /v3/api-docs
 

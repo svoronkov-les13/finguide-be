@@ -1,9 +1,9 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "FinGuide Mock API — Java 21 stubs",
+    "title": "FinGuide Legacy Mock API — Java 21 stubs",
     "version": "0.1.0-mock",
-    "description": "Backend/frontend contract for the financial planning product reconstructed from the Figma Make mockup. Base path: /api/v1.\n\nThis Swagger is backed by live Java 21 stub endpoints. Use Try it out to receive deterministic mock responses. Excel model analytics are documented in docs/model-analytics.md."
+    "description": "Legacy transition-only mock contract for deterministic Java 21 stub responses. Primary Swagger/OpenAPI is now served by the real Spring Boot backend at /finguide-api/swagger-ui.html and /finguide-api/v3/api-docs."
   },
   "servers": [
     {

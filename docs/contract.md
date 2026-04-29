@@ -25,8 +25,11 @@
 
 ## Базовые правила API
 
-- Базовый URL: `/api/v1`.
-- Авторизация: `Authorization: Bearer <JWT>`.
+- Базовый URL внутри сервиса: `/api/v1`.
+- Публичный URL реального бэкенда на текущем сервере: `http://66.42.121.18/finguide-api/api/v1`.
+- Swagger UI реального бэкенда: `http://66.42.121.18/finguide-api/swagger-ui.html`.
+- Legacy mock Swagger остаётся только для переходного сравнения: `http://66.42.121.18/finguide-mock/`.
+- Авторизация: `Authorization: Bearer <JWT>`; в demo/H2 режиме текущий `/api/v1/**` временно открыт для интеграции фронтенда с real backend без Keycloak.
 - Все даты: ISO-8601 (`YYYY-MM-DD`, `date-time` UTC).
 - Деньги: число в валюте записи + `currency`; агрегаты возвращаются в базовой валюте плана.
 - Ответы: `{ "data": ... }`; ошибки: `{ "error": { "code", "message", "details", "requestId" } }`.

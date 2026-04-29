@@ -3,12 +3,16 @@
   "info": {
     "title": "FinGuide / Финансовый капитал API",
     "version": "0.1.0",
-    "description": "Backend/frontend contract for the financial planning product reconstructed from the Figma Make mockup. Base path: /api/v1. Excel model analytics are documented in docs/model-analytics.md."
+    "description": "Backend/frontend contract for the financial planning product reconstructed from the Figma Make mockup. Base path: /api/v1. Current deployed real backend is exposed at /finguide-api/api/v1 on 66.42.121.18. Excel model analytics are documented in docs/model-analytics.md."
   },
   "servers": [
     {
+      "url": "http://66.42.121.18/finguide-api/api/v1",
+      "description": "deployed real Spring Boot backend on 66.42.121.18"
+    },
+    {
       "url": "/api/v1",
-      "description": "same-origin production API"
+      "description": "same-origin production API inside the backend service"
     }
   ],
   "security": [
