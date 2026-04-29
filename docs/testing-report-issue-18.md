@@ -85,14 +85,14 @@ bun run build:fg
 
 Покрытие новой части:
 
-- `src/auth/oidc.test.ts` — хранение OIDC session, Bearer header, expiry/malformed storage cleanup;
+- `src/auth/oidc.test.ts` — хранение OIDC session, Bearer header, expiry/malformed storage cleanup, PKCE login/callback/logout, fallback SHA-256 для HTTP без `crypto.subtle`;
 - build под `/fg/` успешно собирает auth routes `/login` и `/auth/callback`.
 
 ## Ограничения текущего стенда
 
-- На сервере сейчас не найден `docker`, `docker compose` или `docker-compose`; реальный запуск Keycloak + PostgreSQL stack невозможен без отдельного infra-шага установки Docker/Compose.
-- Установка Docker/Compose и изменение nginx route `/auth/` — infra write changes; их нужно выполнять только после явного подтверждения.
-- До запуска Keycloak публичный backend сохраняет `FINGUIDE_DEMO_MODE=true`, чтобы не сломать текущий frontend demo.
+- Docker/Compose и nginx route `/auth/` были установлены после явного подтверждения пользователя.
+- Публичный demo пока работает по HTTP, поэтому Keycloak realm временно настроен с `sslRequired=none`. После HTTPS нужно вернуть `sslRequired=external`.
+- Публичный backend сохраняет `FINGUIDE_DEMO_MODE=true`, чтобы не сломать demo-план во время перехода.
 
 ### Docker/Compose install and live Keycloak deployment
 
