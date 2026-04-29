@@ -153,5 +153,6 @@ curl -fsS http://66.42.121.18/finguide-api/v3/api-docs
 - production frontend bundle содержит `VITE_FINGUIDE_AUTH_ENABLED=true`, issuer `http://66.42.121.18/auth/realms/finguide`, client `finguide-web`;
 - Keycloak discovery отдаёт issuer `http://66.42.121.18/auth/realms/finguide`;
 - Keycloak login page доступна;
+- Keycloak registration/reset pages используют FinGuide login theme, `finguide.css`, русский default locale и FinGuide-branded titles;
 - backend `/api/v1/plans/current`, `/api/v1/me`, `/v3/api-docs` доступны за `/finguide-api/`;
 - Docker Compose контейнеры `finguide-keycloak` и `finguide-keycloak-postgres` healthy.

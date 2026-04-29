@@ -1,59 +1,192 @@
 :root {
   --finguide-bg: #0f172a;
-  --finguide-card: rgba(15, 23, 42, 0.88);
+  --finguide-card: rgba(15, 23, 42, 0.9);
+  --finguide-card-strong: rgba(2, 6, 23, 0.72);
   --finguide-primary: #14b8a6;
   --finguide-accent: #8b5cf6;
   --finguide-text: #e5f3ff;
   --finguide-muted: #94a3b8;
+  --finguide-border: rgba(148, 163, 184, 0.22);
 }
-body {
+
+html,
+body,
+#keycloak-bg,
+.login-pf,
+.pf-v5-c-login {
   min-height: 100vh;
   background:
-    radial-gradient(circle at 20% 20%, rgba(20, 184, 166, 0.22), transparent 32rem),
-    radial-gradient(circle at 80% 10%, rgba(139, 92, 246, 0.22), transparent 28rem),
-    linear-gradient(135deg, #020617 0%, var(--finguide-bg) 55%, #111827 100%) !important;
+    radial-gradient(circle at 18% 20%, rgba(20, 184, 166, 0.24), transparent 32rem),
+    radial-gradient(circle at 86% 14%, rgba(139, 92, 246, 0.24), transparent 30rem),
+    linear-gradient(135deg, #020617 0%, var(--finguide-bg) 56%, #111827 100%) !important;
   color: var(--finguide-text) !important;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
 }
-.login-pf body, .login-pf-page { background: transparent !important; }
-.card-pf {
-  border: 1px solid rgba(148, 163, 184, 0.22) !important;
-  border-radius: 28px !important;
-  background: var(--finguide-card) !important;
-  box-shadow: 0 24px 80px rgba(2, 6, 23, 0.42) !important;
-  backdrop-filter: blur(18px);
+
+.pf-v5-c-login__container {
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 18px;
 }
-#kc-header-wrapper {
+
+.pf-v5-c-login__main,
+.card-pf {
+  width: min(100%, 520px);
+  border: 1px solid var(--finguide-border) !important;
+  border-radius: 32px !important;
+  background: var(--finguide-card) !important;
+  box-shadow: 0 28px 90px rgba(2, 6, 23, 0.5) !important;
+  backdrop-filter: blur(18px);
+  overflow: hidden;
+}
+
+.pf-v5-c-login__main-header,
+.pf-v5-c-login__main-body,
+.pf-v5-c-login__main-footer-band,
+#kc-content-wrapper,
+#kc-form,
+#kc-register-form,
+#kc-reset-password-form {
+  background: transparent !important;
+}
+
+.pf-v5-c-login__main-header {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14) !important;
+  padding-block-end: 18px !important;
+}
+
+#kc-header-wrapper,
+.pf-v5-c-brand {
   color: var(--finguide-text) !important;
   font-size: 0 !important;
   letter-spacing: -0.04em;
+  text-align: center;
 }
-#kc-header-wrapper::after {
+
+#kc-header-wrapper::after,
+.pf-v5-c-brand::after {
   content: "FinGuide";
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border: 1px solid rgba(94, 234, 212, 0.26);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.56);
+  color: var(--finguide-text);
   font-size: 34px;
-  font-weight: 800;
+  font-weight: 850;
+  box-shadow: 0 16px 48px rgba(20, 184, 166, 0.14);
 }
-#kc-page-title, .pf-c-title { color: var(--finguide-text) !important; }
-#kc-info-wrapper, .instruction, label, .subtitle, .login-pf-signup { color: var(--finguide-muted) !important; }
-a, .pf-c-button.pf-m-link { color: #5eead4 !important; }
-.pf-c-button.pf-m-primary, input[type="submit"] {
+
+#kc-page-title,
+.pf-c-title,
+.pf-v5-c-title {
+  color: var(--finguide-text) !important;
+  letter-spacing: -0.03em;
+}
+
+#kc-page-title::after {
+  content: "Финансовый план под вашим контролем";
+  display: block;
+  margin-top: 10px;
+  color: var(--finguide-muted);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.subtitle,
+.instruction,
+#kc-info-wrapper,
+#kc-form-options,
+.pf-v5-c-helper-text__item-text,
+.pf-v5-c-form__label-text,
+label,
+.login-pf-signup {
+  color: var(--finguide-muted) !important;
+}
+
+.pf-v5-c-form__label-required {
+  color: #5eead4 !important;
+}
+
+.pf-v5-c-form-control,
+.pf-v5-c-form-control > input,
+input[type="text"],
+input[type="password"],
+input[type="email"] {
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  border-radius: 16px !important;
+  background: var(--finguide-card-strong) !important;
+  color: var(--finguide-text) !important;
+  box-shadow: none !important;
+}
+
+.pf-v5-c-form-control:focus-within,
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="email"]:focus {
+  border-color: rgba(94, 234, 212, 0.72) !important;
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.16) !important;
+}
+
+::placeholder {
+  color: rgba(148, 163, 184, 0.72) !important;
+}
+
+a,
+.pf-c-button.pf-m-link,
+.pf-v5-c-button.pf-m-link {
+  color: #5eead4 !important;
+  font-weight: 700;
+}
+
+a:hover,
+.pf-v5-c-button.pf-m-link:hover {
+  color: #99f6e4 !important;
+}
+
+.pf-c-button.pf-m-primary,
+.pf-v5-c-button.pf-m-primary,
+input[type="submit"] {
+  min-height: 44px;
   border: 0 !important;
   border-radius: 999px !important;
   background: linear-gradient(135deg, var(--finguide-primary), var(--finguide-accent)) !important;
   color: white !important;
-  font-weight: 700 !important;
-  box-shadow: 0 12px 30px rgba(20, 184, 166, 0.24) !important;
+  font-weight: 800 !important;
+  box-shadow: 0 16px 36px rgba(20, 184, 166, 0.25) !important;
 }
-.pf-c-form-control, input[type="text"], input[type="password"], input[type="email"] {
-  border-radius: 16px !important;
-  border-color: rgba(148, 163, 184, 0.28) !important;
-  background: rgba(15, 23, 42, 0.72) !important;
-  color: var(--finguide-text) !important;
+
+.pf-c-button.pf-m-primary:hover,
+.pf-v5-c-button.pf-m-primary:hover,
+input[type="submit"]:hover {
+  filter: brightness(1.07);
 }
-.pf-c-alert, .alert-error, .kc-feedback-text {
+
+.pf-v5-c-login__main-footer-band {
+  border-top: 1px solid rgba(148, 163, 184, 0.14) !important;
+  color: var(--finguide-muted) !important;
+}
+
+.pf-c-alert,
+.pf-v5-c-alert,
+.alert-error,
+.kc-feedback-text,
+.pf-v5-c-form__helper-text {
   border-radius: 18px !important;
 }
+
+#kc-register-form .pf-v5-c-form__group,
+#kc-reset-password-form .pf-v5-c-form__group,
+#kc-form-login .pf-v5-c-form__group {
+  margin-bottom: 18px;
+}
+
 @media (max-width: 640px) {
-  .card-pf { border-radius: 22px !important; margin: 16px !important; }
-  #kc-header-wrapper::after { font-size: 28px; }
+  .pf-v5-c-login__container { padding: 18px 12px; }
+  .pf-v5-c-login__main, .card-pf { border-radius: 24px !important; }
+  #kc-header-wrapper::after, .pf-v5-c-brand::after { font-size: 28px; }
 }
