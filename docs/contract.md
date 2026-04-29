@@ -197,7 +197,7 @@ Keycloak владеет входом, регистрацией, refresh/logout, 
 
 - `GET /me` — реализовано в real backend; возвращает локальный бизнес-профиль, связанный с `JWT.sub`.
 - `PATCH /me`, `PUT/DELETE /me/avatar` — отдельные задачи профиля.
-- `PUT /me/password` — вне зоны ответственности backend; пароль меняется через Keycloak account/password reset screens.
+- Смена пароля — вне зоны ответственности backend; пароль меняется через Keycloak account/password reset screens.
 
 ### План и CRUD
 
