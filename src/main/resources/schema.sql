@@ -18,7 +18,8 @@ create table user_profiles (
   gender varchar(32),
   initial_balance numeric(19, 2) not null,
   created_at timestamp with time zone not null,
-  updated_at timestamp with time zone not null
+  updated_at timestamp with time zone not null,
+  constraint uq_user_profiles_keycloak_subject unique (keycloak_subject)
 );
 
 create table financial_plans (

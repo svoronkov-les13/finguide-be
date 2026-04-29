@@ -19,6 +19,7 @@
 - Публичный предпросмотр контракта: <http://66.42.121.18/finguide-contract/>
 - JSON-спецификация OpenAPI в репозитории: <https://github.com/svoronkov-les13/finguide-be/blob/main/openapi/openapi.json>
 - Legacy mock Swagger, только на период перехода: <http://66.42.121.18/finguide-mock/>
+- Keycloak deployment guide: [`deploy/keycloak/README.md`](https://github.com/svoronkov-les13/finguide-be/tree/main/deploy/keycloak)
 
 ## Текущий статус реализации
 
@@ -27,6 +28,7 @@ Real Spring Boot backend сейчас обслуживает:
 - индекс API `GET /api/v1`;
 - чтение текущего плана, дашборда, health/cashflow и списка сценариев;
 - CRUD доходов, расходов и целей;
+- Keycloak/OIDC security boundary: JWT Resource Server, `GET /api/v1/me`, lazy profile mapping and plan ownership checks;
 - `POST /plans/{planId}/goals/reorder` для сохранения waterfall-приоритета целей.
 
 Оставшиеся группы контракта ведутся отдельными задачами GitHub Issues.

@@ -1,5 +1,6 @@
 package les13.finguide.backend.plans;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import les13.finguide.backend.api.ApiEnvelope;
@@ -19,6 +20,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
+@SecurityRequirement(name = "bearerAuth")
 @RequestMapping("/api/v1/plans/{planId}")
 @ApiResponses({
         @ApiResponse(responseCode = "400", description = "Validation failed"),

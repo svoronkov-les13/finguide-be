@@ -1,9 +1,12 @@
 package les13.finguide.backend.plans;
 
+import les13.finguide.backend.auth.PlanAccessService;
 import les13.finguide.backend.expenses.ExpenseItem;
 import les13.finguide.backend.goals.Goal;
 import les13.finguide.backend.incomes.IncomeSource;
 import org.springframework.http.HttpStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -20,15 +23,19 @@ import java.util.UUID;
 @Service
 @Transactional(readOnly = true)
 public class FinancialItemService {
+    private static final Logger auditLog = LoggerFactory.getLogger("les13.finguide.audit");
+
     private static final BigDecimal ZERO = BigDecimal.ZERO;
     private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
     private static final String DEFAULT_CURRENCY = "RUB";
     private static final int MIN_TARGET_YEAR = 2024;
 
     private final PlanStateRepository repository;
+    private final PlanAccessService accessService;
 
-    public FinancialItemService(PlanStateRepository repository) {
+    public FinancialItemService(PlanStateRepository repository, PlanAccessService accessService) {
         this.repository = repository;
+        this.accessService = accessService;
     }
 
     public List<IncomeSource> incomes(UUID planId) {
@@ -61,7 +68,9 @@ public class FinancialItemService {
                 now
         );
         validateDateRange(income.startDate(), income.endDate());
-        return repository.createIncome(income);
+        IncomeSource created = repository.createIncome(income);
+        auditLog.info("financial_item_created type=income planId={} itemId={}", planId, created.id());
+        return created;
     }
 
     @Transactional
@@ -83,7 +92,9 @@ public class FinancialItemService {
                 now
         );
         validateDateRange(next.startDate(), next.endDate());
-        return repository.updateIncome(next);
+        IncomeSource updated = repository.updateIncome(next);
+        auditLog.info("financial_item_updated type=income planId={} itemId={}", planId, updated.id());
+        return updated;
     }
 
     @Transactional
@@ -92,6 +103,7 @@ public class FinancialItemService {
         if (!repository.deleteIncome(planId, incomeId)) {
             throw notFound("Income was not found");
         }
+        auditLog.info("financial_item_deleted type=income planId={} itemId={}", planId, incomeId);
     }
 
     public List<ExpenseItem> expenses(UUID planId) {
@@ -126,7 +138,9 @@ public class FinancialItemService {
                 now
         );
         validateDateRange(expense.startDate(), expense.endDate());
-        return repository.createExpense(expense);
+        ExpenseItem created = repository.createExpense(expense);
+        auditLog.info("financial_item_created type=expense planId={} itemId={}", planId, created.id());
+        return created;
     }
 
     @Transactional
@@ -150,7 +164,9 @@ public class FinancialItemService {
                 now
         );
         validateDateRange(next.startDate(), next.endDate());
-        return repository.updateExpense(next);
+        ExpenseItem updated = repository.updateExpense(next);
+        auditLog.info("financial_item_updated type=expense planId={} itemId={}", planId, updated.id());
+        return updated;
     }
 
     @Transactional
@@ -159,6 +175,7 @@ public class FinancialItemService {
         if (!repository.deleteExpense(planId, expenseId)) {
             throw notFound("Expense was not found");
         }
+        auditLog.info("financial_item_deleted type=expense planId={} itemId={}", planId, expenseId);
     }
 
     public List<Goal> goals(UUID planId) {
@@ -194,7 +211,9 @@ public class FinancialItemService {
                 now,
                 now
         );
-        return repository.createGoal(goal);
+        Goal created = repository.createGoal(goal);
+        auditLog.info("financial_item_created type=goal planId={} itemId={}", planId, created.id());
+        return created;
     }
 
     @Transactional
@@ -218,7 +237,9 @@ public class FinancialItemService {
                 current.createdAt(),
                 now
         );
-        return repository.updateGoal(next);
+        Goal updated = repository.updateGoal(next);
+        auditLog.info("financial_item_updated type=goal planId={} itemId={}", planId, updated.id());
+        return updated;
     }
 
     @Transactional
@@ -227,6 +248,7 @@ public class FinancialItemService {
         if (!repository.deleteGoal(planId, goalId)) {
             throw notFound("Goal was not found");
         }
+        auditLog.info("financial_item_deleted type=goal planId={} itemId={}", planId, goalId);
     }
 
     @Transactional
@@ -239,11 +261,13 @@ public class FinancialItemService {
         if (goalIds.size() != currentGoals.size() || requestedIds.size() != goalIds.size() || !requestedIds.equals(currentIds)) {
             throw badRequest("goalIds must contain each current goal id exactly once");
         }
-        return repository.reorderGoals(planId, goalIds);
+        List<Goal> reordered = repository.reorderGoals(planId, goalIds);
+        auditLog.info("financial_items_reordered type=goal planId={} count={}", planId, reordered.size());
+        return reordered;
     }
 
     private void requirePlan(UUID planId) {
-        repository.findById(planId).orElseThrow(() -> notFound("Plan was not found"));
+        accessService.requirePlan(planId);
     }
 
     private static ResponseStatusException notFound(String message) {

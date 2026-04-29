@@ -1,5 +1,6 @@
 package les13.finguide.backend.plans;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import les13.finguide.backend.api.ApiEnvelope;
 import les13.finguide.backend.api.PlanApiMapper;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,6 +12,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
+@SecurityRequirement(name = "bearerAuth")
 @RequestMapping("/api/v1")
 public class PlanReadController {
     private final PlanReadService planReadService;

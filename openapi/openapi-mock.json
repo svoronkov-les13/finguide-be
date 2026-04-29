@@ -3,7 +3,7 @@
   "info": {
     "title": "FinGuide Legacy Mock API — Java 21 stubs",
     "version": "0.1.0-mock",
-    "description": "Legacy transition-only mock contract for deterministic Java 21 stub responses. Primary Swagger/OpenAPI is now served by the real Spring Boot backend at /finguide-api/swagger-ui.html and /finguide-api/v3/api-docs."
+    "description": "Legacy transition-only mock contract for deterministic Java 21 stub responses. Primary Swagger/OpenAPI is now served by the real Spring Boot backend at /finguide-api/swagger-ui.html and /finguide-api/v3/api-docs. Identity/auth is handled by Keycloak OIDC Authorization Code + PKCE; FinGuide API validates Bearer JWT and does not own password register/login endpoints."
   },
   "servers": [
     {
@@ -17,9 +17,6 @@
     }
   ],
   "tags": [
-    {
-      "name": "Auth"
-    },
     {
       "name": "Profile"
     },
@@ -58,238 +55,6 @@
     }
   ],
   "paths": {
-    "/auth/register": {
-      "post": {
-        "tags": [
-          "Auth"
-        ],
-        "security": [],
-        "summary": "Create account",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RegisterRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": [
-                    "data"
-                  ],
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/AuthTokens"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      }
-    },
-    "/auth/login": {
-      "post": {
-        "tags": [
-          "Auth"
-        ],
-        "security": [],
-        "summary": "Login by email or phone",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LoginRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": [
-                    "data"
-                  ],
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/AuthTokens"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      }
-    },
-    "/auth/refresh": {
-      "post": {
-        "tags": [
-          "Auth"
-        ],
-        "security": [],
-        "summary": "Refresh access token",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "refreshToken"
-                ],
-                "properties": {
-                  "refreshToken": {
-                    "type": "string"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": [
-                    "data"
-                  ],
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/AuthTokens"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      }
-    },
-    "/auth/logout": {
-      "post": {
-        "tags": [
-          "Auth"
-        ],
-        "summary": "Revoke current refresh token",
-        "responses": {
-          "204": {
-            "description": "No Content"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      }
-    },
-    "/auth/password/forgot": {
-      "post": {
-        "tags": [
-          "Auth"
-        ],
-        "security": [],
-        "summary": "Send password reset link",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "email"
-                ],
-                "properties": {
-                  "email": {
-                    "type": "string",
-                    "format": "email"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "202": {
-            "description": "Accepted"
-          }
-        }
-      }
-    },
-    "/auth/password/reset": {
-      "post": {
-        "tags": [
-          "Auth"
-        ],
-        "security": [],
-        "summary": "Reset password by token",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "token",
-                  "newPassword"
-                ],
-                "properties": {
-                  "token": {
-                    "type": "string"
-                  },
-                  "newPassword": {
-                    "type": "string",
-                    "minLength": 8
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "204": {
-            "description": "No Content"
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          }
-        }
-      }
-    },
     "/me": {
       "get": {
         "tags": [
@@ -2680,73 +2445,6 @@
           }
         }
       },
-      "AuthTokens": {
-        "type": "object",
-        "required": [
-          "accessToken",
-          "refreshToken",
-          "expiresIn",
-          "user"
-        ],
-        "properties": {
-          "accessToken": {
-            "type": "string"
-          },
-          "refreshToken": {
-            "type": "string"
-          },
-          "expiresIn": {
-            "type": "integer",
-            "examples": [
-              3600
-            ]
-          },
-          "user": {
-            "$ref": "#/components/schemas/UserProfile"
-          }
-        }
-      },
-      "LoginRequest": {
-        "type": "object",
-        "required": [
-          "login",
-          "password"
-        ],
-        "properties": {
-          "login": {
-            "type": "string",
-            "description": "email or normalized phone"
-          },
-          "password": {
-            "type": "string",
-            "format": "password"
-          }
-        }
-      },
-      "RegisterRequest": {
-        "type": "object",
-        "required": [
-          "name",
-          "email",
-          "password"
-        ],
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "email": {
-            "type": "string",
-            "format": "email"
-          },
-          "phone": {
-            "type": "string"
-          },
-          "password": {
-            "type": "string",
-            "minLength": 8
-          }
-        }
-      },
       "PensionSettings": {
         "type": "object",
         "required": [
@@ -3953,5 +3651,9 @@
         }
       }
     }
+  },
+  "externalDocs": {
+    "description": "Keycloak/OIDC deployment and integration guide",
+    "url": "https://svoronkov-les13.github.io/finguide-be/backend-architecture-keycloak/"
   }
 }

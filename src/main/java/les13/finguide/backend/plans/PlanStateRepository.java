@@ -11,7 +11,11 @@ import java.util.UUID;
 public interface PlanStateRepository {
     Optional<PlanState> findCurrent();
 
+    Optional<PlanState> findCurrentForOwner(UUID ownerUserId);
+
     Optional<PlanState> findById(UUID planId);
+
+    Optional<UUID> findOwnerUserId(UUID planId);
 
     List<IncomeSource> findIncomes(UUID planId);
 

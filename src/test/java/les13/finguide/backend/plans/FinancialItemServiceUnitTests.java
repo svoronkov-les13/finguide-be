@@ -1,5 +1,6 @@
 package les13.finguide.backend.plans;
 
+import les13.finguide.backend.auth.PlanAccessService;
 import les13.finguide.backend.goals.Goal;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,7 +13,6 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -27,12 +27,15 @@ class FinancialItemServiceUnitTests {
     @Mock
     private PlanStateRepository repository;
 
+    @Mock
+    private PlanAccessService accessService;
+
     @InjectMocks
     private FinancialItemService service;
 
     @Test
     void rejectsCreateIncomeWhenEndDateIsBeforeStartDate() {
-        when(repository.findById(PLAN_ID)).thenReturn(Optional.of(mock(PlanState.class)));
+        when(accessService.requirePlan(PLAN_ID)).thenReturn(mock(PlanState.class));
 
         var request = new FinancialItemRequests.IncomeRequest(
                 null,
@@ -54,7 +57,7 @@ class FinancialItemServiceUnitTests {
 
     @Test
     void rejectsGoalTargetYearBeforeContractMinimum() {
-        when(repository.findById(PLAN_ID)).thenReturn(Optional.of(mock(PlanState.class)));
+        when(accessService.requirePlan(PLAN_ID)).thenReturn(mock(PlanState.class));
         var request = new FinancialItemRequests.GoalRequest(
                 null,
                 "Слишком ранняя цель",
@@ -80,7 +83,7 @@ class FinancialItemServiceUnitTests {
     void rejectsGoalReorderWhenListDoesNotMatchCurrentGoals() {
         Goal first = goal("33333333-3333-4333-8333-333333333333", 1);
         Goal second = goal("44444444-4444-4444-8444-444444444444", 2);
-        when(repository.findById(PLAN_ID)).thenReturn(Optional.of(mock(PlanState.class)));
+        when(accessService.requirePlan(PLAN_ID)).thenReturn(mock(PlanState.class));
         when(repository.findGoals(PLAN_ID)).thenReturn(List.of(first, second));
 
         assertThatThrownBy(() -> service.reorderGoals(PLAN_ID, new FinancialItemRequests.GoalReorderRequest(List.of(first.id()))))

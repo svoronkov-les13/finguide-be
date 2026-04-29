@@ -1,0 +1,59 @@
+:root {
+  --finguide-bg: #0f172a;
+  --finguide-card: rgba(15, 23, 42, 0.88);
+  --finguide-primary: #14b8a6;
+  --finguide-accent: #8b5cf6;
+  --finguide-text: #e5f3ff;
+  --finguide-muted: #94a3b8;
+}
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(20, 184, 166, 0.22), transparent 32rem),
+    radial-gradient(circle at 80% 10%, rgba(139, 92, 246, 0.22), transparent 28rem),
+    linear-gradient(135deg, #020617 0%, var(--finguide-bg) 55%, #111827 100%) !important;
+  color: var(--finguide-text) !important;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}
+.login-pf body, .login-pf-page { background: transparent !important; }
+.card-pf {
+  border: 1px solid rgba(148, 163, 184, 0.22) !important;
+  border-radius: 28px !important;
+  background: var(--finguide-card) !important;
+  box-shadow: 0 24px 80px rgba(2, 6, 23, 0.42) !important;
+  backdrop-filter: blur(18px);
+}
+#kc-header-wrapper {
+  color: var(--finguide-text) !important;
+  font-size: 0 !important;
+  letter-spacing: -0.04em;
+}
+#kc-header-wrapper::after {
+  content: "FinGuide";
+  font-size: 34px;
+  font-weight: 800;
+}
+#kc-page-title, .pf-c-title { color: var(--finguide-text) !important; }
+#kc-info-wrapper, .instruction, label, .subtitle, .login-pf-signup { color: var(--finguide-muted) !important; }
+a, .pf-c-button.pf-m-link { color: #5eead4 !important; }
+.pf-c-button.pf-m-primary, input[type="submit"] {
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: linear-gradient(135deg, var(--finguide-primary), var(--finguide-accent)) !important;
+  color: white !important;
+  font-weight: 700 !important;
+  box-shadow: 0 12px 30px rgba(20, 184, 166, 0.24) !important;
+}
+.pf-c-form-control, input[type="text"], input[type="password"], input[type="email"] {
+  border-radius: 16px !important;
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  background: rgba(15, 23, 42, 0.72) !important;
+  color: var(--finguide-text) !important;
+}
+.pf-c-alert, .alert-error, .kc-feedback-text {
+  border-radius: 18px !important;
+}
+@media (max-width: 640px) {
+  .card-pf { border-radius: 22px !important; margin: 16px !important; }
+  #kc-header-wrapper::after { font-size: 28px; }
+}
