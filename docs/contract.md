@@ -30,6 +30,8 @@
 - `GET /api/v1` возвращает JSON-индекс сервиса со ссылками на Swagger/OpenAPI и основные endpoints.
 - Swagger UI реального бэкенда: `http://66.42.121.18/finguide-api/swagger-ui.html`.
 - Legacy mock Swagger остаётся только для переходного сравнения: `http://66.42.121.18/finguide-mock/`.
+
+Текущая real-реализация на H2 уже покрывает чтение плана/дашборда/health/cashflow/scenarios и CRUD для `IncomeSource`, `ExpenseItem`, `Goal`, включая `goals/reorder`. Остальные группы методов из карты ниже пока ведутся отдельными задачами.
 - Авторизация: `Authorization: Bearer <JWT>`; в demo/H2 режиме текущий `/api/v1/**` временно открыт для интеграции фронтенда с real backend без Keycloak.
 - Все даты: ISO-8601 (`YYYY-MM-DD`, `date-time` UTC).
 - Деньги: число в валюте записи + `currency`; агрегаты возвращаются в базовой валюте плана.
@@ -140,6 +142,8 @@ If-Match: "<etag>"
 
 `id`, `name`, `amount`, `currency`, `frequency: monthly|yearly|one_time`, `growthType: manual|inflation|none|schedule`, `growthPct`, `growthSchedule[]`, `startDate`, `endDate`, опционально `startYear`, `endYear`.
 
+Для `POST` id и timestamps генерирует сервер; `PATCH` принимает частичное тело и меняет только переданные поля. Текущая H2-реализация валидирует: суммы неотрицательные, `growthPct` от `0` до `100`, `endDate >= startDate`, `currency` — ISO-4217 alpha-3.
+
 Для расходов дополнительно: `budgetClass: needs|wants|savings`, `growthLabel`.
 
 `growthSchedule[]` нужен для Excel-модели: по каждой строке дохода/расхода могут быть разные ставки роста по годам, а не один постоянный процент.
@@ -195,11 +199,11 @@ Excel-модель требует два пенсионных расчёта:
 
 ### План и CRUD
 
-- `GET/PUT /plans/current`
-- `GET/POST /plans/{planId}/incomes`, `GET/PATCH/DELETE /plans/{planId}/incomes/{id}`
-- `GET/POST /plans/{planId}/expenses`, `GET/PATCH/DELETE /plans/{planId}/expenses/{id}`
-- `GET/POST /plans/{planId}/goals`, `GET/PATCH/DELETE /plans/{planId}/goals/{id}`
-- `POST /plans/{planId}/goals/reorder`
+- `GET/PUT /plans/current` (`GET` реализован; `PUT` отдельная задача).
+- `GET/POST /plans/{planId}/incomes`, `GET/PATCH/DELETE /plans/{planId}/incomes/{id}` — реализовано в real backend.
+- `GET/POST /plans/{planId}/expenses`, `GET/PATCH/DELETE /plans/{planId}/expenses/{id}` — реализовано в real backend.
+- `GET/POST /plans/{planId}/goals`, `GET/PATCH/DELETE /plans/{planId}/goals/{id}` — реализовано в real backend.
+- `POST /plans/{planId}/goals/reorder` — реализовано в real backend; тело `{ "goalIds": ["..."] }` должно содержать все текущие id целей ровно по одному разу.
 - `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}`
 - `GET/PATCH /plans/{planId}/pension`
 - `GET/PATCH /plans/{planId}/budget`, `POST /plans/{planId}/budget/envelopes/autogenerate`
