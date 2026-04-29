@@ -409,6 +409,33 @@ button[aria-label*="парол"],
   margin-bottom: 0 !important;
 }
 
+
+/* Hide broken Keycloak/PF icon-font controls; keep fields clean like FinGuide app. */
+button[data-password-toggle],
+.pf-v5-c-input-group__item:not(.pf-m-fill),
+.pf-v5-c-form__helper-text .pf-v5-c-helper-text__item-icon,
+.pf-v5-c-alert__icon,
+.fa,
+.fas,
+.far,
+.fal,
+.fab,
+.pf-icon,
+.pf-v5-svg {
+  display: none !important;
+}
+
+.pf-v5-c-input-group,
+.pf-v5-c-input-group__item.pf-m-fill,
+.pf-v5-c-input-group__item.pf-m-fill > .pf-v5-c-form-control {
+  width: 100% !important;
+}
+
+.pf-v5-c-input-group .pf-v5-c-form-control,
+.pf-v5-c-input-group input {
+  border-radius: 12px !important;
+}
+
     </style>
 
 </head>
