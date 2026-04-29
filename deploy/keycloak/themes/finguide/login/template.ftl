@@ -89,178 +89,250 @@
     </script>
 
     <style id="finguide-critical-auth-layout">
-      :root { color-scheme: light; }
-      html, body, #keycloak-bg {
-        min-height: 100vh !important;
-        margin: 0 !important;
-        background: #f4f1eb !important;
-      }
-      body #keycloak-bg, body, .login-pf, .pf-v5-c-login {
-        color: #24202a !important;
-        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
-      }
-      body .pf-v5-c-login {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        min-height: 100vh !important;
-        padding: 24px 16px !important;
-        background: #f4f1eb !important;
-      }
-      body .pf-v5-c-login__container {
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: center !important;
-        justify-content: center !important;
-        gap: 14px !important;
-        width: min(100%, 460px) !important;
-        max-width: 460px !important;
-        min-height: auto !important;
-        margin: 0 auto !important;
-        padding: 0 !important;
-        grid-template-columns: none !important;
-        grid-template-areas: none !important;
-      }
-      body .pf-v5-c-login__header {
-        display: block !important;
-        width: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        text-align: center !important;
-        order: 0 !important;
-        grid-area: auto !important;
-      }
-      body #kc-header-wrapper,
-      body .pf-v5-c-brand {
-        width: 100% !important;
-        margin: 0 auto !important;
-        color: transparent !important;
-        font-size: 0 !important;
-        line-height: 1 !important;
-        text-align: center !important;
-        text-transform: none !important;
-      }
-      body #kc-header-wrapper::after,
-      body .pf-v5-c-brand::after {
-        content: "FinGuide" !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        width: fit-content !important;
-        margin: 0 auto !important;
-        padding: 7px 13px !important;
-        border: 1px solid rgba(36, 32, 42, 0.14) !important;
-        border-radius: 999px !important;
-        background: rgba(251, 250, 246, 0.86) !important;
-        color: #24202a !important;
-        font-size: 18px !important;
-        font-weight: 800 !important;
-        letter-spacing: -0.03em !important;
-        text-transform: none !important;
-        box-shadow: 0 2px 8px rgba(34, 29, 22, 0.06) !important;
-      }
-      body .pf-v5-c-login__main,
-      body .card-pf {
-        display: block !important;
-        width: min(100%, 420px) !important;
-        max-width: 420px !important;
-        margin: 0 auto !important;
-        order: 1 !important;
-        grid-area: auto !important;
-        border: 1px solid rgba(189, 150, 44, 0.2) !important;
-        border-radius: 22px !important;
-        background: rgba(251, 250, 246, 0.96) !important;
-        box-shadow: 0 10px 28px rgba(34, 29, 22, 0.07), 0 1px 1px rgba(34, 29, 22, 0.05) !important;
-        overflow: hidden !important;
-      }
-      body .pf-v5-c-login__main-header,
-      body .pf-v5-c-login__main-body,
-      body .pf-v5-c-login__main-footer-band {
-        padding-left: 24px !important;
-        padding-right: 24px !important;
-        background: transparent !important;
-      }
-      body .pf-v5-c-login__main-header {
-        padding-top: 24px !important;
-        padding-bottom: 12px !important;
-        border-bottom: 1px solid rgba(36, 32, 42, 0.08) !important;
-      }
-      body .pf-v5-c-login__main-body {
-        padding-top: 18px !important;
-        padding-bottom: 20px !important;
-      }
-      body .pf-v5-c-login__main-footer-band {
-        padding-top: 16px !important;
-        padding-bottom: 18px !important;
-        border-top: 1px solid rgba(36, 32, 42, 0.08) !important;
-        background: rgba(241, 238, 232, 0.72) !important;
-      }
-      body #kc-page-title,
-      body .pf-v5-c-title {
-        color: #24202a !important;
-        text-align: center !important;
-        font-size: 24px !important;
-        line-height: 1.15 !important;
-        letter-spacing: -0.03em !important;
-      }
-      body #kc-page-title::after {
-        content: "Финансовый план под вашим контролем";
-        display: block;
-        margin-top: 7px;
-        color: #756f67;
-        font-size: 13px;
-        font-weight: 500;
-        letter-spacing: 0;
-      }
-      body label,
-      body .pf-v5-c-form__label-text,
-      body .subtitle,
-      body .instruction,
-      body .pf-v5-c-helper-text__item-text,
-      body #kc-form-options,
-      body #kc-info-wrapper { color: #756f67 !important; }
-      body .pf-v5-c-form__group { margin-bottom: 13px !important; }
-      body .pf-v5-c-form-control,
-      body .pf-v5-c-form-control > input,
-      body input[type="text"],
-      body input[type="password"],
-      body input[type="email"],
-      body select {
-        min-height: 40px !important;
-        border-color: rgba(36, 32, 42, 0.14) !important;
-        border-radius: 14px !important;
-        background: rgba(251, 250, 246, 0.9) !important;
-        color: #24202a !important;
-        box-shadow: none !important;
-      }
-      body .pf-v5-c-form-control:focus-within,
-      body input:focus,
-      body select:focus {
-        border-color: rgba(189, 150, 44, 0.65) !important;
-        box-shadow: 0 0 0 3px rgba(189, 150, 44, 0.18) !important;
-      }
-      body a { color: #9b761f !important; font-weight: 700 !important; }
-      body .pf-v5-c-button.pf-m-primary,
-      body input[type="submit"] {
-        min-height: 44px !important;
-        border: 0 !important;
-        border-radius: 999px !important;
-        background: #bd962c !important;
-        color: #fff7dc !important;
-        font-size: 15px !important;
-        font-weight: 700 !important;
-        box-shadow: 0 2px 8px rgba(34, 29, 22, 0.06) !important;
-      }
-      body .pf-v5-c-button.pf-m-primary:hover,
-      body input[type="submit"]:hover { background: #a98322 !important; }
-      @media (max-width: 640px) {
-        body .pf-v5-c-login { padding: 16px 12px !important; }
-        body .pf-v5-c-login__main { border-radius: 20px !important; }
-        body #kc-header-wrapper::after, body .pf-v5-c-brand::after { font-size: 17px !important; }
-        body .pf-v5-c-login__main-header,
-        body .pf-v5-c-login__main-body,
-        body .pf-v5-c-login__main-footer-band { padding-left: 20px !important; padding-right: 20px !important; }
-      }
+:root {
+  --fg-bg: #f4f1eb;
+  --fg-card: #fbfaf6;
+  --fg-surface: #f1eee8;
+  --fg-text: #24202a;
+  --fg-muted: #756f67;
+  --fg-border: rgba(36, 32, 42, 0.14);
+  --fg-primary: #bd962c;
+  --fg-primary-hover: #a98322;
+  --fg-primary-text: #fff7dc;
+  --fg-shadow-soft: 0 2px 8px rgba(34, 29, 22, 0.06);
+}
+
+html,
+body,
+#keycloak-bg,
+.login-pf,
+.pf-v5-c-login {
+  min-height: 100vh !important;
+  margin: 0 !important;
+  background: var(--fg-bg) !important;
+  color: var(--fg-text) !important;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}
+
+.pf-v5-c-login {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 18px 12px !important;
+}
+
+.pf-v5-c-login__container {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  width: min(100%, 408px) !important;
+  max-width: 408px !important;
+  min-height: auto !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  grid-template-columns: none !important;
+  grid-template-areas: none !important;
+}
+
+.pf-v5-c-login__header {
+  grid-area: auto !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-align: center !important;
+  order: 0 !important;
+}
+
+#kc-header-wrapper,
+.pf-v5-c-brand {
+  width: 100% !important;
+  margin: 0 auto !important;
+  color: transparent !important;
+  font-size: 0 !important;
+  line-height: 1 !important;
+  text-align: center !important;
+  text-transform: none !important;
+}
+
+#kc-header-wrapper::after,
+.pf-v5-c-brand::after {
+  content: "FinGuide" !important;
+  display: inline-block !important;
+  color: var(--fg-text) !important;
+  font-size: 17px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.03em !important;
+  text-transform: none !important;
+}
+
+.pf-v5-c-login__main,
+.card-pf {
+  grid-area: auto !important;
+  width: min(100%, 392px) !important;
+  max-width: 392px !important;
+  margin: 0 auto !important;
+  order: 1 !important;
+  border: 1px solid var(--fg-border) !important;
+  border-radius: 20px !important;
+  background: rgba(251, 250, 246, 0.98) !important;
+  box-shadow: var(--fg-shadow-soft) !important;
+  overflow: hidden !important;
+}
+
+.pf-v5-c-login__main-header,
+.pf-v5-c-login__main-body,
+.pf-v5-c-login__main-footer-band {
+  padding-left: 20px !important;
+  padding-right: 20px !important;
+  background: transparent !important;
+}
+
+.pf-v5-c-login__main-header {
+  padding-top: 20px !important;
+  padding-bottom: 8px !important;
+  border-bottom: 0 !important;
+}
+
+.pf-v5-c-login__main-body {
+  padding-top: 12px !important;
+  padding-bottom: 18px !important;
+}
+
+.pf-v5-c-login__main-footer-band {
+  padding-top: 14px !important;
+  padding-bottom: 16px !important;
+  border-top: 1px solid rgba(36, 32, 42, 0.08) !important;
+  background: rgba(241, 238, 232, 0.52) !important;
+}
+
+#kc-page-title,
+.pf-c-title,
+.pf-v5-c-title {
+  color: var(--fg-text) !important;
+  text-align: center !important;
+  font-size: 22px !important;
+  line-height: 1.18 !important;
+  letter-spacing: -0.03em !important;
+}
+
+#kc-page-title::after {
+  content: "" !important;
+  display: none !important;
+}
+
+.subtitle,
+.instruction,
+#kc-info-wrapper,
+#kc-form-options,
+.pf-v5-c-helper-text__item-text,
+.pf-v5-c-form__label-text,
+label,
+.login-pf-signup {
+  color: var(--fg-muted) !important;
+}
+
+.pf-v5-c-form__label-required {
+  color: var(--fg-primary) !important;
+}
+
+#kc-register-form .pf-v5-c-form__group,
+#kc-reset-password-form .pf-v5-c-form__group,
+#kc-form-login .pf-v5-c-form__group,
+.pf-v5-c-form__group {
+  margin-bottom: 11px !important;
+}
+
+.pf-v5-c-form__label {
+  margin-bottom: 4px !important;
+}
+
+.pf-v5-c-form-control,
+.pf-v5-c-form-control > input,
+input[type="text"],
+input[type="password"],
+input[type="email"],
+select {
+  min-height: 38px !important;
+  border-color: var(--fg-border) !important;
+  border-radius: 12px !important;
+  background: #fffdf8 !important;
+  color: var(--fg-text) !important;
+  box-shadow: none !important;
+}
+
+.pf-v5-c-form-control:focus-within,
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="email"]:focus,
+select:focus {
+  border-color: rgba(189, 150, 44, 0.58) !important;
+  box-shadow: 0 0 0 2px rgba(189, 150, 44, 0.16) !important;
+}
+
+::placeholder {
+  color: rgba(117, 111, 103, 0.68) !important;
+}
+
+a,
+.pf-c-button.pf-m-link,
+.pf-v5-c-button.pf-m-link {
+  color: #9b761f !important;
+  font-weight: 650 !important;
+}
+
+a:hover,
+.pf-v5-c-button.pf-m-link:hover {
+  color: var(--fg-primary-hover) !important;
+}
+
+.pf-c-button.pf-m-primary,
+.pf-v5-c-button.pf-m-primary,
+input[type="submit"] {
+  min-height: 42px !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: var(--fg-primary) !important;
+  color: var(--fg-primary-text) !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  box-shadow: var(--fg-shadow-soft) !important;
+}
+
+.pf-c-button.pf-m-primary:hover,
+.pf-v5-c-button.pf-m-primary:hover,
+input[type="submit"]:hover {
+  background: var(--fg-primary-hover) !important;
+}
+
+.pf-c-alert,
+.pf-v5-c-alert,
+.alert-error,
+.kc-feedback-text,
+.pf-v5-c-form__helper-text {
+  border-radius: 12px !important;
+}
+
+#kc-locale,
+#kc-locale-dropdown,
+#kc-locale-dropdown-menu,
+.pf-v5-c-login__main-header .pf-v5-c-menu-toggle {
+  border-radius: 12px !important;
+  background: #fffdf8 !important;
+  color: var(--fg-text) !important;
+}
+
+@media (max-width: 640px) {
+  .pf-v5-c-login { padding: 14px 10px !important; }
+  .pf-v5-c-login__container { width: min(100%, 390px) !important; }
+  .pf-v5-c-login__main, .card-pf { border-radius: 18px !important; }
+  #kc-header-wrapper::after, .pf-v5-c-brand::after { font-size: 16px !important; }
+  .pf-v5-c-login__main-header,
+  .pf-v5-c-login__main-body,
+  .pf-v5-c-login__main-footer-band { padding-left: 18px !important; padding-right: 18px !important; }
+}
+
     </style>
 
 </head>
