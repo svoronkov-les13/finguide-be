@@ -1,47 +1,47 @@
-# FinGuide Excel model analytics
+# Аналитическая Excel-модель FinGuide
 
-Source workbook: `Модель_P---56630d2a-6465-4036-bd42-9117c7dc9bd6.xlsx`  
+Исходный Excel-файл: `Модель_P---56630d2a-6465-4036-bd42-9117c7dc9bd6.xlsx`<br>
 SHA-256: `9f5b900aa95dcb8bb75f60abb3bdbd4a9c3c8cb99154b35d08ac9e89eaf7aff2`
 
-This workbook is the reference financial model for FinGuide calculations. The API and backend must keep the frontend simple: frontend edits inputs and displays derived data; backend owns all projections, totals, savings, pension and scenario calculations.
+Этот Excel-файл — эталонная финансовая модель для расчётов FinGuide. API и бэкенд должны сохранять фронтенд простым: фронтенд редактирует входные данные и показывает результаты; бэкенд владеет всеми проекциями, итогами, сбережениями, пенсионными расчётами и сценариями.
 
-## Workbook structure
+## Структура Excel-файла
 
-| Sheet | Role | Backend module |
+| Лист | Роль | Модуль бэкенда |
 |---|---|---|
-| `Вводные` | Source assumptions and user-entered inputs: years, age, inflation, investment return, income/expense lines, goal spending, retirement settings. | `plans`, `users`, `incomes`, `expenses`, `goals`, `pension`, `analytics` |
-| `Доходы` | Year-by-year income flags, growth factors, monthly/yearly income totals. | `incomes`, `analytics` |
-| `Расходы` | Year-by-year expense flags, growth factors, monthly/yearly expense totals. | `expenses`, `analytics` |
-| `Цели` | Goal-related planned spending as monthly/yearly cash outflows. | `goals`, `analytics` |
-| `Баланс` | Current-year balance split by monthly/yearly income and outflows. | `analytics` |
-| `Сбережения` | Annual net savings and accumulated invested capital. | `analytics` |
-| `Пенсия` | Two retirement variants: preserve capital and spend-down. | `pension`, `analytics` |
+| `Вводные` | Исходные предположения и пользовательские входные данные: годы, возраст, инфляция, доходность инвестированного капитала, доходы/расходы, расходы на цели, пенсионные настройки. | `plans`, `users`, `incomes`, `expenses`, `goals`, `pension`, `analytics` |
+| `Доходы` | Годовые флаги получения дохода, коэффициенты роста, итоги по ежемесячным и ежегодным доходам. | `incomes`, `analytics` |
+| `Расходы` | Годовые флаги расходов, коэффициенты роста, итоги по ежемесячным и ежегодным расходам. | `expenses`, `analytics` |
+| `Цели` | Плановые расходы на цели как ежемесячные и ежегодные исходящие денежные потоки. | `goals`, `analytics` |
+| `Баланс` | Баланс текущего года: доходы и исходящие платежи в разрезе ежемесячных и ежегодных сумм. | `analytics` |
+| `Сбережения` | Годовые чистые сбережения и накопленный инвестированный капитал. | `analytics` |
+| `Пенсия` | Два пенсионных варианта: сохранение капитала и расходование капитала. | `pension`, `analytics` |
 
-The workbook uses 2024 as start year in the sample and projects yearly columns out to 2076. Backend must not hard-code these years: store `startYear`, optional `projectionEndYear` / `horizonYears`, and build the projection dynamically.
+В примере Excel-файла стартовый год — 2024, годовые колонки идут до 2076. Бэкенд не должен зашивать эти годы в код: нужно хранить `startYear`, опционально `projectionEndYear` / `horizonYears` и строить проекцию динамически.
 
-## Input model that contract must support
+## Входная модель, которую должен поддерживать контракт
 
-### Global assumptions
+### Глобальные предположения
 
-From `Вводные`:
+Из листа `Вводные`:
 
-- `startYear` — first projection year.
-- `birthYear` / derived current age.
-- `monthsPerYear` — normally `12`.
-- `inflationSchedule[]` — per-year inflation rates; the sample has 5% for first year, then 3%.
-- `investmentReturnPct` — nominal annual return on invested capital; sample `6%`.
-- `initialCapital` — current invested savings / balance if available; workbook sample effectively starts from zero in `Сбережения`, while product profile already has `initialBalance`.
+- `startYear` — первый год проекции;
+- `birthYear` / вычисленный текущий возраст;
+- `monthsPerYear` — обычно `12`;
+- `inflationSchedule[]` — ставки инфляции по годам; в примере: 5% в первый год, дальше 3%;
+- `investmentReturnPct` — номинальная годовая доходность инвестированного капитала; в примере: `6%`;
+- `initialCapital` — текущие инвестированные сбережения / баланс, если есть. В примере Excel-файла лист `Сбережения` фактически стартует с нуля, а профиль продукта уже содержит `initialBalance`.
 
-### Income and expense lines
+### Строки доходов и расходов
 
-The workbook models both monthly and annual lines:
+Excel-модель описывает ежемесячные и ежегодные строки:
 
-- monthly income: amount per month, active start/end year, per-year growth schedule;
-- yearly income: amount per year, active start/end year, per-year growth schedule;
-- monthly expense: amount per month, active start/end year, per-year growth schedule;
-- yearly expense: amount per year, active start/end year, per-year growth schedule.
+- ежемесячный доход: сумма в месяц, год начала/окончания активности, график роста по годам;
+- ежегодный доход: сумма в год, год начала/окончания активности, график роста по годам;
+- ежемесячный расход: сумма в месяц, год начала/окончания активности, график роста по годам;
+- ежегодный расход: сумма в год, год начала/окончания активности, график роста по годам.
 
-Formula pattern:
+Паттерн формул:
 
 ```txt
 activeFlag(year) = year >= startYear && year <= endYear ? 1 : 0
@@ -51,22 +51,22 @@ annualMonthlyLineValue = monthlyAmount * monthsPerYear * growthFactor(year) * ac
 annualYearlyLineValue = yearlyAmount * growthFactor(year) * activeFlag(year)
 ```
 
-API inputs should use positive `amount` for both income and expenses. Backend normalizes signs internally. API outputs should expose outflows as positive values (`totalExpenses`, `totalGoalExpenses`) and net savings as `income - expenses - goalExpenses`.
+Входные данные API должны использовать положительный `amount` и для доходов, и для расходов. Бэкенд сам нормализует знаки внутри. Выходные данные API должны отдавать исходящие платежи положительными значениями (`totalExpenses`, `totalGoalExpenses`), а `netSavings` считать как `income - expenses - goalExpenses`.
 
-### Goal spending
+### Расходы на цели
 
-The sheet `Цели` is not just a list of target goals. It is a separate planned-spending stream:
+Лист `Цели` — это не только список целевых целей. Это отдельный поток плановых расходов:
 
-- monthly goal expenses;
-- yearly goal expenses;
-- active period per line;
-- growth schedule per line.
+- ежемесячные расходы на цели;
+- ежегодные расходы на цели;
+- период активности по каждой строке;
+- график роста по каждой строке.
 
-Contract impact: `Goal` must support recurring planned spending (`frequency`, `plannedAmount`, `startDate/endDate` or `startYear/endYear`, `growthSchedule`) in addition to one-time target goals from the UI.
+Влияние на контракт: `Goal` должен поддерживать регулярные плановые расходы (`frequency`, `plannedAmount`, `startDate/endDate` или `startYear/endYear`, `growthSchedule`) дополнительно к разовым целям из интерфейса.
 
-## Derived calculations
+## Производные расчёты
 
-### Income totals (`Доходы`)
+### Итоги доходов (`Доходы`)
 
 ```txt
 totalMonthlyIncome[year] = sum(monthly income line annualized values)
@@ -74,7 +74,7 @@ totalYearlyIncome[year] = sum(yearly income line values)
 totalIncome[year] = totalMonthlyIncome[year] + totalYearlyIncome[year]
 ```
 
-### Expense totals (`Расходы`)
+### Итоги расходов (`Расходы`)
 
 ```txt
 totalMonthlyExpenses[year] = sum(monthly expense line annualized values)
@@ -82,7 +82,7 @@ totalYearlyExpenses[year] = sum(yearly expense line values)
 totalExpenses[year] = totalMonthlyExpenses[year] + totalYearlyExpenses[year]
 ```
 
-### Goal-spending totals (`Цели`)
+### Итоги расходов на цели (`Цели`)
 
 ```txt
 totalMonthlyGoalExpenses[year] = sum(monthly goal expense annualized values)
@@ -90,9 +90,9 @@ totalYearlyGoalExpenses[year] = sum(yearly goal expense values)
 totalGoalExpenses[year] = totalMonthlyGoalExpenses[year] + totalYearlyGoalExpenses[year]
 ```
 
-### Current-year balance (`Баланс`)
+### Баланс текущего года (`Баланс`)
 
-The workbook exposes current-year totals:
+Excel-модель отдаёт итоги текущего года:
 
 ```txt
 monthlyBalance = monthlyIncome - monthlyExpenses - monthlyGoalExpenses
@@ -100,11 +100,11 @@ yearlyBalance = yearlyIncome - yearlyExpenses - yearlyGoalExpenses
 totalBalance = monthlyBalance + yearlyBalance
 ```
 
-Contract impact: add a current balance endpoint so dashboard can render the workbook-style income/outflow split without duplicating formulas on frontend.
+Влияние на контракт: нужен метод API текущего баланса, чтобы дашборд мог показать разрез доходов и исходящих платежей как в Excel-модели без дублирования формул на фронтенде.
 
-### Savings and accumulated capital (`Сбережения`)
+### Сбережения и накопленный капитал (`Сбережения`)
 
-Workbook pattern:
+Паттерн Excel-модели:
 
 ```txt
 annualSavings[year] = totalIncome[year] - totalExpenses[year] - totalGoalExpenses[year]
@@ -112,19 +112,19 @@ capitalEndOfYear[startYear] = initialCapital * (1 + investmentReturnPct[startYea
 capitalEndOfYear[year] = capitalEndOfYear[previousYear] * (1 + investmentReturnPct[year]) + annualSavings[year]
 ```
 
-The sample workbook uses a constant nominal return of 6%.
+В примере Excel-файла используется постоянная номинальная доходность `6%`.
 
-### Pension preserve-capital variant (`Пенсия`, rows 10-21)
+### Пенсионный вариант «сохранение капитала» (`Пенсия`, строки 10-21)
 
-Inputs:
+Входные данные:
 
-- retirement age;
-- retirement year;
-- projected capital at retirement;
-- nominal investment return;
-- average inflation before retirement.
+- возраст выхода на пенсию;
+- год выхода на пенсию;
+- прогнозный капитал на момент выхода на пенсию;
+- номинальная доходность инвестиций;
+- средняя инфляция до выхода на пенсию.
 
-Formula pattern:
+Паттерн формул:
 
 ```txt
 retirementYear = currentYear + (retirementAge - currentAge)
@@ -136,16 +136,16 @@ annualSpendableCurrentPrices = annualSpendableAtRetirement * discountFactorToCur
 monthlySpendableCurrentPrices = annualSpendableCurrentPrices / 12
 ```
 
-This answers: “If I never spend principal, how much can I spend from real return?”
+Этот вариант отвечает на вопрос: «Если не тратить основной капитал, сколько можно тратить с реальной доходности?»
 
-### Pension spend-down variant (`Пенсия`, rows 26-45)
+### Пенсионный вариант «расходование капитала» (`Пенсия`, строки 26-45)
 
-Inputs:
+Входные данные:
 
-- desired monthly retirement spending in current prices;
-- same retirement capital, return and inflation assumptions.
+- желаемый месячный расход на пенсии в текущих ценах;
+- тот же пенсионный капитал, доходность и предположения по инфляции.
 
-Formula pattern:
+Паттерн формул:
 
 ```txt
 desiredAnnualCurrentPrices = desiredMonthlyCurrentPrices * 12
@@ -157,33 +157,33 @@ retirementYears = count(years where capitalEndOfYear >= 0)
 depletionAge = retirementAge + retirementYears
 ```
 
-This answers: “If I spend the target amount, at what age does capital run out?”
+Этот вариант отвечает на вопрос: «Если тратить целевой уровень расходов, в каком возрасте закончится капитал?»
 
-## Contract changes required
+## Требуемые изменения контракта
 
-1. Add model assumptions to plan state: start year, projection horizon/end year, months per year, inflation schedule, investment return, initial capital.
-2. Add optional per-year `growthSchedule[]` and active year bounds to incomes, expenses and recurring goals.
-3. Add a rich yearly cashflow projection endpoint with income, expenses, goal expenses, annual savings and accumulated capital.
-4. Add current-year balance endpoint mirroring `Баланс`.
-5. Add pension projection endpoint with both variants: preserve-capital and spend-down.
-6. Keep `dashboard`, `health`, and scenario comparison as summaries built on top of the same calculation engine.
-7. Import/export must support the Excel model (`type=excel_model`) in addition to JSON/CSV/PDF outputs.
+1. Добавить предположения модели в состояние плана: стартовый год, горизонт/год окончания, `monthsPerYear`, график инфляции, инвестиционную доходность, стартовый капитал.
+2. Добавить опциональный `growthSchedule[]` по годам и границы активных лет в доходы, расходы и регулярные цели.
+3. Добавить подробный метод API годового денежного потока с доходами, расходами, расходами на цели, годовыми сбережениями и накопленным капиталом.
+4. Добавить метод API текущего баланса, который зеркалит лист `Баланс`.
+5. Добавить метод API пенсионной проекции с двумя вариантами: сохранение капитала и расходование капитала.
+6. `dashboard`, `health` и сравнение сценариев должны быть сводками поверх одного расчётного движка.
+7. Импорт/экспорт должен поддерживать Excel-модель (`type=excel_model`) дополнительно к выгрузкам JSON/CSV/PDF.
 
-## Backend implementation notes
+## Заметки по реализации бэкенда
 
-Recommended analytics package split:
+Рекомендуемое разделение пакета `analytics`:
 
 ```txt
 analytics/
-  ModelAssumptions           global assumptions and schedules
-  YearRatePoint              per-year rate, percent points in API
-  CashFlowProjectionPoint    yearly workbook-style cashflow row
-  BalanceSnapshot            current-year Баланс output
-  ProjectionCalculator       income/expense/goal/savings timeline
-  DashboardCalculator        summary cards from projection
+  ModelAssumptions           глобальные предположения и графики
+  YearRatePoint              ставка по году; в API — процентные пункты
+  CashFlowProjectionPoint    годовая строка денежного потока в стиле Excel-модели
+  BalanceSnapshot            результат текущего года из листа Баланс
+  ProjectionCalculator       временная шкала доходов, расходов, целей и сбережений
+  DashboardCalculator        карточки-сводки из проекции
 pension/
-  PensionProjection          preserve-capital + spend-down result
-  PensionSpendDownPoint      yearly retirement depletion row
+  PensionProjection          результат вариантов сохранения и расходования капитала
+  PensionSpendDownPoint      годовая строка расходования пенсионного капитала
 ```
 
-Rate convention: API fields ending with `Pct` are percent points (`6` means 6%). Calculation code should convert them to decimal (`0.06`) internally.
+Соглашение по ставкам: поля API с суффиксом `Pct` — процентные пункты (`6` значит 6%). Расчётный код должен переводить их в десятичную ставку (`0.06`) внутри.

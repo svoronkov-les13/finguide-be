@@ -1,34 +1,34 @@
-# FinGuide Docs
+# Документация FinGuide
 
-Документация backend/API для **FinGuide / Финансовый капитал**.
+Документация бэкенда/API для **FinGuide / Финансовый капитал**.
 
-## Что здесь лежит
+## Что здесь находится
 
-- [API контракт](contract.md) — договор backend ↔ frontend.
-- [Excel-модель аналитики](model-analytics.md) — разбор workbook-модели, которую backend должен воспроизводить.
-- [Backend architecture + Keycloak](backend-architecture-keycloak.md) — целевая архитектура.
-- [Backend modules](backend-modules.md) — структура Java-пакетов и границы модулей.
+- [Контракт API](contract.md) — договор между бэкендом и фронтендом.
+- [Аналитическая Excel-модель](model-analytics.md) — разбор Excel-модели, которую бэкенд должен воспроизводить.
+- [Архитектура бэкенда и Keycloak](backend-architecture-keycloak.md) — целевая архитектура продукта.
+- [Модули бэкенда](backend-modules.md) — структура Java-пакетов и границы модулей.
 
 ## Быстрые ссылки
 
-- GitHub repo: <https://github.com/svoronkov-les13/finguide-be>
-- Swagger mock: <http://66.42.121.18/finguide-mock/>
-- Public contract preview: <http://66.42.121.18/finguide-contract/>
-- OpenAPI JSON: <https://github.com/svoronkov-les13/finguide-be/blob/main/openapi/openapi.json>
+- Репозиторий GitHub: <https://github.com/svoronkov-les13/finguide-be>
+- Swagger UI mock-сервера: <http://66.42.121.18/finguide-mock/>
+- Публичный предпросмотр контракта: <http://66.42.121.18/finguide-contract/>
+- JSON-спецификация OpenAPI: <https://github.com/svoronkov-les13/finguide-be/blob/main/openapi/openapi.json>
 
-## Ключевая договорённость
+## Главная договорённость
 
-Frontend редактирует входные данные и показывает derived data. Backend владеет финансовой логикой:
+Фронтенд редактирует входные данные и показывает рассчитанные значения. Бэкенд владеет финансовой логикой:
 
 ```txt
 PlanState + ModelAssumptions
-  -> yearly cashflow
-  -> savings / accumulated capital
-  -> pension projection
-  -> dashboard / health / scenarios
+  -> годовой денежный поток
+  -> сбережения и накопленный капитал
+  -> пенсионная проекция
+  -> дашборд, оценка финансового здоровья и сценарии
 ```
 
-Главный derived endpoint:
+Главный метод API для производных расчётов:
 
 ```txt
 GET /plans/{planId}/analytics/cashflow

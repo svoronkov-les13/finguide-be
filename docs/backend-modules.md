@@ -1,50 +1,49 @@
-# Backend modules
+# Модули бэкенда
 
-The backend starts as a modular monolith. Every package is a bounded context with a narrow public model/service surface, so we can extract heavy modules later without splitting the financial-plan core too early.
+Бэкенд стартует как модульный монолит. Каждый пакет — отдельный ограниченный контекст с узкой публичной моделью и сервисным интерфейсом. Так ядро финансового плана остаётся консистентным, а тяжёлые части можно вынести позже.
 
 ```txt
 les13.finguide.backend
-  auth/              Keycloak JWT integration, SecurityConfig, current user
-  users/             local business profile synced with Keycloak identity
-  plans/             financial plan aggregate and access policy
-  incomes/           income source model
-  expenses/          expense model and budget classification input
-  goals/             goals and waterfall priority
-  contributions/     actual savings contributions
-  pension/           retirement settings plus preserve-capital/spend-down projections
-  budget/            50/30/20 and envelopes
-  analytics/         Excel-model assumptions, cashflow, balance, savings, dashboard, health score
-  scenarios/         scenario snapshots/adjustments
-  importexport/      import/export job boundary
-  notifications/     derived alerts/milestones/tips
+  auth/              интеграция с Keycloak JWT, SecurityConfig, текущий пользователь
+  users/             бизнес-профиль пользователя, связанный с Keycloak identity
+  plans/             агрегат финансового плана и политика доступа
+  incomes/           модель источников дохода
+  expenses/          модель расходов и бюджетная классификация
+  goals/             финансовые цели и waterfall-приоритет
+  contributions/     фактические взносы в цели
+  pension/           пенсионные настройки, preserve-capital и spend-down проекции
+  budget/            50/30/20 и бюджетные конверты
+  analytics/         предположения из Excel-модели, денежный поток, баланс, сбережения, дашборд, оценка финансового здоровья
+  scenarios/         снимки и корректировки сценариев
+  importexport/      граница задач импорта/экспорта
+  notifications/     производные уведомления, milestone-события и подсказки
 ```
 
-## Analytics model boundary
+## Граница аналитической модели
 
-The uploaded Excel model is the reference for calculations. Backend owns the workbook logic, not frontend.
+Загруженная Excel-модель — эталон расчётов. Бэкенд владеет логикой Excel-файла; фронтенд её не дублирует.
 
 ```txt
 analytics/
-  ModelAssumptions           start year, horizon/end year, inflation schedule, return, initial capital
-  YearRatePoint              per-year rate schedule used by inflation and line growth
-  BalanceSnapshot            current-year income/outflow/net split from workbook sheet Баланс
-  CashFlowProjectionPoint    yearly income, expenses, goals, savings, accumulated capital
-  ProjectionCalculator       reproduces sheets Доходы / Расходы / Цели / Сбережения
-  DashboardCalculator        derives card metrics from projection outputs
+  ModelAssumptions           стартовый год, горизонт/год окончания, инфляция, доходность, начальный капитал
+  YearRatePoint              годовая ставка для инфляции и роста строк
+  BalanceSnapshot            текущий годовой баланс из листа Баланс
+  CashFlowProjectionPoint    годовые доходы, расходы, цели, сбережения, накопленный капитал
+  ProjectionCalculator       воспроизводит листы Доходы / Расходы / Цели / Сбережения
+  DashboardCalculator        строит карточки дашборда из результатов проекции
 pension/
-  PensionProjection          preserves capital and spend-down variants from sheet Пенсия
-  PensionSpendDownPoint      yearly retirement depletion row
+  PensionProjection          варианты preserve-capital и spend-down из листа Пенсия
+  PensionSpendDownPoint      годовая строка расходования пенсионного капитала
 ```
 
-Inputs should stay normalized and user-friendly: expenses/goals are positive outflow amounts in API. The calculation layer converts signs internally and exposes positive outflows + `netSavings`.
+Входные данные должны быть нормализованы и удобны пользователю: расходы и цели передаются положительными исходящий платёж-суммами. Расчётный слой сам переводит знаки внутрь модели и наружу отдаёт положительные исходящий платёж + `netSavings`.
 
-## Extraction candidates later
+## Что можно выносить позже
 
-If load or team ownership requires it, extract these first:
+Если нагрузка или границы ответственности команды потребуют разделения, первыми кандидатами на вынос будут:
 
-- `analytics` -> analytics worker/service when recalculation becomes heavy or async
-- `importexport` -> export worker/service
-- `notifications` -> notification worker/service
+- `analytics` → отдельный обработчик или сервис аналитики, когда пересчёты станут тяжёлыми или асинхронными;
+- `importexport` → отдельный обработчик или сервис для импорта и экспорта;
+- `notifications` → отдельный обработчик или сервис для уведомлений.
 
-Keep `plans + incomes + expenses + goals + pension` together while financial calculations require strong consistency.
-```
+`plans + incomes + expenses + goals + pension` лучше держать вместе, пока расчёты финансового плана требуют сильной консистентности.

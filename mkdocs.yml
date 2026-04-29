@@ -1,5 +1,5 @@
-site_name: FinGuide Docs
-site_description: Backend contract, architecture and analytics model for FinGuide.
+site_name: Документация FinGuide
+site_description: Контракт бэкенда и фронтенда, архитектура и аналитическая модель FinGuide.
 site_url: https://svoronkov-les13.github.io/finguide-be/
 repo_url: https://github.com/svoronkov-les13/finguide-be
 repo_name: svoronkov-les13/finguide-be
@@ -53,10 +53,10 @@ markdown_extensions:
 
 nav:
   - Обзор: index.md
-  - API контракт: contract.md
-  - Excel-модель аналитики: model-analytics.md
+  - Контракт API: contract.md
+  - Аналитическая Excel-модель: model-analytics.md
   - Архитектура:
-      - Backend + Keycloak: backend-architecture-keycloak.md
-      - Backend modules: backend-modules.md
-  - OpenAPI JSON: https://github.com/svoronkov-les13/finguide-be/blob/main/openapi/openapi.json
-  - Swagger mock: http://66.42.121.18/finguide-mock/
+      - Бэкенд и Keycloak: backend-architecture-keycloak.md
+      - Модули бэкенда: backend-modules.md
+  - Спецификация OpenAPI: https://github.com/svoronkov-les13/finguide-be/blob/main/openapi/openapi.json
+  - Swagger mock-сервер: http://66.42.121.18/finguide-mock/

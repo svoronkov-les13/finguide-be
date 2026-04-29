@@ -1,106 +1,91 @@
-# Backend architecture with Keycloak
+# Архитектура бэкенда с Keycloak
 
-## Recommendation
+## Рекомендация
 
-Use **Java 21 + Spring Boot 3 + Keycloak + PostgreSQL** as a contract-first modular monolith.
+Используем **Java 21 + Spring Boot 3 + Keycloak + PostgreSQL** как модульный монолит с подходом «сначала контракт».
 
-Microservices are not required on day one. For a 100k registered-user target, a stateless horizontally-scaled API with PostgreSQL, Redis, async workers and read models is usually simpler and safer. Design modules as extractable bounded contexts so analytics/import/notifications can be split later.
+Микросервисы на первом этапе не нужны. Для цели в 100k зарегистрированных пользователей обычно проще и надёжнее горизонтально масштабировать API без состояния, PostgreSQL, Redis, асинхронные обработчики и модели чтения. Модули проектируем как ограниченные контексты, чтобы позже можно было вынести аналитику, импорт/экспорт или уведомления без разрыва ядра финансового плана.
 
-## High-level flow
+## Общий поток
 
 ```txt
-Frontend
+Фронтенд
   -> Keycloak OIDC Authorization Code + PKCE
-  -> receives access_token / refresh_token
-  -> Backend API with Authorization: Bearer <JWT>
-  -> Backend validates JWT via Keycloak JWKS
-  -> Backend checks local user + plan access
+  -> получает access_token / refresh_token
+  -> API бэкенда с Authorization: Bearer <JWT>
+  -> Бэкенд валидирует JWT через Keycloak JWKS
+  -> Бэкенд проверяет локального пользователя и доступ к плану
   -> PostgreSQL / Redis / object storage
 ```
 
-Backend does **not** own passwords or login forms. Keycloak owns identity, credentials, MFA and sessions.
+Бэкенд **не хранит пароли** и не владеет формами входа. Keycloak отвечает за идентификацию, учётные данные, MFA и пользовательские сессии.
 
-## Keycloak setup
-
-Realm:
+## Настройка Keycloak
 
 ```txt
-finguide
+realm: finguide
+clients:
+  finguide-web      публичный client, PKCE
+  finguide-admin    confidential client для админских задач, если понадобится
+roles:
+  user
+  admin
+scopes/claims:
+  email
+  profile
+  preferred_username
 ```
 
-Clients:
+В JWT нам нужны:
+
+- `sub` — стабильный внешний идентификатор пользователя;
+- `email`;
+- `preferred_username`;
+- `realm_access.roles` или роли клиента;
+- `email_verified`.
+
+## Модули бэкенда
 
 ```txt
-finguide-web    public client, PKCE
-finguide-api    resource server / bearer-only semantics
-finguide-admin  confidential client, service account for admin automation
+les13.finguide.backend
+  auth/              проверка JWT, SecurityConfig, CurrentUserProvider
+  users/             локальный бизнес-профиль
+  plans/             агрегат финансового плана и доступ
+  incomes/           CRUD источников дохода
+  expenses/          CRUD расходов и бюджетная классификация
+  goals/             цели и waterfall-приоритет
+  contributions/     фактические взносы в цели
+  pension/           настройки пенсии, preserve-capital и spend-down проекции
+  budget/            50/30/20 и конверты
+  analytics/         предположения из Excel-модели, баланс, денежный поток, сбережения, дашборд, оценка финансового здоровья
+  scenarios/         снимки, корректировки и сравнение сценариев
+  importexport/      задачи JSON/CSV/XLSX/PDF
+  notifications/     производные уведомления, milestone-события и подсказки
 ```
 
-Roles:
+## Авторизация запроса
 
-```txt
-USER
-ADVISOR
-ADMIN
-```
+1. Проверить подпись JWT и издателя токена (`issuer`) через Keycloak JWKS.
+2. Получить `sub` из токена.
+3. Найти или создать локального `users.keycloak_subject`.
+4. На каждом запросе к плану проверить владение планом или явно выданный доступ.
 
-Useful token claims:
-
-```json
-{
-  "sub": "keycloak-user-id",
-  "email": "user@example.com",
-  "name": "Александр Петров",
-  "realm_access": {
-    "roles": ["USER"]
-  }
-}
-```
-
-## Backend modules
-
-```txt
-auth/              JWT adapter, current user, security config
-users/             local business profile
-plans/             plan ownership and access policy
-incomes/           income source CRUD
-expenses/          expense CRUD and budget classification
-goals/             goals and waterfall priority
-contributions/     actual savings contributions
-pension/           pension settings, preserve-capital and spend-down projections
-budget/            50/30/20 and envelopes
-analytics/         Excel-model assumptions, balance, cashflow, savings, dashboard, health score
-scenarios/         scenario snapshots/adjustments/compare
-importexport/      JSON/CSV/XLSX/PDF jobs
-notifications/     derived alerts/milestones/tips
-```
-
-## Authorization rules
-
-Every protected request:
-
-1. Validate JWT signature and issuer using Keycloak JWKS.
-2. Extract `sub`, `email`, `roles`.
-3. Find or create local user by `keycloak_subject`.
-4. Check domain access, e.g. user owns/can access `planId`.
-
-Example:
+Пример:
 
 ```txt
 GET /plans/{planId}/dashboard
-allowed if:
-- token valid
-- user active
-- user has access to planId
+Authorization: Bearer <JWT>
+
+JWT.sub -> users.keycloak_subject -> владелец плана / доступ к плану -> дашборд
 ```
 
-## Local user table
+## Профиль пользователя
 
-Keycloak is the identity source. Backend stores business profile.
+Keycloak — источник идентичности. Бэкенд хранит бизнес-профиль.
 
-```sql
+```txt
 users
-- id uuid primary key
+- id uuid pk
 - keycloak_subject text unique not null
 - email text not null
 - name text
@@ -113,37 +98,38 @@ users
 - updated_at timestamptz
 ```
 
-## Calculation architecture
+## Архитектура расчётов
 
-The Excel workbook `Модель_P---56630d2a-6465-4036-bd42-9117c7dc9bd6.xlsx` is the reference model. Backend should reimplement it as deterministic calculation services:
+Excel-файл `Модель_P---56630d2a-6465-4036-bd42-9117c7dc9bd6.xlsx` — эталонная финансовая модель. Бэкенд должен воспроизвести её как детерминированные расчётные сервисы:
 
 ```txt
 PlanState + ModelAssumptions
-  -> normalize amounts/rates/dates
-  -> build yearly timeline
-  -> apply active flags by start/end year
-  -> apply yearly growth schedules
-  -> calculate income/expense/goal cashflow
-  -> calculate annual savings and accumulated capital
-  -> calculate pension preserve-capital and spend-down variants
-  -> cache snapshots for dashboard/scenarios
+  -> нормализовать суммы, ставки и даты
+  -> построить годовую шкалу
+  -> применить флаги активности по start/end year
+  -> применить годовые графики роста
+  -> посчитать доходы, расходы и расходы на цели
+  -> посчитать годовые сбережения и накопленный капитал
+  -> посчитать пенсионные варианты preserve-capital и spend-down
+  -> закешировать snapshots для dashboard/scenarios
 ```
 
-Important conventions:
+Важные соглашения:
 
-- API uses positive amounts for expenses and goal outflows.
-- API rates ending with `Pct` are percent points (`6` = 6%). Calculation code converts to decimal rates.
-- `analytics/cashflow` is the canonical derived projection. Dashboard, health score, scenarios and notifications should derive from it instead of duplicating formulas.
-- Persist raw inputs and optional snapshot outputs; do not persist every transient formula unless needed for audit/cache.
+- API принимает расходы и цели положительными суммами.
+- Поля API с суффиксом `Pct` — процентные пункты (`6` = 6%). Расчётный код переводит их в десятичные ставки.
+- `analytics/cashflow` — каноническая производная проекция. Дашборд, оценка финансового здоровья, сценарии и уведомления должны строиться поверх него, а не дублировать формулы.
+- Храним исходные входные данные и опциональные снимки расчётов; каждую промежуточную формулу сохранять не нужно, если нет требования аудита/кеша.
 
-## Main persistence model
+## Основная модель хранения
 
 ```txt
-financial_plans
+users
+plans
 income_sources
 expense_items
 goals
-goal_contributions
+contributions
 pension_settings
 budget_settings
 budget_envelopes
@@ -156,51 +142,60 @@ analytics_snapshots
 pension_projection_snapshots
 ```
 
-Common columns:
+Общие поля:
 
 ```txt
-id uuid
-plan_id uuid
+id uuid pk
+plan_id uuid fk
 created_at timestamptz
 updated_at timestamptz
-deleted_at timestamptz nullable
+deleted_at timestamptz null
+version int
 ```
 
-## Scaling to 100k users
+`version` нужен для оптимистической блокировки и `ETag` / `If-Match`.
 
-100k registered users does not automatically require microservices. Start with:
+## Масштабирование до 100k пользователей
+
+100k зарегистрированных пользователей не означает автоматическую необходимость в микросервисах. Начинаем с:
 
 ```txt
-Load balancer
-  -> 2..N stateless backend instances
-  -> PostgreSQL primary + read replica when needed
+Балансировщик нагрузки
+  -> 2-4 stateless-инстанса Spring Boot API
+  -> PostgreSQL primary + read replica при необходимости
   -> Redis cache
-  -> Keycloak 2+ instances backed by PostgreSQL
-  -> async worker pool
+  -> 2+ инстанса Keycloak на PostgreSQL
+  -> асинхронные workers для analytics/export/notifications
 ```
 
-Add:
+Добавляем:
 
-- Redis cache for dashboard/projection snapshots derived from `analytics/cashflow`.
-- Read models: `plan_dashboard_snapshot`, `plan_projection_snapshot`, `financial_health_snapshot`.
-- Outbox pattern for business events.
-- Async jobs for recalculation, export, notifications.
-- Proper indexes and later partitioning if event/history tables grow.
+- кеш Redis для снимков дашборда/проекции, производных от `analytics/cashflow`;
+- модели чтения: `plan_dashboard_snapshot`, `plan_projection_snapshot`, `financial_health_snapshot`;
+- паттерн исходящих событий (outbox) для бизнес-событий;
+- асинхронные задачи для пересчётов, экспорта и уведомлений.
 
-## Extract later if needed
-
-Good candidates for extraction:
+## Что выносить в сервисы позже
 
 ```txt
 analytics-worker
+  читает события PlanChanged
+  пересчитывает projections и scenarios
+
 import-export-worker
+  генерирует XLSX/PDF/CSV
+
 notification-worker
+  создаёт reminders, milestones и tips
 ```
 
-Do **not** split core financial entities too early:
+Финансовое ядро (`plans`, `incomes`, `expenses`, `goals`, `pension`) сначала лучше держать вместе: много расчётов требует консистентного состояния одного плана.
 
-```txt
-incomes / expenses / goals / pension
-```
+## Безопасность
 
-They are one consistency boundary: the financial plan.
+- Время жизни access token: 5-15 минут.
+- Ротация refresh token в Keycloak.
+- Бэкенд проверяет аудиторию и издателя токена (`audience` / `issuer`).
+- Ограничение частоты запросов для auth-like и import/export методов API.
+- Журнал аудита для критичных изменений плана.
+- Персональные данные хранить минимально; секреты — только в переменных окружения или secret manager.
