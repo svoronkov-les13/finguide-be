@@ -37,9 +37,6 @@
     </#if>
     <title>${msg("loginTitle",(realm.displayName!''))}</title>
     <link rel="icon" href="${url.resourcesPath}/img/favicon.ico" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap&subset=cyrillic" rel="stylesheet">
     <#if properties.stylesCommon?has_content>
         <#list properties.stylesCommon?split(' ') as style>
             <link href="${url.resourcesCommonPath}/${style}" rel="stylesheet" />
@@ -92,6 +89,12 @@
     </script>
 
     <style id="finguide-critical-auth-layout">
+      @font-face { font-family: 'Inter'; font-style: normal; font-weight: 300; font-display: swap; src: url('${url.resourcesPath}/fonts/inter-300.ttf') format('truetype'); }
+      @font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap; src: url('${url.resourcesPath}/fonts/inter-400.ttf') format('truetype'); }
+      @font-face { font-family: 'Inter'; font-style: normal; font-weight: 500; font-display: swap; src: url('${url.resourcesPath}/fonts/inter-500.ttf') format('truetype'); }
+      @font-face { font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: swap; src: url('${url.resourcesPath}/fonts/inter-600.ttf') format('truetype'); }
+      @font-face { font-family: 'Inter'; font-style: normal; font-weight: 700; font-display: swap; src: url('${url.resourcesPath}/fonts/inter-700.ttf') format('truetype'); }
+      @font-face { font-family: 'Inter'; font-style: normal; font-weight: 800; font-display: swap; src: url('${url.resourcesPath}/fonts/inter-800.ttf') format('truetype'); }
 :root {
   --fg-bg: #f4f1eb;
   --fg-card: #fbfaf6;
@@ -103,6 +106,16 @@
   --fg-primary-hover: #a98322;
   --fg-primary-text: #fff7dc;
   --fg-shadow-soft: 0 2px 8px rgba(34, 29, 22, 0.06);
+}
+
+*,
+*::before,
+*::after,
+input,
+button,
+select,
+textarea {
+  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
 }
 
 html,
