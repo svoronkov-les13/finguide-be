@@ -238,7 +238,7 @@ Keycloak владеет входом, регистрацией, refresh/logout, 
 
 ## Интеграция фронтенда
 
-1. Если включён OIDC: пройти `/login` → Keycloak Authorization Code + PKCE → `/auth/callback`, сохранить access token и подставлять `Authorization`. Затем: `GET /me` + `GET /plans/current` + `GET /plans/{id}/dashboard`.
+1. Если включён OIDC: пройти `/login` → Keycloak Authorization Code + PKCE → `/auth/callback`, сохранить access token и подставлять `Authorization`. Затем: `GET /me` + `GET /plans/current` + `GET /plans/{id}/dashboard`. Frontend должен разделять cache для anonymous demo и authenticated user session и показывать neutral loader до завершения восстановления токена/current plan, чтобы не мигал seeded demo/default профиль.
 2. CRUD-экраны используют локальное оптимистичное состояние, но инвалидируют `dashboard`, `analytics`, `budget` после записи.
 3. Дашборд и графики не считают деньги сами — только отображают расчётные методы API.
 4. Для миграции из прототипа можно один раз прочитать ключи localStorage `finguide-data`, `finguide-user-profile`, `finguide-budgets`, `finguide-scenarios` и отправить `PUT /plans/current` / `POST /import`.

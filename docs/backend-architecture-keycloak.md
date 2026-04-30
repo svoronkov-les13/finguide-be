@@ -225,6 +225,7 @@ notification-worker
 - имя/email локального профиля синхронизируются из текущего JWT, поэтому authenticated API не возвращает seeded placeholder `Александр Петров` вместо ФИО зарегистрированного пользователя;
 - `GET /api/v1/me` возвращает текущий бизнес-профиль;
 - первый authenticated `GET /api/v1/plans/current` транзакционно создаёт ровно один current plan для `user_profiles.id`, клонируя явный persisted seed plan `22222222-2222-4222-8222-222222222222`; повторные запросы возвращают тот же пользовательский план;
+- frontend при восстановлении OIDC-сессии не должен переиспользовать anonymous demo cache и не должен показывать seeded demo/default профиль до ответа authenticated `/plans/current`; на время bootstrap показывается нейтральный loader;
 - доступ к `/api/v1/plans/{planId}/...` проверяется по владельцу `financial_plans.owner_user_id`; роль `admin` может читать план для диагностики; authenticated demo mode больше не даёт cross-plan bypass;
 - операции записи income/expense/goal проходят ту же проверку доступа и пишут audit log без секретов;
 - `FINGUIDE_DEMO_MODE=true` сохраняет прежний no-auth demo/H2 режим для локальных тестов и текущего публичного стенда до запуска Keycloak.
