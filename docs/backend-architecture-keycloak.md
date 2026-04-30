@@ -54,7 +54,8 @@ scopes/claims:
 
 - `sub` — стабильный внешний идентификатор пользователя;
 - `email`;
-- `preferred_username`;
+- `name` или пара `given_name` + `family_name` для реального ФИО из регистрации;
+- `preferred_username` как безопасный fallback, если ФИО не заполнено;
 - `realm_access.roles` или роли клиента;
 - `email_verified`.
 
@@ -221,6 +222,7 @@ notification-worker
 - Spring Security OAuth2 Resource Server валидирует issuer/JWKS из `KEYCLOAK_ISSUER_URI`;
 - `KEYCLOAK_AUDIENCE` по умолчанию `finguide-api`, неподходящий `aud` даёт `403 FORBIDDEN`;
 - `JWT.sub` маппится в `user_profiles.keycloak_subject`, профиль создаётся лениво при первом запросе;
+- имя/email локального профиля синхронизируются из текущего JWT, поэтому authenticated API не возвращает seeded placeholder `Александр Петров` вместо ФИО зарегистрированного пользователя;
 - `GET /api/v1/me` возвращает текущий бизнес-профиль;
 - доступ к `/api/v1/plans/{planId}/...` проверяется по владельцу `financial_plans.owner_user_id`; роль `admin` может читать план для диагностики;
 - операции записи income/expense/goal проходят ту же проверку доступа и пишут audit log без секретов;

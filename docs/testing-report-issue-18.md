@@ -67,7 +67,7 @@ curl -fsS http://127.0.0.1:18081/v3/api-docs
 Проверено:
 
 - API index отвечает envelope `{ data: ... }`;
-- `GET /api/v1/me` в demo mode возвращает профиль `Александр Петров`;
+- `GET /api/v1/me` в no-auth demo mode возвращает seeded demo профиль, а authenticated mode синхронизирует ФИО из JWT регистрации вместо seeded placeholder;
 - `GET /api/v1/plans/current` возвращает demo plan `22222222-2222-4222-8222-222222222222`;
 - Springdoc публикует `bearerAuth` security scheme.
 
