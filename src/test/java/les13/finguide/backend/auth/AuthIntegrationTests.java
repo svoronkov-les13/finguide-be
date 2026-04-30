@@ -36,12 +36,30 @@ class AuthIntegrationTests {
         mockMvc.perform(get("/api/v1/plans/current").with(ownerJwt()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.id").value(PLAN_ID))
-                .andExpect(jsonPath("$.data.profile.email").value("alex.petrov@example.com"));
+                .andExpect(jsonPath("$.data.profile.email").value("stas@example.com"))
+                .andExpect(jsonPath("$.data.profile.name").value("Стас Воронков"));
 
         mockMvc.perform(get("/api/v1/me").with(ownerJwt()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.keycloakSubject").value("demo-user"))
-                .andExpect(jsonPath("$.data.name").value("Александр Петров"));
+                .andExpect(jsonPath("$.data.email").value("stas@example.com"))
+                .andExpect(jsonPath("$.data.name").value("Стас Воронков"));
+    }
+
+    @Test
+    void createsCurrentProfileWithRegisteredFullNameFromJwt() throws Exception {
+        mockMvc.perform(get("/api/v1/me").with(jwt().jwt(token -> token
+                        .subject("registered-user")
+                        .audience(List.of("finguide-api"))
+                        .claim("email", "registered@example.com")
+                        .claim("given_name", "Иван")
+                        .claim("family_name", "Сидоров")
+                        .claim("preferred_username", "ivan")
+                )))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.keycloakSubject").value("registered-user"))
+                .andExpect(jsonPath("$.data.email").value("registered@example.com"))
+                .andExpect(jsonPath("$.data.name").value("Иван Сидоров"));
     }
 
     @Test
@@ -90,8 +108,8 @@ class AuthIntegrationTests {
         return jwt().jwt(token -> token
                 .subject("demo-user")
                 .audience(List.of("finguide-api"))
-                .claim("email", "alex.petrov@example.com")
-                .claim("name", "Александр Петров")
+                .claim("email", "stas@example.com")
+                .claim("name", "Стас Воронков")
                 .claim("realm_access", Map.of("roles", List.of("user")))
         );
     }

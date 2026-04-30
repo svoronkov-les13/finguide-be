@@ -18,6 +18,7 @@ import java.util.UUID;
 @Repository
 public class UserProfileRepository {
     private static final BigDecimal DEFAULT_INITIAL_BALANCE = BigDecimal.ZERO;
+    private static final String SEEDED_DEMO_NAME = "Александр Петров";
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -38,7 +39,42 @@ public class UserProfileRepository {
     }
 
     public UserProfile findOrCreateFrom(CurrentUser user) {
-        return findByKeycloakSubject(user.keycloakSubject()).orElseGet(() -> createFrom(user));
+        return findByKeycloakSubject(user.keycloakSubject())
+                .map(profile -> syncFromCurrentUser(profile, user))
+                .orElseGet(() -> createFrom(user));
+    }
+
+    private UserProfile syncFromCurrentUser(UserProfile profile, CurrentUser user) {
+        String email = emailForExistingProfile(profile, user);
+        String name = nameForExistingProfile(profile, user, email);
+        if (profile.email().equals(email) && profile.name().equals(name)) {
+            return profile;
+        }
+        jdbcTemplate.update(
+                "update user_profiles set email = ?, name = ?, updated_at = ? where id = ?",
+                email,
+                name,
+                offset(Instant.now()),
+                profile.id()
+        );
+        return findByKeycloakSubject(user.keycloakSubject()).orElseThrow();
+    }
+
+    private static String emailForExistingProfile(UserProfile profile, CurrentUser user) {
+        if (user.email() != null && !user.email().isBlank()) {
+            return normalizeEmail(user.email(), user.keycloakSubject());
+        }
+        return profile.email();
+    }
+
+    private static String nameForExistingProfile(UserProfile profile, CurrentUser user, String email) {
+        if (user.name() != null && !user.name().isBlank()) {
+            return normalizeName(user.name(), email, user.keycloakSubject());
+        }
+        if (SEEDED_DEMO_NAME.equals(profile.name())) {
+            return normalizeName(null, email, user.keycloakSubject());
+        }
+        return profile.name();
     }
 
     private UserProfile createFrom(CurrentUser user) {

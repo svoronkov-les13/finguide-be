@@ -22,9 +22,23 @@ public class KeycloakJwtAdapter {
     private String displayName(Jwt jwt) {
         String name = jwt.getClaimAsString("name");
         if (name != null && !name.isBlank()) {
-            return name;
+            return name.trim();
         }
-        return jwt.getClaimAsString("preferred_username");
+        String givenName = jwt.getClaimAsString("given_name");
+        String familyName = jwt.getClaimAsString("family_name");
+        String fullName = joinNameParts(givenName, familyName);
+        if (fullName != null) {
+            return fullName;
+        }
+        String preferredUsername = jwt.getClaimAsString("preferred_username");
+        return preferredUsername == null || preferredUsername.isBlank() ? null : preferredUsername.trim();
+    }
+
+    private static String joinNameParts(String givenName, String familyName) {
+        String first = givenName == null ? "" : givenName.trim();
+        String last = familyName == null ? "" : familyName.trim();
+        String fullName = (first + " " + last).trim();
+        return fullName.isBlank() ? null : fullName;
     }
 
     @SuppressWarnings("unchecked")
