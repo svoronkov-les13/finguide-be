@@ -42,7 +42,7 @@ services:
       KC_HOSTNAME: ${KEYCLOAK_PUBLIC_URL:?set KEYCLOAK_PUBLIC_URL}
       KC_HOSTNAME_STRICT: ${KEYCLOAK_HOSTNAME_STRICT:-false}
       KC_PROXY_HEADERS: xforwarded
-      KC_SPI_THEME_DEFAULT: finguide
+      KC_SPI_THEME_DEFAULT: keycloak.v2
     ports:
       - "${KEYCLOAK_BIND_ADDRESS:-127.0.0.1}:${KEYCLOAK_BIND_PORT:-3094}:8080"
     volumes:
