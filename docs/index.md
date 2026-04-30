@@ -28,7 +28,7 @@ Real Spring Boot backend сейчас обслуживает:
 - индекс API `GET /api/v1`;
 - чтение текущего плана, дашборда, health/cashflow и списка сценариев;
 - CRUD доходов, расходов и целей;
-- Keycloak/OIDC security boundary: JWT Resource Server, `GET /api/v1/me`, lazy profile mapping and plan ownership checks;
+- Keycloak/OIDC security boundary: JWT Resource Server, `GET /api/v1/me`, lazy profile mapping, plan ownership checks, and frontend session restore without demo/default profile flash;
 - `POST /plans/{planId}/goals/reorder` для сохранения waterfall-приоритета целей.
 
 Оставшиеся группы контракта ведутся отдельными задачами GitHub Issues.

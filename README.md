@@ -62,7 +62,7 @@ cp .env.example .env
 docker compose --env-file .env up -d
 ```
 
-Guide: [`deploy/keycloak/README.md`](deploy/keycloak/README.md). The frontend uses Authorization Code + PKCE (`/fg/login` → `/fg/auth/callback`), and the backend validates `Authorization: Bearer <JWT>`.
+Guide: [`deploy/keycloak/README.md`](deploy/keycloak/README.md). The frontend uses Authorization Code + PKCE (`/fg/login` → `/fg/auth/callback`), keeps anonymous demo and authenticated plan caches separate, shows a neutral loader during session/current-plan restore, and the backend validates `Authorization: Bearer <JWT>`.
 
 ## Run the legacy Java 21 mock locally
 
