@@ -436,6 +436,96 @@ button[data-password-toggle],
   border-radius: 12px !important;
 }
 
+
+/* Registration page must fit into a typical laptop viewport. */
+.pf-v5-c-login:has(#kc-register-form) {
+  align-items: flex-start !important;
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}
+
+.pf-v5-c-login__container:has(#kc-register-form) {
+  width: min(100%, 368px) !important;
+  max-width: 368px !important;
+}
+
+.pf-v5-c-login__main:has(#kc-register-form) {
+  width: min(100%, 360px) !important;
+  max-width: 360px !important;
+  max-height: calc(100vh - 20px) !important;
+  border-radius: 16px !important;
+  overflow-y: auto !important;
+}
+
+.pf-v5-c-login__main:has(#kc-register-form) .pf-v5-c-login__main-header {
+  padding-top: 12px !important;
+  padding-bottom: 4px !important;
+}
+
+.pf-v5-c-login__main:has(#kc-register-form) .pf-v5-c-login__main-body {
+  padding-top: 8px !important;
+  padding-bottom: 10px !important;
+}
+
+.pf-v5-c-login__main:has(#kc-register-form) .pf-v5-c-login__main-footer-band {
+  padding-top: 8px !important;
+  padding-bottom: 10px !important;
+}
+
+.pf-v5-c-login__main:has(#kc-register-form) #kc-page-title {
+  font-size: 19px !important;
+  line-height: 1.12 !important;
+}
+
+.pf-v5-c-login__main:has(#kc-register-form) .subtitle,
+.pf-v5-c-login__main:has(#kc-register-form) .pf-v5-u-mb-md-on-md {
+  display: none !important;
+}
+
+.pf-v5-c-login__main:has(#kc-register-form) .pf-v5-c-form__group {
+  margin-bottom: 7px !important;
+}
+
+.pf-v5-c-login__main:has(#kc-register-form) .pf-v5-c-form__label {
+  margin-bottom: 2px !important;
+}
+
+.pf-v5-c-login__main:has(#kc-register-form) .pf-v5-c-form__label-text,
+.pf-v5-c-login__main:has(#kc-register-form) label,
+.pf-v5-c-login__main:has(#kc-register-form) .pf-v5-c-helper-text__item-text {
+  font-size: 12px !important;
+  line-height: 1.2 !important;
+}
+
+.pf-v5-c-login__main:has(#kc-register-form) .pf-v5-c-form-control,
+.pf-v5-c-login__main:has(#kc-register-form) input[type="text"],
+.pf-v5-c-login__main:has(#kc-register-form) input[type="password"],
+.pf-v5-c-login__main:has(#kc-register-form) input[type="email"] {
+  min-height: 32px !important;
+  border-radius: 10px !important;
+  font-size: 13px !important;
+}
+
+.pf-v5-c-login__main:has(#kc-register-form) .pf-v5-c-form__actions,
+.pf-v5-c-login__main:has(#kc-register-form) #kc-form-buttons {
+  margin-top: 4px !important;
+}
+
+.pf-v5-c-login__main:has(#kc-register-form) .pf-v5-c-button.pf-m-primary,
+.pf-v5-c-login__main:has(#kc-register-form) input[type="submit"] {
+  min-height: 36px !important;
+  font-size: 13px !important;
+}
+
+.pf-v5-c-login__main:has(#kc-register-form)::-webkit-scrollbar {
+  width: 6px;
+}
+
+.pf-v5-c-login__main:has(#kc-register-form)::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(36, 32, 42, 0.18);
+}
+
     </style>
 
 </head>
