@@ -48,7 +48,7 @@ http://127.0.0.1:8080/api/v1/plans/{planId}/expenses
 http://127.0.0.1:8080/api/v1/plans/{planId}/goals
 ```
 
-Default local/demo mode uses embedded H2 and permits `/api/v1/**` without Keycloak so frontend integration can move off mock responses incrementally. With Keycloak enabled, `/api/v1/me` and plan profile responses use the registered user full name from JWT `name` (or `given_name` + `family_name`) and never fall back to the seeded demo name for an authenticated user. To enable Keycloak validation set `FINGUIDE_DEMO_MODE=false`, `KEYCLOAK_ISSUER_URI`, and `KEYCLOAK_AUDIENCE=finguide-api`. Income/expense/goal PATCH requests are partial updates; omitted fields stay unchanged, and current H2 demo semantics also treat explicit `null` in nullable fields as unchanged.
+Default local/demo mode uses embedded H2 and permits `/api/v1/**` without Keycloak so frontend integration can move off mock responses incrementally. Anonymous demo requests keep reading the seeded demo plan `22222222-2222-4222-8222-222222222222`. Authenticated requests are isolated: `/api/v1/me` and plan profile responses use the registered user full name from JWT `name` (or `given_name` + `family_name`), and the first `GET /api/v1/plans/current` creates one user-owned current plan cloned from the seeded demo plan. Authenticated users cannot read or mutate the shared `demo-seed` plan unless they have the `admin` role. To enable Keycloak validation set `FINGUIDE_DEMO_MODE=false`, `KEYCLOAK_ISSUER_URI`, and `KEYCLOAK_AUDIENCE=finguide-api`. Income/expense/goal PATCH requests are partial updates; omitted fields stay unchanged, and current H2 demo semantics also treat explicit `null` in nullable fields as unchanged.
 
 
 ## Run Keycloak locally/on server

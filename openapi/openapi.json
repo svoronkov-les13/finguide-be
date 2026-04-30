@@ -223,6 +223,7 @@
           "Plan"
         ],
         "summary": "Get full normalized current plan state",
+        "description": "Anonymous demo mode returns the seeded demo plan. Authenticated users get an idempotently created user-owned current plan cloned from the persisted demo seed on first access.",
         "responses": {
           "200": {
             "description": "OK",

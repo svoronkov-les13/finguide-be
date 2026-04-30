@@ -19,7 +19,7 @@ class UserProfileRepositoryTests {
     @Test
     void syncsExistingProfileNameFromCurrentRegisteredUser() {
         CurrentUser user = new CurrentUser(
-                "demo-user",
+                "demo-seed",
                 "stas@example.com",
                 "Стас Воронков",
                 Set.of("user")
@@ -27,7 +27,7 @@ class UserProfileRepositoryTests {
 
         UserProfile profile = repository.findOrCreateFrom(user);
 
-        assertThat(profile.keycloakSubject()).isEqualTo("demo-user");
+        assertThat(profile.keycloakSubject()).isEqualTo("demo-seed");
         assertThat(profile.email()).isEqualTo("stas@example.com");
         assertThat(profile.name()).isEqualTo("Стас Воронков");
         assertThat(profile.name()).isNotEqualTo("Александр Петров");

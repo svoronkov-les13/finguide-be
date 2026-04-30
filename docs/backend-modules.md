@@ -8,7 +8,7 @@
 les13.finguide.backend
   auth/              интеграция с Keycloak JWT, SecurityConfig, текущий пользователь
   users/             бизнес-профиль пользователя, связанный с Keycloak identity
-  plans/             агрегат финансового плана, H2/JDBC demo persistence, read API, финансовый CRUD и политика доступа
+  plans/             агрегат финансового плана, H2/JDBC demo persistence, cloning seeded plan for authenticated users, read API, финансовый CRUD и политика доступа
   incomes/           модель источников дохода, сохраняется через financial item CRUD
   expenses/          модель расходов и бюджетная классификация, сохраняется через financial item CRUD
   goals/             финансовые цели, waterfall-приоритет и reorder API

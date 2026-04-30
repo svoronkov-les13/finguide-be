@@ -195,13 +195,13 @@ Excel-модель требует два пенсионных расчёта:
 
 Keycloak владеет входом, регистрацией, refresh/logout, восстановлением пароля, MFA и пользовательскими сессиями. Эти endpoints доступны под публичным route `/auth/realms/finguide/protocol/openid-connect/...` и не входят в FinGuide API contract. Frontend использует Authorization Code + PKCE и передаёт access token в API.
 
-- `GET /me` — реализовано в real backend; возвращает локальный бизнес-профиль, связанный с `JWT.sub`.
+- `GET /me` — реализовано в real backend; возвращает локальный бизнес-профиль, связанный с `JWT.sub`, с синхронизацией `email`/ФИО из JWT.
 - `PATCH /me`, `PUT/DELETE /me/avatar` — отдельные задачи профиля.
 - Смена пароля — вне зоны ответственности backend; пароль меняется через Keycloak account/password reset screens.
 
 ### План и CRUD
 
-- `GET/PUT /plans/current` (`GET` реализован; `PUT` отдельная задача).
+- `GET/PUT /plans/current` (`GET` реализован; `PUT` отдельная задача). Для anonymous demo возвращает seeded plan `22222222-2222-4222-8222-222222222222`; для authenticated пользователя первый `GET` транзакционно и идемпотентно создаёт его собственный current plan, клонируя persisted demo seed, и дальше возвращает только пользовательский план.
 - `GET/POST /plans/{planId}/incomes`, `GET/PATCH/DELETE /plans/{planId}/incomes/{id}` — реализовано в real backend.
 - `GET/POST /plans/{planId}/expenses`, `GET/PATCH/DELETE /plans/{planId}/expenses/{id}` — реализовано в real backend.
 - `GET/POST /plans/{planId}/goals`, `GET/PATCH/DELETE /plans/{planId}/goals/{id}` — реализовано в real backend.

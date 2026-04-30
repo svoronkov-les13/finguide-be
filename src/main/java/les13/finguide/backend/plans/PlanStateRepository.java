@@ -13,6 +13,8 @@ public interface PlanStateRepository {
 
     Optional<PlanState> findCurrentForOwner(UUID ownerUserId);
 
+    PlanState findOrCreateCurrentForOwner(UUID ownerUserId);
+
     Optional<PlanState> findById(UUID planId);
 
     Optional<UUID> findOwnerUserId(UUID planId);

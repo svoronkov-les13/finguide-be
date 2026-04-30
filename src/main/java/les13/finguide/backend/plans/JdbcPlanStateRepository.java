@@ -10,8 +10,10 @@ import les13.finguide.backend.incomes.IncomeSource;
 import les13.finguide.backend.pension.PensionSettings;
 import les13.finguide.backend.users.UserProfile;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -26,6 +28,8 @@ import java.util.UUID;
 
 @Repository
 public class JdbcPlanStateRepository implements PlanStateRepository {
+    private static final UUID SEEDED_DEMO_PLAN_ID = UUID.fromString("22222222-2222-4222-8222-222222222222");
+
     private final JdbcTemplate jdbcTemplate;
 
     public JdbcPlanStateRepository(JdbcTemplate jdbcTemplate) {
@@ -34,10 +38,16 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
 
     @Override
     public Optional<PlanState> findCurrent() {
+        return findSeedDemoPlanId().flatMap(this::findById);
+    }
+
+    @Override
+    public Optional<PlanState> findCurrentForOwner(UUID ownerUserId) {
         try {
             UUID planId = jdbcTemplate.queryForObject(
-                    "select id from financial_plans order by created_at limit 1",
-                    UUID.class
+                    "select id from financial_plans where owner_user_id = ?",
+                    UUID.class,
+                    ownerUserId
             );
             return planId == null ? Optional.empty() : findById(planId);
         } catch (EmptyResultDataAccessException ignored) {
@@ -46,17 +56,148 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     }
 
     @Override
-    public Optional<PlanState> findCurrentForOwner(UUID ownerUserId) {
+    @Transactional
+    public PlanState findOrCreateCurrentForOwner(UUID ownerUserId) {
+        return findCurrentForOwner(ownerUserId).orElseGet(() -> createCurrentForOwner(ownerUserId));
+    }
+
+    private PlanState createCurrentForOwner(UUID ownerUserId) {
+        UUID seedPlanId = findSeedDemoPlanId().orElseThrow(() -> new IllegalStateException("Seed demo plan was not found"));
+        UUID planId = UUID.randomUUID();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         try {
-            UUID planId = jdbcTemplate.queryForObject(
-                    "select id from financial_plans where owner_user_id = ? order by created_at limit 1",
-                    UUID.class,
-                    ownerUserId
+            jdbcTemplate.update(
+                    "insert into financial_plans (id, owner_user_id, name, base_currency, created_at, updated_at) " +
+                            "select ?, ?, name, base_currency, ?, ? from financial_plans where id = ?",
+                    planId,
+                    ownerUserId,
+                    now,
+                    now,
+                    seedPlanId
             );
-            return planId == null ? Optional.empty() : findById(planId);
-        } catch (EmptyResultDataAccessException ignored) {
-            return Optional.empty();
+            clonePensionSettings(seedPlanId, planId);
+            cloneModelAssumptions(seedPlanId, planId);
+            cloneInflationRates(seedPlanId, planId);
+            cloneIncomes(seedPlanId, planId, now);
+            cloneExpenses(seedPlanId, planId, now);
+            cloneGoals(seedPlanId, planId, now);
+            return findById(planId).orElseThrow();
+        } catch (DuplicateKeyException ignored) {
+            return findCurrentForOwner(ownerUserId).orElseThrow();
         }
+    }
+
+    private Optional<UUID> findSeedDemoPlanId() {
+        return queryOptional(
+                "select id from financial_plans where id = ?",
+                (rs, rowNum) -> rs.getObject("id", UUID.class),
+                SEEDED_DEMO_PLAN_ID
+        );
+    }
+
+    private void clonePensionSettings(UUID seedPlanId, UUID planId) {
+        jdbcTemplate.update(
+                "insert into pension_settings (plan_id, current_age, retirement_age, monthly_expenses, desired_monthly_expenses_current_prices, currency, expected_return_pct, inflation_pct, withdrawal_strategy, state_pension_enabled, state_pension_monthly) " +
+                        "select ?, current_age, retirement_age, monthly_expenses, desired_monthly_expenses_current_prices, currency, expected_return_pct, inflation_pct, withdrawal_strategy, state_pension_enabled, state_pension_monthly from pension_settings where plan_id = ?",
+                planId,
+                seedPlanId
+        );
+    }
+
+    private void cloneModelAssumptions(UUID seedPlanId, UUID planId) {
+        jdbcTemplate.update(
+                "insert into model_assumptions (plan_id, start_year, projection_end_year, horizon_years, birth_year, months_per_year, currency, initial_capital, investment_return_pct, source_model) " +
+                        "select ?, start_year, projection_end_year, horizon_years, birth_year, months_per_year, currency, initial_capital, investment_return_pct, source_model from model_assumptions where plan_id = ?",
+                planId,
+                seedPlanId
+        );
+    }
+
+    private void cloneInflationRates(UUID seedPlanId, UUID planId) {
+        jdbcTemplate.update(
+                "insert into inflation_rates (plan_id, rate_year, rate_pct) select ?, rate_year, rate_pct from inflation_rates where plan_id = ?",
+                planId,
+                seedPlanId
+        );
+    }
+
+    private void cloneIncomes(UUID seedPlanId, UUID planId, OffsetDateTime now) {
+        jdbcTemplate.query(
+                "select * from incomes where plan_id = ? order by sort_order, name",
+                rs -> {
+                    jdbcTemplate.update(
+                            "insert into incomes (id, plan_id, name, amount, currency, frequency, growth_type, growth_pct, start_date, end_date, sort_order, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            UUID.randomUUID(),
+                            planId,
+                            rs.getString("name"),
+                            rs.getBigDecimal("amount"),
+                            rs.getString("currency"),
+                            rs.getString("frequency"),
+                            rs.getString("growth_type"),
+                            rs.getBigDecimal("growth_pct"),
+                            localDate(rs, "start_date"),
+                            localDate(rs, "end_date"),
+                            rs.getInt("sort_order"),
+                            now,
+                            now
+                    );
+                },
+                seedPlanId
+        );
+    }
+
+    private void cloneExpenses(UUID seedPlanId, UUID planId, OffsetDateTime now) {
+        jdbcTemplate.query(
+                "select * from expenses where plan_id = ? order by sort_order, name",
+                rs -> {
+                    jdbcTemplate.update(
+                            "insert into expenses (id, plan_id, name, amount, currency, frequency, growth_type, growth_pct, growth_label, budget_class, start_date, end_date, sort_order, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            UUID.randomUUID(),
+                            planId,
+                            rs.getString("name"),
+                            rs.getBigDecimal("amount"),
+                            rs.getString("currency"),
+                            rs.getString("frequency"),
+                            rs.getString("growth_type"),
+                            rs.getBigDecimal("growth_pct"),
+                            rs.getString("growth_label"),
+                            rs.getString("budget_class"),
+                            localDate(rs, "start_date"),
+                            localDate(rs, "end_date"),
+                            rs.getInt("sort_order"),
+                            now,
+                            now
+                    );
+                },
+                seedPlanId
+        );
+    }
+
+    private void cloneGoals(UUID seedPlanId, UUID planId, OffsetDateTime now) {
+        jdbcTemplate.query(
+                "select * from goals where plan_id = ? order by priority, name",
+                rs -> {
+                    jdbcTemplate.update(
+                            "insert into goals (id, plan_id, name, icon, current_cost, saved_amount, currency, target_year, type, growth_type, growth_pct, index_label, priority, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            UUID.randomUUID(),
+                            planId,
+                            rs.getString("name"),
+                            rs.getString("icon"),
+                            rs.getBigDecimal("current_cost"),
+                            rs.getBigDecimal("saved_amount"),
+                            rs.getString("currency"),
+                            rs.getInt("target_year"),
+                            rs.getString("type"),
+                            rs.getString("growth_type"),
+                            rs.getBigDecimal("growth_pct"),
+                            rs.getString("index_label"),
+                            rs.getInt("priority"),
+                            now,
+                            now
+                    );
+                },
+                seedPlanId
+        );
     }
 
     @Override

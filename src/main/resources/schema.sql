@@ -28,7 +28,8 @@ create table financial_plans (
   name varchar(255) not null,
   base_currency varchar(3) not null,
   created_at timestamp with time zone not null,
-  updated_at timestamp with time zone not null
+  updated_at timestamp with time zone not null,
+  constraint uq_financial_plans_owner_user_id unique (owner_user_id)
 );
 
 create table pension_settings (

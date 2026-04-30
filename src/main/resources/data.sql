@@ -1,7 +1,7 @@
 insert into user_profiles (id, keycloak_subject, email, name, phone, avatar_url, age, gender, initial_balance, created_at, updated_at)
 values (
   '11111111-1111-4111-8111-111111111111',
-  'demo-user',
+  'demo-seed',
   'alex.petrov@example.com',
   'Александр Петров',
   '+7 (903) 555-12-34',

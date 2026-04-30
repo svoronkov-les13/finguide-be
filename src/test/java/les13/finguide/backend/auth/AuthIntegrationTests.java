@@ -9,6 +9,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import java.util.List;
+
+import static org.hamcrest.Matchers.not;
 import java.util.Map;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
@@ -32,10 +34,10 @@ class AuthIntegrationTests {
     }
 
     @Test
-    void acceptsDemoOwnerJwtAndMapsCurrentProfile() throws Exception {
+    void authenticatedDemoUserJwtGetsOwnPlanAndMapsCurrentProfile() throws Exception {
         mockMvc.perform(get("/api/v1/plans/current").with(ownerJwt()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.id").value(PLAN_ID))
+                .andExpect(jsonPath("$.data.id", not(PLAN_ID)))
                 .andExpect(jsonPath("$.data.profile.email").value("stas@example.com"))
                 .andExpect(jsonPath("$.data.profile.name").value("Стас Воронков"));
 

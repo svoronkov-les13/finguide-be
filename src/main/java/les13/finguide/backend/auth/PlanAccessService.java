@@ -35,14 +35,13 @@ public class PlanAccessService {
         this.demoMode = demoMode;
     }
 
+    @Transactional
     public PlanState requireCurrentPlan() {
         if (demoBypass()) {
             return planRepository.findCurrent().orElseThrow(() -> notFound("Current plan was not found"));
         }
         UserProfile profile = currentProfile();
-        return planRepository.findCurrentForOwner(profile.id())
-                .or(() -> demoMode ? planRepository.findCurrent().map(state -> withProfile(state, profile)) : java.util.Optional.empty())
-                .orElseThrow(() -> notFound("Current plan was not found"));
+        return planRepository.findOrCreateCurrentForOwner(profile.id());
     }
 
     public PlanState requirePlan(UUID planId) {
@@ -52,7 +51,7 @@ public class PlanAccessService {
         }
         CurrentUser user = currentUserProvider.requireCurrentUser();
         UserProfile profile = userProfiles.findOrCreateFrom(user);
-        if (profile.id().equals(state.plan().ownerUserId()) || user.hasRole("admin") || demoMode) {
+        if (profile.id().equals(state.plan().ownerUserId()) || user.hasRole("admin")) {
             return state;
         }
         throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Plan is not available for current user");
@@ -66,20 +65,6 @@ public class PlanAccessService {
         return userProfiles.findOrCreateFrom(currentUserProvider.requireCurrentUser());
     }
 
-    private static PlanState withProfile(PlanState state, UserProfile profile) {
-        return new PlanState(
-                state.plan(),
-                profile,
-                state.pension(),
-                state.incomes(),
-                state.expenses(),
-                state.goals(),
-                state.contributions(),
-                state.budget(),
-                state.modelAssumptions(),
-                state.updatedAt()
-        );
-    }
 
     private boolean demoBypass() {
         if (!demoMode) {

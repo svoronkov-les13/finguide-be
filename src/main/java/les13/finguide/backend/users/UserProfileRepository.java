@@ -2,8 +2,10 @@ package les13.finguide.backend.users;
 
 import les13.finguide.backend.auth.CurrentUser;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.sql.ResultSet;
@@ -38,6 +40,7 @@ public class UserProfileRepository {
         }
     }
 
+    @Transactional
     public UserProfile findOrCreateFrom(CurrentUser user) {
         return findByKeycloakSubject(user.keycloakSubject())
                 .map(profile -> syncFromCurrentUser(profile, user))
@@ -82,21 +85,27 @@ public class UserProfileRepository {
         UUID id = UUID.randomUUID();
         String email = normalizeEmail(user.email(), user.keycloakSubject());
         String name = normalizeName(user.name(), email, user.keycloakSubject());
-        jdbcTemplate.update(
-                "insert into user_profiles (id, keycloak_subject, email, name, phone, avatar_url, age, gender, initial_balance, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                id,
-                user.keycloakSubject(),
-                email,
-                name,
-                null,
-                null,
-                null,
-                null,
-                DEFAULT_INITIAL_BALANCE,
-                offset(now),
-                offset(now)
-        );
-        return findByKeycloakSubject(user.keycloakSubject()).orElseThrow();
+        try {
+            jdbcTemplate.update(
+                    "insert into user_profiles (id, keycloak_subject, email, name, phone, avatar_url, age, gender, initial_balance, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    id,
+                    user.keycloakSubject(),
+                    email,
+                    name,
+                    null,
+                    null,
+                    null,
+                    null,
+                    DEFAULT_INITIAL_BALANCE,
+                    offset(now),
+                    offset(now)
+            );
+        } catch (DuplicateKeyException ignored) {
+            // Another first request for the same JWT subject created the profile concurrently.
+        }
+        return findByKeycloakSubject(user.keycloakSubject())
+                .map(profile -> syncFromCurrentUser(profile, user))
+                .orElseThrow();
     }
 
     private static String normalizeEmail(String email, String subject) {
