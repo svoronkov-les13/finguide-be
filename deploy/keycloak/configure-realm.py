@@ -133,6 +133,9 @@ def main() -> int:
         env["KEYCLOAK_ADMIN_PASSWORD"],
     )
 
+    master_ssl_required = "none" if env.get("KEYCLOAK_PUBLIC_URL", "").startswith("http://") else "external"
+    kcadm(env, "update", "realms/master", "-s", f"sslRequired={master_ssl_required}")
+
     exists = subprocess.run(
         ["docker", "compose", "--env-file", str(ENV_FILE), "-f", str(COMPOSE_FILE), "exec", "-T", "keycloak", "/opt/keycloak/bin/kcadm.sh", "get", f"realms/{realm_name}"],
         cwd=ROOT,
