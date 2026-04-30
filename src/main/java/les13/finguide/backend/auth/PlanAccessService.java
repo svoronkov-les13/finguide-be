@@ -41,7 +41,7 @@ public class PlanAccessService {
         }
         UserProfile profile = currentProfile();
         return planRepository.findCurrentForOwner(profile.id())
-                .or(() -> demoMode ? planRepository.findCurrent() : java.util.Optional.empty())
+                .or(() -> demoMode ? planRepository.findCurrent().map(state -> withProfile(state, profile)) : java.util.Optional.empty())
                 .orElseThrow(() -> notFound("Current plan was not found"));
     }
 
@@ -64,6 +64,21 @@ public class PlanAccessService {
             return requireCurrentPlan().profile();
         }
         return userProfiles.findOrCreateFrom(currentUserProvider.requireCurrentUser());
+    }
+
+    private static PlanState withProfile(PlanState state, UserProfile profile) {
+        return new PlanState(
+                state.plan(),
+                profile,
+                state.pension(),
+                state.incomes(),
+                state.expenses(),
+                state.goals(),
+                state.contributions(),
+                state.budget(),
+                state.modelAssumptions(),
+                state.updatedAt()
+        );
     }
 
     private boolean demoBypass() {

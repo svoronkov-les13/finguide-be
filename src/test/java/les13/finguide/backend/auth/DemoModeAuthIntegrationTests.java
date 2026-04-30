@@ -43,4 +43,34 @@ class DemoModeAuthIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.totalMonthlyIncome").value(345000));
     }
+
+    @Test
+    void authenticatedDemoMeUsesJwtProfile() throws Exception {
+        mockMvc.perform(get("/api/v1/me").with(jwt().jwt(token -> token
+                        .subject("new-keycloak-user")
+                        .audience(List.of("finguide-api"))
+                        .claim("email", "new-user@example.com")
+                        .claim("name", "Стас Воронков")
+                        .claim("preferred_username", "new-user")
+                )))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.email").value("new-user@example.com"))
+                .andExpect(jsonPath("$.data.name").value("Стас Воронков"));
+    }
+
+    @Test
+    void authenticatedDemoCurrentPlanUsesJwtProfileWhenFallingBackToSeedPlan() throws Exception {
+        mockMvc.perform(get("/api/v1/plans/current").with(jwt().jwt(token -> token
+                        .subject("registered-user-without-own-plan")
+                        .audience(List.of("finguide-api"))
+                        .claim("email", "stas@example.com")
+                        .claim("name", "Стас Воронков")
+                        .claim("preferred_username", "stas")
+                )))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(PLAN_ID))
+                .andExpect(jsonPath("$.data.profile.email").value("stas@example.com"))
+                .andExpect(jsonPath("$.data.profile.name").value("Стас Воронков"));
+    }
+
 }
