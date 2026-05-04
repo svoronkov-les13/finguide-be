@@ -1,94 +1,176 @@
 # FinGuide Backend
 
-Backend artifacts for **FinGuide / «Финансовый капитал»**.
+Backend for **FinGuide / «Финансовый капитал»**: contract-first Spring Boot API, persisted demo plan state, Keycloak/OIDC auth boundary and canonical financial calculations.
 
-## Current contents
+## Links
 
-- `src/main/java/les13/finguide/backend/` — Spring Boot 3 / Java 21 modular backend with embedded H2 demo persistence, real read API endpoints, income/expense/goal CRUD, and Keycloak/OIDC resource-server integration.
-- `src/main/java/les13/finguide/mock/` — legacy Java 21 mock server kept only for transition and regression checks.
-- `openapi/openapi.json` — backend/frontend OpenAPI contract.
-- `openapi/openapi-mock.json` — legacy mock Swagger configuration.
-- `docs/contract.md` — human-readable API contract.
-- `docs/model-analytics.md` — Excel model analysis and calculation rules.
-- `docs/backend-architecture-keycloak.md` — target backend architecture with Keycloak auth.
-- `docs/backend-modules.md` — package/module map.
-- `deploy/keycloak/` — Docker Compose stack for Keycloak + PostgreSQL and FinGuide-branded Keycloak theme.
-
-## Deployed services
-
-Primary real backend services:
-
-- Frontend: http://66.42.121.18/fg/
-- Real Swagger UI: http://66.42.121.18/finguide-api/swagger-ui.html
+- Docs / GitHub Pages: https://svoronkov-les13.github.io/finguide-be/
+- Frontend demo: http://66.42.121.18/fg/
+- Real API base: http://66.42.121.18/finguide-api/api/v1
+- Swagger UI: http://66.42.121.18/finguide-api/swagger-ui.html
 - Real OpenAPI JSON: http://66.42.121.18/finguide-api/v3/api-docs
-- Real API base/index: http://66.42.121.18/finguide-api/api/v1
-- Example real endpoint: http://66.42.121.18/finguide-api/api/v1/plans/current
-- Markdown contract: http://66.42.121.18/finguide-contract/contract.md
+- Keycloak realm: http://66.42.121.18/auth/realms/finguide
+- Roadmap issue: https://github.com/svoronkov-les13/finguide-be/issues/27
+- GitHub Project: https://github.com/orgs/svoronkov-les13/projects/5/views/1
 
-Transition-only mock services:
+Legacy mock Swagger remains available only for transition checks: http://66.42.121.18/finguide-mock/
 
-- Mock Swagger: http://66.42.121.18/finguide-mock/
-- Mock OpenAPI: http://66.42.121.18/finguide-mock/openapi.json
+## Stack
 
-## Run the real backend locally
+- Java 21
+- Spring Boot 3.3
+- Spring Web / Validation / Actuator
+- Spring Security OAuth2 Resource Server
+- Spring Data JDBC
+- Springdoc OpenAPI
+- Embedded H2 in PostgreSQL compatibility mode for the current demo phase
+- Keycloak 26 + PostgreSQL as a separate auth stack
+
+Target persistence direction: PostgreSQL + Flyway after the H2 demo phase.
+
+## Current implementation
+
+Real backend currently supports:
+
+- `GET /api/v1` API index;
+- `GET /api/v1/me`;
+- `GET /api/v1/plans/current`;
+- plan dashboard, health, cashflow and read-only scenarios;
+- CRUD for incomes, expenses and goals;
+- `POST /plans/{planId}/goals/reorder`;
+- Keycloak JWT validation and audience check;
+- lazy local profile mapping from JWT claims;
+- user-owned current plan creation after login;
+- plan ownership checks for authenticated users;
+- H2 seed data loaded from `schema.sql` + `data.sql`.
+
+Known open guardrails:
+
+- [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) — checked-in OpenAPI is broader than current Springdoc; add coverage test.
+- [#26](https://github.com/svoronkov-les13/finguide-be/issues/26) — prevent mutations of the shared anonymous demo seed plan.
+
+## Repository map
+
+```txt
+src/main/java/les13/finguide/backend/
+  auth/              Keycloak JWT, current user, audience and plan access checks
+  users/             local business profile mapped to Keycloak identity
+  plans/             current plan, persisted H2 state, financial item CRUD
+  incomes/           income domain model
+  expenses/          expense domain model
+  goals/             goals and waterfall priority reorder
+  analytics/         assumptions, cashflow, dashboard and health calculations
+  pension/           pension settings/projection model
+  budget/            target budget model
+  scenarios/         target scenario model
+  importexport/      target import/export boundary
+  notifications/     target notification boundary
+src/main/resources/
+  schema.sql         current H2 DDL
+  data.sql           demo seed data
+openapi/
+  openapi.json       target backend/frontend contract
+  openapi-mock.json  legacy mock contract/config
+
+docs/                MkDocs GitHub Pages documentation
+deploy/keycloak/     Docker Compose Keycloak stack and theme
+```
+
+## Run locally
 
 ```bash
 mvn spring-boot:run
 ```
 
-Then open:
+Open:
 
 ```txt
 http://127.0.0.1:8080/swagger-ui.html
 http://127.0.0.1:8080/v3/api-docs
 http://127.0.0.1:8080/api/v1
 http://127.0.0.1:8080/api/v1/plans/current
-http://127.0.0.1:8080/api/v1/plans/{planId}/incomes
-http://127.0.0.1:8080/api/v1/plans/{planId}/expenses
-http://127.0.0.1:8080/api/v1/plans/{planId}/goals
 ```
 
-Default local/demo mode uses embedded H2 and permits `/api/v1/**` without Keycloak so frontend integration can move off mock responses incrementally. Anonymous demo requests keep reading the seeded demo plan `22222222-2222-4222-8222-222222222222`. Authenticated requests are isolated: `/api/v1/me` and plan profile responses use the registered user full name from JWT `name` (or `given_name` + `family_name`), and the first `GET /api/v1/plans/current` creates one user-owned current plan cloned from the seeded demo plan. Authenticated users cannot read or mutate the shared `demo-seed` plan unless they have the `admin` role. To enable Keycloak validation set `FINGUIDE_DEMO_MODE=false`, `KEYCLOAK_ISSUER_URI`, and `KEYCLOAK_AUDIENCE=finguide-api`. Income/expense/goal PATCH requests are partial updates; omitted fields stay unchanged, and current H2 demo semantics also treat explicit `null` in nullable fields as unchanged.
+Default local mode:
 
+```txt
+FINGUIDE_DEMO_MODE=true
+jdbc:h2:mem:finguide;MODE=PostgreSQL;DATABASE_TO_UPPER=false;DB_CLOSE_DELAY=-1
+spring.sql.init.mode=always
+```
 
-## Run Keycloak locally/on server
+Anonymous requests read the seeded demo plan `22222222-2222-4222-8222-222222222222`. Authenticated users get a cloned user-owned current plan on first `GET /api/v1/plans/current`.
 
-Keycloak is deployed separately with PostgreSQL via Docker Compose:
+To require Keycloak JWT validation:
+
+```bash
+FINGUIDE_DEMO_MODE=false \
+KEYCLOAK_ISSUER_URI=http://66.42.121.18/auth/realms/finguide \
+KEYCLOAK_AUDIENCE=finguide-api \
+mvn spring-boot:run
+```
+
+## Test
+
+```bash
+mvn test
+```
+
+Relevant test areas:
+
+- auth boundary and audience checks;
+- demo mode auth behavior;
+- plan access service;
+- persisted H2 repository;
+- plan read endpoints;
+- income/expense/goal CRUD;
+- OpenAPI exposure for financial item endpoints.
+
+## Documentation
+
+Install docs dependencies and build strictly:
+
+```bash
+pip install -r requirements-docs.txt
+mkdocs build --strict
+```
+
+GitHub Pages deployment is handled by `.github/workflows/pages.yml` on pushes to `main` that touch `docs/**`, `mkdocs.yml`, `requirements-docs.txt` or the workflow itself.
+
+Important pages:
+
+- `docs/status.md` — actual implementation status;
+- `docs/roadmap.md` — completed and planned work;
+- `docs/database.md` — current H2 DDL and migration notes;
+- `docs/contract.md` — backend/frontend API contract;
+- `docs/model-analytics.md` — Excel model analysis;
+- `docs/backend-architecture-keycloak.md` — architecture and auth.
+
+## Keycloak
+
+Keycloak is deployed separately:
 
 ```bash
 cd deploy/keycloak
 cp .env.example .env
 # edit .env with real secrets outside git/logs
 docker compose --env-file .env up -d
+./configure-realm.py
 ```
 
-Guide: [`deploy/keycloak/README.md`](deploy/keycloak/README.md). The frontend uses Authorization Code + PKCE (`/fg/login` → `/fg/auth/callback`), keeps anonymous demo and authenticated plan caches separate, shows a neutral loader during session/current-plan restore, and the backend validates `Authorization: Bearer <JWT>`.
+See [`deploy/keycloak/README.md`](deploy/keycloak/README.md).
 
-## Run the legacy Java 21 mock locally
+## Legacy mock
 
-The repo keeps the legacy mock source in the shared `src/main/java` tree. It is transition-only; this root README is the single README kept in the repository.
+The legacy Java mock is kept only for regression and transition comparison.
 
 ```bash
 ./scripts/run-mock.sh
 ```
 
-Then open:
+Open:
 
 ```txt
 http://127.0.0.1:3092/
 http://127.0.0.1:3092/api/v1
 ```
-
-## Suggested production backend direction
-
-Start as a **contract-first modular monolith**:
-
-- Java 21
-- Spring Boot 3
-- Spring Security OAuth2 Resource Server
-- Keycloak for identity/auth
-- PostgreSQL + Flyway after the H2 demo phase
-- Redis for cache/rate limiting
-- async workers for analytics/export/notifications
-
-This keeps the financial plan core consistent and still allows horizontal scaling and later extraction of workers/services.

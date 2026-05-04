@@ -1,5 +1,5 @@
 site_name: Документация FinGuide
-site_description: Контракт бэкенда и фронтенда, архитектура и аналитическая модель FinGuide.
+site_description: Контракт бэкенда и фронтенда, архитектура, база данных, roadmap и аналитическая модель FinGuide.
 site_url: https://svoronkov-les13.github.io/finguide-be/
 repo_url: https://github.com/svoronkov-les13/finguide-be
 repo_name: svoronkov-les13/finguide-be
@@ -53,6 +53,9 @@ markdown_extensions:
 
 nav:
   - Обзор: index.md
+  - Текущее состояние: status.md
+  - Roadmap: roadmap.md
+  - База данных: database.md
   - Контракт API: contract.md
   - Аналитическая Excel-модель: model-analytics.md
   - Архитектура:

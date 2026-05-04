@@ -2,7 +2,15 @@
 
 Keycloak разворачивается как отдельный Docker Compose stack рядом с `finguide-api` и `finguide-web`.
 PostgreSQL обязателен именно для Keycloak: embedded/dev-file DB в production/demo стенде не используем.
-Миграция финансовых данных FinGuide с H2 на PostgreSQL остаётся вне рамок задачи #18.
+
+Это auth stack, не хранилище финансовых данных. Финансовый backend сейчас использует embedded H2 demo persistence; миграция FinGuide данных на PostgreSQL/Flyway ведётся отдельно от Keycloak.
+
+Публичные ссылки текущего demo-стенда:
+
+- Frontend: http://66.42.121.18/fg/
+- Backend Swagger: http://66.42.121.18/finguide-api/swagger-ui.html
+- Keycloak realm: http://66.42.121.18/auth/realms/finguide
+- Backend docs: https://svoronkov-les13.github.io/finguide-be/
 
 ## Состав stack
 
@@ -61,6 +69,8 @@ sudo ./configure-realm.py
 7. Roles: `user`, `admin`.
 8. Audience mapper для `finguide-api`, чтобы access token проходил backend `aud` check.
 9. Theme: Login theme `finguide`, Account theme `finguide`.
+
+После логина frontend вызывает `GET /api/v1/me` и `GET /api/v1/plans/current`. Backend лениво создаёт локальный `user_profiles` по `JWT.sub` и первый user-owned current plan, клонируя demo seed. Anonymous demo cache и authenticated user cache на frontend разделены, чтобы при восстановлении сессии не мигал demo/default profile.
 
 Для текущего HTTP demo URL скрипт ставит `sslRequired=none`. После перевода `/auth` на HTTPS нужно вернуть `sslRequired=external`.
 

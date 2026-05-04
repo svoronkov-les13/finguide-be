@@ -1,51 +1,65 @@
 # Документация FinGuide
 
-Документация бэкенда/API для **FinGuide**.
+Документация backend/API для **FinGuide / «Финансовый капитал»**.
 
-## Что здесь находится
-
-- [Контракт API](contract.md) — договор между бэкендом и фронтендом.
-- [Аналитическая Excel-модель](model-analytics.md) — разбор Excel-модели, которую бэкенд должен воспроизводить.
-- [Архитектура бэкенда и Keycloak](backend-architecture-keycloak.md) — целевая архитектура продукта.
-- [Модули бэкенда](backend-modules.md) — структура Java-пакетов и границы модулей.
+FinGuide строится как contract-first продукт: frontend редактирует входные данные финансового плана, backend владеет хранением, безопасностью и расчётами. Текущий этап — переход от mock/localStorage прототипа к real Spring Boot backend с persisted demo state и Keycloak/OIDC boundary.
 
 ## Быстрые ссылки
 
-- Репозиторий GitHub: <https://github.com/svoronkov-les13/finguide-be>
-- Swagger UI реального бэкенда: <http://66.42.121.18/finguide-api/swagger-ui.html>
-- OpenAPI JSON реального бэкенда: <http://66.42.121.18/finguide-api/v3/api-docs>
-- База/индекс реального API: <http://66.42.121.18/finguide-api/api/v1>
-- Пример живого endpoint: <http://66.42.121.18/finguide-api/api/v1/plans/current>
-- Публичный предпросмотр контракта: <http://66.42.121.18/finguide-contract/>
-- JSON-спецификация OpenAPI в репозитории: <https://github.com/svoronkov-les13/finguide-be/blob/main/openapi/openapi.json>
-- Legacy mock Swagger, только на период перехода: <http://66.42.121.18/finguide-mock/>
-- Keycloak deployment guide: [`deploy/keycloak/README.md`](https://github.com/svoronkov-les13/finguide-be/tree/main/deploy/keycloak)
+- Frontend demo: <http://66.42.121.18/fg/>
+- Real API base: <http://66.42.121.18/finguide-api/api/v1>
+- Swagger UI real backend: <http://66.42.121.18/finguide-api/swagger-ui.html>
+- OpenAPI JSON real backend: <http://66.42.121.18/finguide-api/v3/api-docs>
+- Keycloak realm: <http://66.42.121.18/auth/realms/finguide>
+- Backend repository: <https://github.com/svoronkov-les13/finguide-be>
+- Web repository: <https://github.com/svoronkov-les13/finguide-web>
+- GitHub Project: <https://github.com/orgs/svoronkov-les13/projects/5/views/1>
 
-## Текущий статус реализации
+Legacy mock Swagger: <http://66.42.121.18/finguide-mock/> — только для переходного сравнения.
 
-Real Spring Boot backend сейчас обслуживает:
+## Что читать первым
 
-- индекс API `GET /api/v1`;
-- чтение текущего плана, дашборда, health/cashflow и списка сценариев;
-- CRUD доходов, расходов и целей;
-- Keycloak/OIDC security boundary: JWT Resource Server, `GET /api/v1/me`, lazy profile mapping, plan ownership checks, and frontend session restore without demo/default profile flash;
-- `POST /plans/{planId}/goals/reorder` для сохранения waterfall-приоритета целей.
+- [Текущее состояние реализации](status.md) — что реально работает сейчас.
+- [Roadmap](roadmap.md) — готовые и будущие задачи.
+- [База данных](database.md) — фактическая H2 schema и ограничения demo persistence.
+- [Контракт API](contract.md) — целевой договор backend ↔ frontend.
+- [Аналитическая Excel-модель](model-analytics.md) — канонические расчёты из исходной модели.
+- [Архитектура бэкенда и Keycloak](backend-architecture-keycloak.md) — целевое устройство backend/auth.
+- [Модули бэкенда](backend-modules.md) — пакетная структура и границы модулей.
 
-Оставшиеся группы контракта ведутся отдельными задачами GitHub Issues.
+## Текущий статус коротко
+
+Реализовано в real backend:
+
+- API index;
+- `GET /me`;
+- `GET /plans/current`;
+- dashboard/health/cashflow/scenarios read;
+- CRUD incomes/expenses/goals;
+- goals reorder;
+- Keycloak JWT Resource Server boundary;
+- user-owned current plan после логина;
+- защита authenticated users от чтения/мутации чужих планов;
+- frontend session restore без demo/default profile flash.
+
+Открытые guardrails:
+
+- [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) — real Springdoc coverage vs checked-in OpenAPI;
+- [#26](https://github.com/svoronkov-les13/finguide-be/issues/26) — запрет мутации общего anonymous demo seed plan.
 
 ## Главная договорённость
 
-Фронтенд редактирует входные данные и показывает рассчитанные значения. Бэкенд владеет финансовой логикой:
+Frontend не должен дублировать финансовую математику. Backend принимает persisted `PlanState` и `ModelAssumptions`, затем строит производные данные:
 
 ```txt
 PlanState + ModelAssumptions
   -> годовой денежный поток
   -> сбережения и накопленный капитал
   -> пенсионная проекция
-  -> дашборд, оценка финансового здоровья и сценарии
+  -> dashboard, health score, scenarios
 ```
 
-Главный метод API для производных расчётов:
+Канонический расчётный endpoint:
 
 ```txt
 GET /plans/{planId}/analytics/cashflow
