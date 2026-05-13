@@ -1,0 +1,48 @@
+name: Deploy FinGuide Backend
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: finguide-be-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, finguide-be]
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build and test
+        run: mvn -B clean package
+
+      - name: Deploy jar and restart service
+        run: |
+          set -euo pipefail
+          JAR=$(ls target/finguide-be-*.jar | grep -v 'original-' | head -n 1)
+          DEPLOY_DIR=/opt/finguide-api
+          TS=$(date -u +%Y%m%dT%H%M%SZ)
+          sudo install -d -o www-data -g www-data "$DEPLOY_DIR"
+          if [ -f "$DEPLOY_DIR/finguide-be.jar" ]; then
+            sudo cp -a "$DEPLOY_DIR/finguide-be.jar" "$DEPLOY_DIR/finguide-be.jar.$TS.bak"
+          fi
+          sudo install -o www-data -g www-data -m 0644 "$JAR" "$DEPLOY_DIR/finguide-be.jar"
+          sudo systemctl restart finguide-api.service
+
+      - name: Smoke test backend health
+        run: |
+          set -euo pipefail
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:3093/actuator/health | grep -q '"status":"UP"'; then
+              curl -fsS http://66.42.121.18/finguide-api/actuator/health >/dev/null
+              exit 0
+            fi
+            sleep 2
+          done
+          sudo journalctl -u finguide-api.service -n 120 --no-pager
+          exit 1
