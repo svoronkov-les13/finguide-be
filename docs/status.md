@@ -76,16 +76,17 @@ Frontend deploy также переведён на self-hosted runner на эт�
 
 ## Что ещё не реализовано
 
-Основные открытые группы:
+Основные открытые группы с учётом FinPlan redesign [finguide-web#7](https://github.com/svoronkov-les13/finguide-web/issues/7):
 
-- запрет мутации общего anonymous demo seed plan — [#26](https://github.com/svoronkov-les13/finguide-be/issues/26);
-- analytics/pension из persisted state — [#4](https://github.com/svoronkov-les13/finguide-be/issues/4);
-- `PUT /plans/current` — [#7](https://github.com/svoronkov-les13/finguide-be/issues/7);
-- profile/avatar/account mutations — [#8](https://github.com/svoronkov-les13/finguide-be/issues/8);
-- contributions ledger — [#10](https://github.com/svoronkov-les13/finguide-be/issues/10);
-- pension settings — [#11](https://github.com/svoronkov-les13/finguide-be/issues/11);
-- budget/monthly tracker — [#12](https://github.com/svoronkov-les13/finguide-be/issues/12);
-- scenarios CRUD/compare — [#13](https://github.com/svoronkov-les13/finguide-be/issues/13);
-- import/export — [#14](https://github.com/svoronkov-les13/finguide-be/issues/14);
-- notifications — [#15](https://github.com/svoronkov-les13/finguide-be/issues/15);
-- frontend generated client smoke — [finguide-web#2](https://github.com/svoronkov-les13/finguide-web/issues/2).
+- Now: запрет мутации общего anonymous demo seed plan — [#26](https://github.com/svoronkov-les13/finguide-be/issues/26);
+- Now: analytics/pension из persisted state — [#4](https://github.com/svoronkov-les13/finguide-be/issues/4);
+- Now: frontend design foundation по FinPlan — design tokens, app shell/sidebar/topbar, shared UI primitives, dashboard desktop target;
+- Next: pension settings — [#11](https://github.com/svoronkov-les13/finguide-be/issues/11);
+- Next: contributions ledger — [#10](https://github.com/svoronkov-les13/finguide-be/issues/10);
+- Next: frontend generated client smoke — [finguide-web#2](https://github.com/svoronkov-les13/finguide-web/issues/2);
+- Then: budget/monthly tracker — [#12](https://github.com/svoronkov-les13/finguide-be/issues/12);
+- Then: scenarios CRUD/compare — [#13](https://github.com/svoronkov-les13/finguide-be/issues/13);
+- Later: `PUT /plans/current` — [#7](https://github.com/svoronkov-les13/finguide-be/issues/7);
+- Later: profile/avatar/account mutations — [#8](https://github.com/svoronkov-les13/finguide-be/issues/8);
+- Later: import/export — [#14](https://github.com/svoronkov-les13/finguide-be/issues/14);
+- Later: notifications — [#15](https://github.com/svoronkov-les13/finguide-be/issues/15).

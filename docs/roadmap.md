@@ -32,30 +32,48 @@
 - [x] Frontend auto-deploy из `main` через self-hosted GitHub Actions runner на `66.42.121.18` — web commit `ce9e8eb`.
 - [x] [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) — OpenAPI coverage guard для real Swagger — commit `3cc7165`.
 
-### Iteration 1 — guardrails + persisted analytics, 2026-05-04 → 2026-05-10
+### Roadmap pivot: FinPlan design system — 2026-05-14+
+
+Новый frontend-дизайн [finguide-web#7](https://github.com/svoronkov-les13/finguide-web/issues/7) меняет порядок работ: это не разовая косметическая задача, а UX/UI-направление, которое нужно вести параллельно с backend-доменом. Внедрение идёт вручную в текущий React/Vite frontend, без прямого импорта сгенерированного Figma-кода.
+
+Базовые правила:
+
+- большой redesign дробится на маленькие issues/PR с visual before/after screenshots;
+- сначала фиксируются design tokens, app shell и shared UI primitives;
+- backend endpoints делаются в том порядке, в котором они разблокируют реальные экраны;
+- недостающие API fields из Figma-design выносятся в backend follow-up issues, а не маскируются mock-данными во frontend.
+
+### Now — guardrails, persisted analytics, UI foundation
 
 - [ ] [#26](https://github.com/svoronkov-les13/finguide-be/issues/26) — запретить мутацию общего anonymous demo seed plan.
 - [ ] [#4](https://github.com/svoronkov-les13/finguide-be/issues/4) — analytics/cashflow/pension из persisted state.
+- [ ] [finguide-web#7](https://github.com/svoronkov-les13/finguide-web/issues/7) — выделить первые implementation issues: design tokens, app shell/sidebar/topbar, shared UI primitives, dashboard desktop target.
 
-### Iteration 2 — persisted domain expansion, 2026-05-11 → 2026-05-20
+### Next — domain settings + first redesigned screens
 
-- [ ] [finguide-web#2](https://github.com/svoronkov-les13/finguide-web/issues/2) — smoke generated client после стабилизации контракта.
 - [ ] [#11](https://github.com/svoronkov-les13/finguide-be/issues/11) — pension settings endpoints.
 - [ ] [#10](https://github.com/svoronkov-les13/finguide-be/issues/10) — contributions ledger endpoints.
+- [ ] [finguide-web#2](https://github.com/svoronkov-les13/finguide-web/issues/2) — smoke generated client после стабилизации контракта.
+- [ ] Frontend по [finguide-web#7](https://github.com/svoronkov-les13/finguide-web/issues/7): dashboard redesign и onboarding/common data screens.
+
+### Then — tracker, scenarios, tables
+
 - [ ] [#12](https://github.com/svoronkov-les13/finguide-be/issues/12) — budget/monthly tracker endpoints.
-
-### Iteration 3 — scenarios + account + async perimeter, 2026-05-25 → 2026-06-09
-
 - [ ] [#13](https://github.com/svoronkov-les13/finguide-be/issues/13) — scenarios CRUD/compare.
+- [ ] Frontend по [finguide-web#7](https://github.com/svoronkov-les13/finguide-web/issues/7): incomes/expenses, goals, scenario tables, tracker UI.
+
+### Later — account, replace-plan, async perimeter, polish
+
 - [ ] [#7](https://github.com/svoronkov-les13/finguide-be/issues/7) — replace current plan endpoint.
 - [ ] [#8](https://github.com/svoronkov-les13/finguide-be/issues/8) — profile/avatar/account endpoints.
 - [ ] [#14](https://github.com/svoronkov-les13/finguide-be/issues/14) — import/export jobs.
 - [ ] [#15](https://github.com/svoronkov-les13/finguide-be/issues/15) — notifications endpoints.
+- [ ] Frontend по [finguide-web#7](https://github.com/svoronkov-les13/finguide-web/issues/7): settings/account, FAQ/help, instruction modals, final visual polish.
 
 ## Почему такой порядок
 
-1. Guardrails первыми: OpenAPI coverage и seed immutability уменьшают риск сломать demo/contract поведение.
-2. Затем расчёты из persisted state: это ядро продуктовой ценности.
-3. Потом доменные write-фичи, влияющие на расчёты: pension, contributions, budget.
-4. Сценарии и replace-plan после стабилизации состояния плана.
-5. Import/export и notifications — perimeter/async слой, не ядро MVP.
+1. Guardrails первыми: OpenAPI coverage уже зафиксирован, seed immutability нужна до дальнейших мутаций demo state.
+2. Persisted analytics остаётся ядром продуктовой ценности: без неё redesign будет красивой оболочкой над неполными расчётами.
+3. FinPlan design foundation запускается параллельно, чтобы не переделывать каждую страницу дважды.
+4. Pension settings и contributions идут до tracker/scenarios, потому что они влияют на расчёты и отображение cashflow.
+5. Tracker/scenarios/account/import/export/notifications двигаются после базовой стабилизации домена и UI primitives.
