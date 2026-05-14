@@ -50,7 +50,7 @@ class OpenApiContractCoverageTests {
         Set<String> missing = new TreeSet<>(contractOperations);
         missing.removeAll(springdocOperations);
 
-        assertThat(contractOperations).hasSize(54);
+        assertThat(contractOperations).hasSize(58);
         assertThat(springdocOperations).containsAll(contractOperationsWithoutKnownGap(contractOperations));
         assertThat(missing).containsExactlyElementsOf(new TreeSet<>(KNOWN_CONTRACT_OPERATIONS_NOT_IN_SPRINGDOC));
     }

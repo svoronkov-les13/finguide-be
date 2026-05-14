@@ -186,6 +186,18 @@ create table monthly_tracker_entries (
   primary key (plan_id, tracker_month)
 );
 
+create table operation_journal_entries (
+  id uuid primary key,
+  plan_id uuid not null references financial_plans(id),
+  entry_date date not null,
+  title varchar(255) not null,
+  amount numeric(19, 2) not null,
+  entry_type varchar(32) not null,
+  status varchar(32) not null,
+  created_at timestamp with time zone not null,
+  updated_at timestamp with time zone not null
+);
+
 create table scenarios (
   id uuid primary key,
   plan_id uuid not null references financial_plans(id),
@@ -235,7 +247,7 @@ create table scenarios (
 - Нет поля `is_current`; текущий план выводится из уникального плана владельца.
 - Нет поля `is_demo_seed`; seed определяется константным id/subject в коде и данных.
 - Нет soft delete, optimistic `version`, audit table и idempotency table.
-- Нет таблиц для `import/export jobs`, `notifications`. `budget`, `monthly_tracker` и пользовательские `scenarios` уже persisted в H2 demo.
+- Нет таблиц для `import/export jobs`, `notifications`. `budget`, `monthly_tracker`, `operation_journal` и пользовательские `scenarios` уже persisted в H2 demo.
 - H2 schema предназначена для demo/dev. Для PostgreSQL нужно вводить Flyway migrations и аккуратно разделить demo seed, user-owned plans и production данные.
 
 ## Целевая PostgreSQL миграция
@@ -249,4 +261,4 @@ create table scenarios (
    - regression tests на все write endpoints.
 3. Добавить `is_current` или отдельный указатель current plan, если понадобится несколько планов на пользователя.
 4. Добавить `version int not null default 0` для редактируемых сущностей и `ETag`/`If-Match`.
-5. Расширить схему под roadmap: import/export jobs, notifications и будущие snapshot scenarios. Pension settings mutations, contributions ledger, budget settings, monthly tracker и adjustment-based scenarios уже реализованы поверх текущей persisted схемы.
+5. Расширить схему под roadmap: import/export jobs, notifications и будущие snapshot scenarios. Pension settings mutations, contributions ledger, budget settings, monthly tracker, operation journal и adjustment-based scenarios уже реализованы поверх текущей persisted схемы.

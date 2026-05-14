@@ -60,7 +60,8 @@
 
 ### Then — tracker, scenario tables
 
-- [ ] Frontend по [finguide-web#7](https://github.com/svoronkov-les13/finguide-web/issues/7): incomes/expenses, goals, scenario tables, tracker UI.
+- [x] Tracking journal persistence — backend `GET/POST/PATCH/DELETE /plans/{planId}/tracker/entries` + frontend `/tracking` real API integration.
+- [ ] Frontend по [finguide-web#7](https://github.com/svoronkov-les13/finguide-web/issues/7): incomes/expenses, goals, scenario tables, tracker UI polish.
 
 ### Later — account, replace-plan, async perimeter, polish
 

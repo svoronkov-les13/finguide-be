@@ -31,9 +31,9 @@
 - Swagger UI реального бэкенда: `http://66.42.121.18/finguide-api/swagger-ui.html`.
 - Legacy mock Swagger остаётся только для переходного сравнения: `http://66.42.121.18/finguide-mock/`.
 
-Текущая real-реализация на H2 уже покрывает чтение плана/дашборда/health/cashflow, persisted scenario CRUD/compare, persisted analytics assumptions/current balance/yearly projection/pension settings/pension projection, CRUD для `IncomeSource`, `ExpenseItem`, `Goal`, включая `goals/reorder`, persisted `Contribution` ledger, persisted `BudgetSettings` и monthly tracker. Остальные группы методов из карты ниже пока ведутся отдельными задачами.
+Текущая real-реализация на H2 уже покрывает чтение плана/дашборда/health/cashflow, persisted scenario CRUD/compare, persisted analytics assumptions/current balance/yearly projection/pension settings/pension projection, CRUD для `IncomeSource`, `ExpenseItem`, `Goal`, включая `goals/reorder`, persisted `Contribution` ledger, persisted `BudgetSettings`, monthly tracker и operation journal. Остальные группы методов из карты ниже пока ведутся отдельными задачами.
 
-OpenAPI guardrail [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) включён в тестовый набор: checked-in `openapi/openapi.json` сейчас содержит 54 операции, real Springdoc покрывает 45 реализованных операций, а известный gap в 9 операций явно зафиксирован. Новые endpoints должны одновременно добавляться в real Springdoc и уменьшать этот gap; случайное исчезновение уже реализованной операции из `/v3/api-docs` ломает тесты.
+OpenAPI guardrail [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) включён в тестовый набор: checked-in `openapi/openapi.json` сейчас содержит 58 операций, real Springdoc покрывает 49 реализованных операций, а известный gap в 9 операций явно зафиксирован. Новые endpoints должны одновременно добавляться в real Springdoc и уменьшать этот gap; случайное исчезновение уже реализованной операции из `/v3/api-docs` ломает тесты.
 
 - Авторизация: `Authorization: Bearer <JWT>` с access token из Keycloak realm `finguide`. Бэкенд валидирует JWT как OAuth2 Resource Server и не владеет password-based `/auth/register/login/refresh/logout` endpoints. В demo/H2 режиме (`FINGUIDE_DEMO_MODE=true`) `/api/v1/**` временно открыт для интеграции фронтенда с real backend без Keycloak.
 - Все даты: ISO-8601 (`YYYY-MM-DD`, `date-time` UTC).
@@ -211,7 +211,9 @@ Keycloak владеет входом, регистрацией, refresh/logout, 
 - `POST /plans/{planId}/goals/reorder` — реализовано в real backend; тело `{ "goalIds": ["..."] }` должно содержать все текущие id целей ровно по одному разу.
 - `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}` — реализовано в real backend; read требует доступ к плану, write требует writable plan access, общий anonymous seed read-only. `Goal.savedAmount` пересчитывается из суммы взносов по цели. Удаление цели удаляет связанные с ней взносы, чтобы не оставлять orphan ledger records. Текущая H2-реализация возвращает полный список без pagination/idempotency; это осознанно отложено до следующего production-storage этапа.
 - `GET/PATCH /plans/{planId}/pension` — реализовано в real backend; `PATCH` делает full replace persisted `PensionSettings` и требует writable plan access, поэтому общий anonymous seed read-only.
-- `GET/PATCH /plans/{planId}/budget`, `POST /plans/{planId}/budget/envelopes/autogenerate`
+- `GET/PATCH /plans/{planId}/budget`, `POST /plans/{planId}/budget/envelopes/autogenerate` — реализовано в real backend.
+- `GET/POST /plans/{planId}/calendar/monthly-tracker` — реализовано в real backend; хранит статус месяца (`completed|partial|missed`).
+- `GET/POST /plans/{planId}/tracker/entries`, `PATCH/DELETE /plans/{planId}/tracker/entries/{entryId}` — реализовано в real backend; хранит журнал операций страницы `/tracking` (`date`, `title`, `amount`, `type`, `status`) и требует writable plan access для mutations.
 
 ### Аналитика и производные данные
 
@@ -221,7 +223,6 @@ Keycloak владеет входом, регистрацией, refresh/logout, 
 - `GET /plans/{planId}/analytics/balance/current` — реализовано в real backend.
 - `GET /plans/{planId}/analytics/cashflow?startYear=2024&endYear=2076` — базовый 12-летний cashflow реализован в real backend; параметры периода остаются частью целевого contract.
 - `GET /plans/{planId}/analytics/health` — реализовано в real backend.
-- `GET/POST /plans/{planId}/calendar/monthly-tracker`
 - `GET /plans/{planId}/pension/projection` — реализовано в real backend; строится из persisted state и текущих pension settings.
 
 `analytics/cashflow` — главный метод API в стиле Excel-модели. Он возвращает годовые строки: возраст, номер периода, доходы, расходы, расходы на цели, чистые сбережения, капитал на начало/конец года.

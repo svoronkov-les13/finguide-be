@@ -1,3 +1,4 @@
+drop table if exists operation_journal_entries;
 drop table if exists monthly_tracker_entries;
 drop table if exists scenarios;
 drop table if exists budget_classifications;
@@ -172,6 +173,18 @@ create table monthly_tracker_entries (
   created_at timestamp with time zone not null,
   updated_at timestamp with time zone not null,
   primary key (plan_id, tracker_month)
+);
+
+create table operation_journal_entries (
+  id uuid primary key,
+  plan_id uuid not null references financial_plans(id),
+  entry_date date not null,
+  title varchar(255) not null,
+  amount numeric(19, 2) not null,
+  entry_type varchar(32) not null,
+  status varchar(32) not null,
+  created_at timestamp with time zone not null,
+  updated_at timestamp with time zone not null
 );
 
 create table scenarios (

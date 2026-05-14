@@ -4,6 +4,7 @@ import les13.finguide.backend.contributions.Contribution;
 import les13.finguide.backend.budget.BudgetEnvelope;
 import les13.finguide.backend.budget.BudgetSettings;
 import les13.finguide.backend.budget.MonthlyTrackerEntry;
+import les13.finguide.backend.budget.OperationJournalEntry;
 import les13.finguide.backend.expenses.ExpenseItem;
 import les13.finguide.backend.goals.Goal;
 import les13.finguide.backend.incomes.IncomeSource;
@@ -79,6 +80,16 @@ public interface PlanStateRepository {
     List<MonthlyTrackerEntry> findMonthlyTrackerEntries(UUID planId, int year);
 
     MonthlyTrackerEntry upsertMonthlyTrackerEntry(UUID planId, MonthlyTrackerEntry entry);
+
+    List<OperationJournalEntry> findOperationJournalEntries(UUID planId, Integer year, Integer month);
+
+    Optional<OperationJournalEntry> findOperationJournalEntry(UUID planId, UUID entryId);
+
+    OperationJournalEntry createOperationJournalEntry(OperationJournalEntry entry);
+
+    OperationJournalEntry updateOperationJournalEntry(OperationJournalEntry entry);
+
+    boolean deleteOperationJournalEntry(UUID planId, UUID entryId);
 
     List<Scenario> findScenarios(UUID planId);
 

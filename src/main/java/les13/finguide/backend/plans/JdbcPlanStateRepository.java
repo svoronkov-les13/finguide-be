@@ -5,6 +5,7 @@ import les13.finguide.backend.analytics.YearRatePoint;
 import les13.finguide.backend.budget.BudgetEnvelope;
 import les13.finguide.backend.budget.BudgetSettings;
 import les13.finguide.backend.budget.MonthlyTrackerEntry;
+import les13.finguide.backend.budget.OperationJournalEntry;
 import les13.finguide.backend.contributions.Contribution;
 import les13.finguide.backend.expenses.ExpenseItem;
 import les13.finguide.backend.goals.Goal;
@@ -91,6 +92,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
             cloneGoals(seedPlanId, planId, now);
             cloneBudget(seedPlanId, planId, now);
             cloneMonthlyTracker(seedPlanId, planId, now);
+            cloneOperationJournal(seedPlanId, planId, now);
             cloneScenarios(seedPlanId, planId, now);
             return findById(planId).orElseThrow();
         } catch (DuplicateKeyException ignored) {
@@ -245,6 +247,17 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     private void cloneMonthlyTracker(UUID seedPlanId, UUID planId, OffsetDateTime now) {
         jdbcTemplate.update(
                 "insert into monthly_tracker_entries (plan_id, tracker_month, status, note, created_at, updated_at) select ?, tracker_month, status, note, ?, ? from monthly_tracker_entries where plan_id = ?",
+                planId,
+                now,
+                now,
+                seedPlanId
+        );
+    }
+
+    private void cloneOperationJournal(UUID seedPlanId, UUID planId, OffsetDateTime now) {
+        jdbcTemplate.update(
+                "insert into operation_journal_entries (id, plan_id, entry_date, title, amount, entry_type, status, created_at, updated_at) " +
+                        "select random_uuid(), ?, entry_date, title, amount, entry_type, status, ?, ? from operation_journal_entries where plan_id = ?",
                 planId,
                 now,
                 now,
@@ -733,6 +746,88 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
         ).orElseThrow();
     }
 
+    @Override
+    public List<OperationJournalEntry> findOperationJournalEntries(UUID planId, Integer year, Integer month) {
+        StringBuilder sql = new StringBuilder("select * from operation_journal_entries where plan_id = ?");
+        if (year != null) {
+            sql.append(" and year(entry_date) = ?");
+        }
+        if (month != null) {
+            sql.append(" and month(entry_date) = ?");
+        }
+        sql.append(" order by entry_date desc, created_at desc");
+
+        if (year != null && month != null) {
+            return jdbcTemplate.query(sql.toString(), this::mapOperationJournalEntry, planId, year, month);
+        }
+        if (year != null) {
+            return jdbcTemplate.query(sql.toString(), this::mapOperationJournalEntry, planId, year);
+        }
+        if (month != null) {
+            return jdbcTemplate.query(sql.toString(), this::mapOperationJournalEntry, planId, month);
+        }
+        return jdbcTemplate.query(sql.toString(), this::mapOperationJournalEntry, planId);
+    }
+
+    @Override
+    public Optional<OperationJournalEntry> findOperationJournalEntry(UUID planId, UUID entryId) {
+        return queryOptional(
+                "select * from operation_journal_entries where plan_id = ? and id = ?",
+                this::mapOperationJournalEntry,
+                planId,
+                entryId
+        );
+    }
+
+    @Override
+    @Transactional
+    public OperationJournalEntry createOperationJournalEntry(OperationJournalEntry entry) {
+        OffsetDateTime now = offset(entry.updatedAt());
+        jdbcTemplate.update(
+                "insert into operation_journal_entries (id, plan_id, entry_date, title, amount, entry_type, status, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                entry.id(),
+                entry.planId(),
+                entry.date(),
+                entry.title(),
+                entry.amount(),
+                dbValue(entry.type()),
+                dbValue(entry.status()),
+                offset(entry.createdAt()),
+                now
+        );
+        touchPlan(entry.planId(), now);
+        return findOperationJournalEntry(entry.planId(), entry.id()).orElseThrow();
+    }
+
+    @Override
+    @Transactional
+    public OperationJournalEntry updateOperationJournalEntry(OperationJournalEntry entry) {
+        OffsetDateTime now = offset(entry.updatedAt());
+        jdbcTemplate.update(
+                "update operation_journal_entries set entry_date = ?, title = ?, amount = ?, entry_type = ?, status = ?, updated_at = ? where plan_id = ? and id = ?",
+                entry.date(),
+                entry.title(),
+                entry.amount(),
+                dbValue(entry.type()),
+                dbValue(entry.status()),
+                now,
+                entry.planId(),
+                entry.id()
+        );
+        touchPlan(entry.planId(), now);
+        return findOperationJournalEntry(entry.planId(), entry.id()).orElseThrow();
+    }
+
+    @Override
+    @Transactional
+    public boolean deleteOperationJournalEntry(UUID planId, UUID entryId) {
+        int deleted = jdbcTemplate.update("delete from operation_journal_entries where plan_id = ? and id = ?", planId, entryId);
+        if (deleted > 0) {
+            touchPlan(planId, OffsetDateTime.now(ZoneOffset.UTC));
+        }
+        return deleted > 0;
+    }
+
     private void deleteBudget(UUID planId) {
         jdbcTemplate.update("delete from budget_classifications where plan_id = ?", planId);
         jdbcTemplate.update("delete from budget_envelopes where plan_id = ?", planId);
@@ -1018,6 +1113,20 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                 YearMonth.parse(rs.getString("tracker_month")),
                 enumValue(MonthlyTrackerEntry.Status.class, rs.getString("status")),
                 rs.getString("note"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private OperationJournalEntry mapOperationJournalEntry(ResultSet rs, int rowNum) throws SQLException {
+        return new OperationJournalEntry(
+                rs.getObject("id", UUID.class),
+                rs.getObject("plan_id", UUID.class),
+                localDate(rs, "entry_date"),
+                rs.getString("title"),
+                rs.getBigDecimal("amount"),
+                enumValue(OperationJournalEntry.Type.class, rs.getString("entry_type")),
+                enumValue(OperationJournalEntry.Status.class, rs.getString("status")),
                 instant(rs, "created_at"),
                 instant(rs, "updated_at")
         );

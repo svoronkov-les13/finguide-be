@@ -8,6 +8,7 @@ import les13.finguide.backend.analytics.YearlyProjectionPoint;
 import les13.finguide.backend.budget.BudgetEnvelope;
 import les13.finguide.backend.budget.BudgetSettings;
 import les13.finguide.backend.budget.MonthlyTrackerEntry;
+import les13.finguide.backend.budget.OperationJournalEntry;
 import les13.finguide.backend.contributions.Contribution;
 import les13.finguide.backend.expenses.ExpenseItem;
 import les13.finguide.backend.goals.Goal;
@@ -167,6 +168,19 @@ public class PlanApiMapper {
         result.put("month", entry.month().toString());
         result.put("status", apiValue(entry.status()));
         result.put("note", entry.note());
+        result.put("updatedAt", entry.updatedAt());
+        return result;
+    }
+
+    public Map<String, Object> operationJournalEntry(OperationJournalEntry entry) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("id", string(entry.id()));
+        result.put("date", entry.date());
+        result.put("title", entry.title());
+        result.put("amount", entry.amount());
+        result.put("type", apiValue(entry.type()));
+        result.put("status", apiValue(entry.status()));
+        result.put("createdAt", entry.createdAt());
         result.put("updatedAt", entry.updatedAt());
         return result;
     }

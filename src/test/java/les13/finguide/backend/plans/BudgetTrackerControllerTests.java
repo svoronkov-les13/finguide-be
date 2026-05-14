@@ -222,6 +222,83 @@ class BudgetTrackerControllerTests {
     }
 
     @Test
+    void createsUpdatesListsAndDeletesOperationJournalEntries() throws Exception {
+        RequestPostProcessor jwt = userJwt("operation-journal-owner");
+        String planId = currentPlan(jwt).at("/data/id").asText();
+
+        String createdBody = mockMvc.perform(post("/api/v1/plans/{planId}/tracker/entries", planId)
+                        .with(jwt)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "date": "2026-05-14",
+                                  "title": "Кофе",
+                                  "amount": -350,
+                                  "type": "expense",
+                                  "status": "actual"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.id").exists())
+                .andExpect(jsonPath("$.data.date").value("2026-05-14"))
+                .andExpect(jsonPath("$.data.title").value("Кофе"))
+                .andExpect(jsonPath("$.data.amount").value(-350))
+                .andExpect(jsonPath("$.data.type").value("expense"))
+                .andExpect(jsonPath("$.data.status").value("actual"))
+                .andReturn().getResponse().getContentAsString();
+        String entryId = objectMapper.readTree(createdBody).at("/data/id").asText();
+
+        mockMvc.perform(get("/api/v1/plans/{planId}/tracker/entries?year=2026&month=5", planId).with(jwt))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(1)))
+                .andExpect(jsonPath("$.data[0].id").value(entryId));
+
+        mockMvc.perform(patch("/api/v1/plans/{planId}/tracker/entries/{entryId}", planId, entryId)
+                        .with(jwt)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title": "Кофе и завтрак",
+                                  "amount": -900,
+                                  "status": "planned"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.title").value("Кофе и завтрак"))
+                .andExpect(jsonPath("$.data.amount").value(-900))
+                .andExpect(jsonPath("$.data.status").value("planned"));
+
+        mockMvc.perform(delete("/api/v1/plans/{planId}/tracker/entries/{entryId}", planId, entryId).with(jwt))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/plans/{planId}/tracker/entries?year=2026&month=5", planId).with(jwt))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(0)));
+    }
+
+    @Test
+    void rejectsOperationJournalWritesForAnonymousSeedAndForeignPlan() throws Exception {
+        String planId = currentPlan(userJwt("operation-journal-owner-a")).at("/data/id").asText();
+
+        mockMvc.perform(post("/api/v1/plans/{planId}/tracker/entries", ANONYMOUS_PLAN_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "date": "2026-05-14",
+                                  "title": "Anonymous write",
+                                  "amount": 100,
+                                  "type": "income",
+                                  "status": "actual"
+                                }
+                                """))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/v1/plans/{planId}/tracker/entries", planId)
+                        .with(userJwt("operation-journal-owner-b")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void rejectsInvalidMonthlyTrackerRequest() throws Exception {
         RequestPostProcessor jwt = userJwt("tracker-invalid-owner");
         String planId = currentPlan(jwt).at("/data/id").asText();

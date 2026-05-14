@@ -4,6 +4,7 @@ import les13.finguide.backend.auth.PlanAccessService;
 import les13.finguide.backend.budget.BudgetEnvelope;
 import les13.finguide.backend.budget.BudgetSettings;
 import les13.finguide.backend.budget.MonthlyTrackerEntry;
+import les13.finguide.backend.budget.OperationJournalEntry;
 import les13.finguide.backend.expenses.ExpenseItem;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -12,6 +13,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -114,6 +116,61 @@ public class BudgetTrackerService {
         repository.upsertMonthlyTrackerEntry(planId, new MonthlyTrackerEntry(month, status, request.note(), now, now));
     }
 
+    public List<OperationJournalEntry> operationJournal(UUID planId, Integer year, Integer month) {
+        accessService.requirePlan(planId);
+        if (year != null && (year < 1900 || year > 3000)) {
+            throw badRequest("year is out of range");
+        }
+        if (month != null && (month < 1 || month > 12)) {
+            throw badRequest("month is out of range");
+        }
+        return repository.findOperationJournalEntries(planId, year, month);
+    }
+
+    @Transactional
+    public OperationJournalEntry createOperationJournalEntry(UUID planId, BudgetTrackerRequests.OperationJournalEntryRequest request) {
+        accessService.requireWritablePlan(planId);
+        Instant now = Instant.now();
+        return repository.createOperationJournalEntry(new OperationJournalEntry(
+                UUID.randomUUID(),
+                planId,
+                parseDate(requiredText(request.date(), "date")),
+                requiredText(request.title(), "title"),
+                required(request.amount(), "amount"),
+                parseOperationType(requiredText(request.type(), "type")),
+                parseOperationStatus(requiredText(request.status(), "status")),
+                now,
+                now
+        ));
+    }
+
+    @Transactional
+    public OperationJournalEntry updateOperationJournalEntry(UUID planId, UUID entryId, BudgetTrackerRequests.OperationJournalEntryRequest request) {
+        accessService.requireWritablePlan(planId);
+        OperationJournalEntry current = repository.findOperationJournalEntry(planId, entryId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "operation journal entry was not found"));
+        Instant now = Instant.now();
+        return repository.updateOperationJournalEntry(new OperationJournalEntry(
+                current.id(),
+                current.planId(),
+                request.date() == null ? current.date() : parseDate(requiredText(request.date(), "date")),
+                request.title() == null ? current.title() : requiredText(request.title(), "title"),
+                request.amount() == null ? current.amount() : request.amount(),
+                request.type() == null ? current.type() : parseOperationType(requiredText(request.type(), "type")),
+                request.status() == null ? current.status() : parseOperationStatus(requiredText(request.status(), "status")),
+                current.createdAt(),
+                now
+        ));
+    }
+
+    @Transactional
+    public void deleteOperationJournalEntry(UUID planId, UUID entryId) {
+        accessService.requireWritablePlan(planId);
+        if (!repository.deleteOperationJournalEntry(planId, entryId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "operation journal entry was not found");
+        }
+    }
+
     private static BudgetSettings.Method parseMethod(String value) {
         return switch (value) {
             case "503020" -> BudgetSettings.Method.RULE_50_30_20;
@@ -138,6 +195,30 @@ public class BudgetTrackerService {
             return MonthlyTrackerEntry.Status.valueOf(value.toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException ignored) {
             throw badRequest("status is invalid");
+        }
+    }
+
+    private static OperationJournalEntry.Type parseOperationType(String value) {
+        try {
+            return OperationJournalEntry.Type.valueOf(value.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ignored) {
+            throw badRequest("type is invalid");
+        }
+    }
+
+    private static OperationJournalEntry.Status parseOperationStatus(String value) {
+        try {
+            return OperationJournalEntry.Status.valueOf(value.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ignored) {
+            throw badRequest("status is invalid");
+        }
+    }
+
+    private static LocalDate parseDate(String value) {
+        try {
+            return LocalDate.parse(value);
+        } catch (RuntimeException ignored) {
+            throw badRequest("date must use YYYY-MM-DD format");
         }
     }
 
