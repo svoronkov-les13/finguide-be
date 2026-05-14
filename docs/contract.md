@@ -31,9 +31,9 @@
 - Swagger UI реального бэкенда: `http://66.42.121.18/finguide-api/swagger-ui.html`.
 - Legacy mock Swagger остаётся только для переходного сравнения: `http://66.42.121.18/finguide-mock/`.
 
-Текущая real-реализация на H2 уже покрывает чтение плана/дашборда/health/cashflow/scenarios, persisted analytics assumptions/current balance/yearly projection/pension settings/pension projection, CRUD для `IncomeSource`, `ExpenseItem`, `Goal`, включая `goals/reorder`, и persisted `Contribution` ledger. Остальные группы методов из карты ниже пока ведутся отдельными задачами.
+Текущая real-реализация на H2 уже покрывает чтение плана/дашборда/health/cashflow/scenarios, persisted analytics assumptions/current balance/yearly projection/pension settings/pension projection, CRUD для `IncomeSource`, `ExpenseItem`, `Goal`, включая `goals/reorder`, persisted `Contribution` ledger, persisted `BudgetSettings` и monthly tracker. Остальные группы методов из карты ниже пока ведутся отдельными задачами.
 
-OpenAPI guardrail [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) включён в тестовый набор: checked-in `openapi/openapi.json` сейчас содержит 54 операции, real Springdoc покрывает 35 реализованных операций, а известный gap в 19 операций явно зафиксирован. Новые endpoints должны одновременно добавляться в real Springdoc и уменьшать этот gap; случайное исчезновение уже реализованной операции из `/v3/api-docs` ломает тесты.
+OpenAPI guardrail [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) включён в тестовый набор: checked-in `openapi/openapi.json` сейчас содержит 54 операции, real Springdoc покрывает 40 реализованных операций, а известный gap в 14 операций явно зафиксирован. Новые endpoints должны одновременно добавляться в real Springdoc и уменьшать этот gap; случайное исчезновение уже реализованной операции из `/v3/api-docs` ломает тесты.
 
 - Авторизация: `Authorization: Bearer <JWT>` с access token из Keycloak realm `finguide`. Бэкенд валидирует JWT как OAuth2 Resource Server и не владеет password-based `/auth/register/login/refresh/logout` endpoints. В demo/H2 режиме (`FINGUIDE_DEMO_MODE=true`) `/api/v1/**` временно открыт для интеграции фронтенда с real backend без Keycloak.
 - Все даты: ISO-8601 (`YYYY-MM-DD`, `date-time` UTC).

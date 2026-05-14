@@ -45,7 +45,8 @@ Real backend currently supports:
 - H2 seed data loaded from `schema.sql` + `data.sql`;
 - persisted analytics assumptions, current balance, yearly projection and pension projection endpoints;
 - persisted pension settings `GET/PATCH /plans/{planId}/pension` with writable-plan guardrails;
-- persisted contributions ledger `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}` with `Goal.savedAmount` derived from contribution sums.
+- persisted contributions ledger `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}` with `Goal.savedAmount` derived from contribution sums;
+- persisted budget settings `GET/PATCH /plans/{planId}/budget`, envelope autogeneration, and monthly tracker `GET/POST /plans/{planId}/calendar/monthly-tracker`.
 
 Completed guardrails and analytics milestones:
 
@@ -53,7 +54,8 @@ Completed guardrails and analytics milestones:
 - [#26](https://github.com/svoronkov-les13/finguide-be/issues/26) — prevent mutations of the shared anonymous demo seed plan;
 - [#4](https://github.com/svoronkov-les13/finguide-be/issues/4) — serve analytics and pension projections from persisted plan state;
 - [#11](https://github.com/svoronkov-les13/finguide-be/issues/11) — persisted pension settings endpoints;
-- [#10](https://github.com/svoronkov-les13/finguide-be/issues/10) — persisted contributions ledger endpoints.
+- [#10](https://github.com/svoronkov-les13/finguide-be/issues/10) — persisted contributions ledger endpoints;
+- [#12](https://github.com/svoronkov-les13/finguide-be/issues/12) — persisted budget and monthly tracker endpoints.
 
 ## Repository map
 
@@ -68,7 +70,7 @@ src/main/java/les13/finguide/backend/
   goals/             goals and waterfall priority reorder
   analytics/         assumptions, cashflow, dashboard and health calculations
   pension/           pension settings/projection model
-  budget/            target budget model
+  budget/            budget settings, envelopes and monthly tracker models
   scenarios/         target scenario model
   importexport/      target import/export boundary
   notifications/     target notification boundary

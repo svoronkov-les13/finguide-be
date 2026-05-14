@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
@@ -29,11 +30,13 @@ import java.util.UUID;
 public class FinancialItemController {
     private final FinancialItemService service;
     private final ContributionService contributionService;
+    private final BudgetTrackerService budgetTrackerService;
     private final PlanApiMapper mapper;
 
-    public FinancialItemController(FinancialItemService service, ContributionService contributionService, PlanApiMapper mapper) {
+    public FinancialItemController(FinancialItemService service, ContributionService contributionService, BudgetTrackerService budgetTrackerService, PlanApiMapper mapper) {
         this.service = service;
         this.contributionService = contributionService;
+        this.budgetTrackerService = budgetTrackerService;
         this.mapper = mapper;
     }
 
@@ -178,6 +181,38 @@ public class FinancialItemController {
     @DeleteMapping("/contributions/{id}")
     public ResponseEntity<Void> deleteContribution(@PathVariable UUID planId, @PathVariable UUID id) {
         contributionService.deleteContribution(planId, id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/budget")
+    public ApiEnvelope<Map<String, Object>> budget(@PathVariable UUID planId) {
+        return ApiEnvelope.of(mapper.budget(budgetTrackerService.budget(planId)));
+    }
+
+    @PatchMapping("/budget")
+    public ApiEnvelope<Map<String, Object>> updateBudget(
+            @PathVariable UUID planId,
+            @RequestBody BudgetTrackerRequests.BudgetRequest request
+    ) {
+        return ApiEnvelope.of(mapper.budget(budgetTrackerService.updateBudget(planId, request)));
+    }
+
+    @PostMapping("/budget/envelopes/autogenerate")
+    public ApiEnvelope<Map<String, Object>> autogenerateBudgetEnvelopes(@PathVariable UUID planId) {
+        return ApiEnvelope.of(mapper.budget(budgetTrackerService.autogenerateEnvelopes(planId)));
+    }
+
+    @GetMapping("/calendar/monthly-tracker")
+    public ApiEnvelope<Object> monthlyTracker(@PathVariable UUID planId, @RequestParam(required = false) Integer year) {
+        return ApiEnvelope.of(budgetTrackerService.monthlyTracker(planId, year).stream().map(mapper::monthlyTrackerEntry).toList());
+    }
+
+    @PostMapping("/calendar/monthly-tracker")
+    public ResponseEntity<Void> upsertMonthlyTracker(
+            @PathVariable UUID planId,
+            @RequestBody BudgetTrackerRequests.MonthlyTrackerRequest request
+    ) {
+        budgetTrackerService.upsertMonthlyTracker(planId, request);
         return ResponseEntity.noContent().build();
     }
 }

@@ -1,3 +1,7 @@
+drop table if exists monthly_tracker_entries;
+drop table if exists budget_classifications;
+drop table if exists budget_envelopes;
+drop table if exists budget_settings;
 drop table if exists contributions;
 drop table if exists goals;
 drop table if exists expenses;
@@ -129,4 +133,42 @@ create table contributions (
   note varchar(1024),
   created_at timestamp with time zone not null,
   updated_at timestamp with time zone not null
+);
+
+create table budget_settings (
+  plan_id uuid primary key references financial_plans(id),
+  method varchar(32) not null,
+  created_at timestamp with time zone not null,
+  updated_at timestamp with time zone not null
+);
+
+create table budget_envelopes (
+  id uuid primary key,
+  plan_id uuid not null references financial_plans(id),
+  name varchar(255) not null,
+  limit_amount numeric(19, 2) not null,
+  icon varchar(64) not null,
+  color varchar(32) not null,
+  sort_order integer not null,
+  created_at timestamp with time zone not null,
+  updated_at timestamp with time zone not null
+);
+
+create table budget_classifications (
+  plan_id uuid not null references financial_plans(id),
+  expense_id uuid not null references expenses(id),
+  budget_class varchar(32) not null,
+  created_at timestamp with time zone not null,
+  updated_at timestamp with time zone not null,
+  primary key (plan_id, expense_id)
+);
+
+create table monthly_tracker_entries (
+  plan_id uuid not null references financial_plans(id),
+  tracker_month varchar(7) not null,
+  status varchar(32) not null,
+  note varchar(1024),
+  created_at timestamp with time zone not null,
+  updated_at timestamp with time zone not null,
+  primary key (plan_id, tracker_month)
 );

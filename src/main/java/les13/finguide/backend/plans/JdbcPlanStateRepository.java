@@ -2,7 +2,9 @@ package les13.finguide.backend.plans;
 
 import les13.finguide.backend.analytics.ModelAssumptions;
 import les13.finguide.backend.analytics.YearRatePoint;
+import les13.finguide.backend.budget.BudgetEnvelope;
 import les13.finguide.backend.budget.BudgetSettings;
+import les13.finguide.backend.budget.MonthlyTrackerEntry;
 import les13.finguide.backend.contributions.Contribution;
 import les13.finguide.backend.expenses.ExpenseItem;
 import les13.finguide.backend.goals.Goal;
@@ -12,6 +14,7 @@ import les13.finguide.backend.users.UserProfile;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,7 +23,11 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.YearMonth;
 import java.time.ZoneOffset;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -81,6 +88,8 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
             cloneIncomes(seedPlanId, planId, now);
             cloneExpenses(seedPlanId, planId, now);
             cloneGoals(seedPlanId, planId, now);
+            cloneBudget(seedPlanId, planId, now);
+            cloneMonthlyTracker(seedPlanId, planId, now);
             return findById(planId).orElseThrow();
         } catch (DuplicateKeyException ignored) {
             return findCurrentForOwner(ownerUserId).orElseThrow();
@@ -200,6 +209,47 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
         );
     }
 
+    private void cloneBudget(UUID seedPlanId, UUID planId, OffsetDateTime now) {
+        jdbcTemplate.update(
+                "insert into budget_settings (plan_id, method, created_at, updated_at) select ?, method, ?, ? from budget_settings where plan_id = ?",
+                planId,
+                now,
+                now,
+                seedPlanId
+        );
+        jdbcTemplate.update(
+                "insert into budget_envelopes (id, plan_id, name, limit_amount, icon, color, sort_order, created_at, updated_at) " +
+                        "select random_uuid(), ?, name, limit_amount, icon, color, sort_order, ?, ? from budget_envelopes where plan_id = ?",
+                planId,
+                now,
+                now,
+                seedPlanId
+        );
+        jdbcTemplate.update(
+                "insert into budget_classifications (plan_id, expense_id, budget_class, created_at, updated_at) " +
+                        "select ?, e2.id, bc.budget_class, ?, ? " +
+                        "from budget_classifications bc " +
+                        "join expenses e1 on e1.id = bc.expense_id " +
+                        "join expenses e2 on e2.plan_id = ? and e2.name = e1.name and e2.amount = e1.amount and e2.budget_class = e1.budget_class " +
+                        "where bc.plan_id = ?",
+                planId,
+                now,
+                now,
+                planId,
+                seedPlanId
+        );
+    }
+
+    private void cloneMonthlyTracker(UUID seedPlanId, UUID planId, OffsetDateTime now) {
+        jdbcTemplate.update(
+                "insert into monthly_tracker_entries (plan_id, tracker_month, status, note, created_at, updated_at) select ?, tracker_month, status, note, ?, ? from monthly_tracker_entries where plan_id = ?",
+                planId,
+                now,
+                now,
+                seedPlanId
+        );
+    }
+
     @Override
     public Optional<PlanState> findById(UUID planId) {
         try {
@@ -241,7 +291,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                     this::mapGoal,
                     planId
             );
-            BudgetSettings budget = new BudgetSettings(planId, BudgetSettings.Method.RULE_50_30_20, List.of(), Map.of());
+            BudgetSettings budget = findBudget(planId);
             return Optional.of(new PlanState(
                     plan,
                     profile,
@@ -589,6 +639,150 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     }
 
     @Override
+    public BudgetSettings findBudget(UUID planId) {
+        BudgetSettings.Method method = queryOptional(
+                "select method from budget_settings where plan_id = ?",
+                (rs, rowNum) -> enumValue(BudgetSettings.Method.class, rs.getString("method")),
+                planId
+        ).orElse(BudgetSettings.Method.RULE_50_30_20);
+        Map<UUID, BudgetSettings.BudgetClass> classifications = new LinkedHashMap<>();
+        jdbcTemplate.query(
+                "select * from budget_classifications where plan_id = ? order by created_at, expense_id",
+                (RowCallbackHandler) rs -> classifications.put(rs.getObject("expense_id", UUID.class), enumValue(BudgetSettings.BudgetClass.class, rs.getString("budget_class"))),
+                planId
+        );
+        return new BudgetSettings(planId, method, findBudgetEnvelopes(planId), classifications);
+    }
+
+    @Override
+    @Transactional
+    public BudgetSettings replaceBudget(UUID planId, BudgetSettings budget) {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        deleteBudget(planId);
+        insertBudget(planId, budget.method(), budget.envelopes(), budget.classifications(), now);
+        touchPlan(planId, now);
+        return findBudget(planId);
+    }
+
+    @Override
+    @Transactional
+    public BudgetSettings replaceBudgetEnvelopes(UUID planId, List<BudgetEnvelope> envelopes) {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        BudgetSettings current = findBudget(planId);
+        jdbcTemplate.update("delete from budget_envelopes where plan_id = ?", planId);
+        ensureBudgetSettings(planId, current.method(), now);
+        insertBudgetEnvelopes(planId, envelopes, now);
+        touchPlan(planId, now);
+        return findBudget(planId);
+    }
+
+    @Override
+    public List<MonthlyTrackerEntry> findMonthlyTrackerEntries(UUID planId, int year) {
+        String prefix = String.valueOf(year) + "-%";
+        return jdbcTemplate.query(
+                "select * from monthly_tracker_entries where plan_id = ? and tracker_month like ? order by tracker_month",
+                this::mapMonthlyTrackerEntry,
+                planId,
+                prefix
+        );
+    }
+
+    @Override
+    @Transactional
+    public MonthlyTrackerEntry upsertMonthlyTrackerEntry(UUID planId, MonthlyTrackerEntry entry) {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        int updated = jdbcTemplate.update(
+                "update monthly_tracker_entries set status = ?, note = ?, updated_at = ? where plan_id = ? and tracker_month = ?",
+                dbValue(entry.status()),
+                entry.note(),
+                now,
+                planId,
+                entry.month().toString()
+        );
+        if (updated == 0) {
+            jdbcTemplate.update(
+                    "insert into monthly_tracker_entries (plan_id, tracker_month, status, note, created_at, updated_at) values (?, ?, ?, ?, ?, ?)",
+                    planId,
+                    entry.month().toString(),
+                    dbValue(entry.status()),
+                    entry.note(),
+                    now,
+                    now
+            );
+        }
+        touchPlan(planId, now);
+        return queryOptional(
+                "select * from monthly_tracker_entries where plan_id = ? and tracker_month = ?",
+                this::mapMonthlyTrackerEntry,
+                planId,
+                entry.month().toString()
+        ).orElseThrow();
+    }
+
+    private void deleteBudget(UUID planId) {
+        jdbcTemplate.update("delete from budget_classifications where plan_id = ?", planId);
+        jdbcTemplate.update("delete from budget_envelopes where plan_id = ?", planId);
+        jdbcTemplate.update("delete from budget_settings where plan_id = ?", planId);
+    }
+
+    private void ensureBudgetSettings(UUID planId, BudgetSettings.Method method, OffsetDateTime now) {
+        int updated = jdbcTemplate.update("update budget_settings set method = ?, updated_at = ? where plan_id = ?", dbValue(method), now, planId);
+        if (updated == 0) {
+            jdbcTemplate.update("insert into budget_settings (plan_id, method, created_at, updated_at) values (?, ?, ?, ?)", planId, dbValue(method), now, now);
+        }
+    }
+
+    private void insertBudget(UUID planId, BudgetSettings.Method method, List<BudgetEnvelope> envelopes, Map<UUID, BudgetSettings.BudgetClass> classifications, OffsetDateTime now) {
+        ensureBudgetSettings(planId, method, now);
+        insertBudgetEnvelopes(planId, envelopes, now);
+        classifications.forEach((expenseId, budgetClass) -> jdbcTemplate.update(
+                "insert into budget_classifications (plan_id, expense_id, budget_class, created_at, updated_at) values (?, ?, ?, ?, ?)",
+                planId,
+                expenseId,
+                dbValue(budgetClass),
+                now,
+                now
+        ));
+    }
+
+    private void insertBudgetEnvelopes(UUID planId, List<BudgetEnvelope> envelopes, OffsetDateTime now) {
+        for (int index = 0; index < envelopes.size(); index++) {
+            BudgetEnvelope envelope = envelopes.get(index);
+            jdbcTemplate.update(
+                    "insert into budget_envelopes (id, plan_id, name, limit_amount, icon, color, sort_order, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    envelope.id(),
+                    planId,
+                    envelope.name(),
+                    envelope.limit(),
+                    envelope.icon(),
+                    envelope.color(),
+                    index + 1,
+                    now,
+                    now
+            );
+        }
+    }
+
+    private List<BudgetEnvelope> findBudgetEnvelopes(UUID planId) {
+        Map<String, BigDecimal> spentByName = expenseSpentByName(planId);
+        return jdbcTemplate.query(
+                "select * from budget_envelopes where plan_id = ? order by sort_order, name",
+                (rs, rowNum) -> mapBudgetEnvelope(rs, spentByName),
+                planId
+        );
+    }
+
+    private Map<String, BigDecimal> expenseSpentByName(UUID planId) {
+        Map<String, BigDecimal> result = new LinkedHashMap<>();
+        jdbcTemplate.query(
+                "select name, amount from expenses where plan_id = ?",
+                (RowCallbackHandler) rs -> result.merge(rs.getString("name"), rs.getBigDecimal("amount"), BigDecimal::add),
+                planId
+        );
+        return result;
+    }
+
+    @Override
     @Transactional
     public ModelAssumptions updateModelAssumptions(UUID planId, ModelAssumptions assumptions) {
         jdbcTemplate.update(
@@ -699,6 +893,38 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                 rs.getBigDecimal("amount"),
                 rs.getString("currency"),
                 localDate(rs, "contribution_date"),
+                rs.getString("note"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private BudgetEnvelope mapBudgetEnvelope(ResultSet rs, Map<String, BigDecimal> spentByName) throws SQLException {
+        BigDecimal limit = rs.getBigDecimal("limit_amount");
+        BigDecimal spent = spentByName.getOrDefault(rs.getString("name"), BigDecimal.ZERO);
+        BigDecimal remaining = limit.subtract(spent).max(BigDecimal.ZERO);
+        BigDecimal pct = BigDecimal.ZERO;
+        if (limit.compareTo(BigDecimal.ZERO) > 0) {
+            pct = spent.multiply(BigDecimal.valueOf(100)).divide(limit, 2, RoundingMode.HALF_UP);
+        }
+        return new BudgetEnvelope(
+                rs.getObject("id", UUID.class),
+                rs.getObject("plan_id", UUID.class),
+                rs.getString("name"),
+                limit,
+                rs.getString("icon"),
+                rs.getString("color"),
+                spent,
+                remaining,
+                pct,
+                spent.compareTo(limit) > 0
+        );
+    }
+
+    private MonthlyTrackerEntry mapMonthlyTrackerEntry(ResultSet rs, int rowNum) throws SQLException {
+        return new MonthlyTrackerEntry(
+                YearMonth.parse(rs.getString("tracker_month")),
+                enumValue(MonthlyTrackerEntry.Status.class, rs.getString("status")),
                 rs.getString("note"),
                 instant(rs, "created_at"),
                 instant(rs, "updated_at")
