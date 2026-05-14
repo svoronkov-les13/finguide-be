@@ -147,6 +147,45 @@ create table contributions (
   created_at timestamp with time zone not null,
   updated_at timestamp with time zone not null
 );
+
+create table budget_settings (
+  plan_id uuid primary key references financial_plans(id),
+  method varchar(32) not null,
+  created_at timestamp with time zone not null,
+  updated_at timestamp with time zone not null
+);
+
+create table budget_envelopes (
+  id uuid primary key,
+  plan_id uuid not null references financial_plans(id),
+  name varchar(255) not null,
+  limit_amount numeric(19, 2) not null,
+  icon varchar(64) not null,
+  color varchar(32) not null,
+  sort_order integer not null,
+  created_at timestamp with time zone not null,
+  updated_at timestamp with time zone not null
+);
+
+create table budget_classifications (
+  plan_id uuid not null references financial_plans(id),
+  expense_id uuid not null references expenses(id),
+  budget_class varchar(32) not null,
+  created_at timestamp with time zone not null,
+  updated_at timestamp with time zone not null,
+  primary key (plan_id, expense_id)
+);
+
+create table monthly_tracker_entries (
+  plan_id uuid not null references financial_plans(id),
+  tracker_month varchar(7) not null,
+  status varchar(32) not null,
+  note varchar(1024),
+  created_at timestamp with time zone not null,
+  updated_at timestamp with time zone not null,
+  primary key (plan_id, tracker_month)
+);
+
 ```
 
 ## Seed данные
@@ -190,4 +229,4 @@ create table contributions (
    - regression tests на все write endpoints.
 3. Добавить `is_current` или отдельный указатель current plan, если понадобится несколько планов на пользователя.
 4. Добавить `version int not null default 0` для редактируемых сущностей и `ETag`/`If-Match`.
-5. Расширить схему под roadmap: budget/monthly tracker, scenarios, import/export jobs, notifications. Pension settings mutations и contributions ledger уже реализованы поверх текущей persisted схемы.
+5. Расширить схему под roadmap: scenarios, import/export jobs, notifications. Pension settings mutations, contributions ledger, budget settings and monthly tracker уже реализованы поверх текущей persisted схемы.

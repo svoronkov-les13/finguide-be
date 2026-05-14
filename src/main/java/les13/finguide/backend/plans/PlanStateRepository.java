@@ -1,6 +1,9 @@
 package les13.finguide.backend.plans;
 
 import les13.finguide.backend.contributions.Contribution;
+import les13.finguide.backend.budget.BudgetEnvelope;
+import les13.finguide.backend.budget.BudgetSettings;
+import les13.finguide.backend.budget.MonthlyTrackerEntry;
 import les13.finguide.backend.expenses.ExpenseItem;
 import les13.finguide.backend.goals.Goal;
 import les13.finguide.backend.incomes.IncomeSource;
@@ -65,6 +68,16 @@ public interface PlanStateRepository {
     boolean deleteContribution(UUID planId, UUID contributionId);
 
     void recalculateGoalSavedAmount(UUID planId, UUID goalId);
+
+    BudgetSettings findBudget(UUID planId);
+
+    BudgetSettings replaceBudget(UUID planId, BudgetSettings budget);
+
+    BudgetSettings replaceBudgetEnvelopes(UUID planId, List<BudgetEnvelope> envelopes);
+
+    List<MonthlyTrackerEntry> findMonthlyTrackerEntries(UUID planId, int year);
+
+    MonthlyTrackerEntry upsertMonthlyTrackerEntry(UUID planId, MonthlyTrackerEntry entry);
 
     ModelAssumptions updateModelAssumptions(UUID planId, ModelAssumptions assumptions);
 

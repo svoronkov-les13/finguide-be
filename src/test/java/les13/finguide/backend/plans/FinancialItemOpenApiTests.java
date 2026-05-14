@@ -18,16 +18,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 class FinancialItemOpenApiTests {
-    private static final Map<String, Set<String>> EXPECTED_METHODS = Map.of(
-            "/api/v1/plans/{planId}/incomes", Set.of("get", "post"),
-            "/api/v1/plans/{planId}/incomes/{id}", Set.of("get", "patch", "delete"),
-            "/api/v1/plans/{planId}/expenses", Set.of("get", "post"),
-            "/api/v1/plans/{planId}/expenses/{id}", Set.of("get", "patch", "delete"),
-            "/api/v1/plans/{planId}/goals", Set.of("get", "post"),
-            "/api/v1/plans/{planId}/goals/{id}", Set.of("get", "patch", "delete"),
-            "/api/v1/plans/{planId}/goals/reorder", Set.of("post"),
-            "/api/v1/plans/{planId}/contributions", Set.of("get", "post"),
-            "/api/v1/plans/{planId}/contributions/{id}", Set.of("get", "patch", "delete")
+    private static final Map<String, Set<String>> EXPECTED_METHODS = Map.ofEntries(
+            Map.entry("/api/v1/plans/{planId}/incomes", Set.of("get", "post")),
+            Map.entry("/api/v1/plans/{planId}/incomes/{id}", Set.of("get", "patch", "delete")),
+            Map.entry("/api/v1/plans/{planId}/expenses", Set.of("get", "post")),
+            Map.entry("/api/v1/plans/{planId}/expenses/{id}", Set.of("get", "patch", "delete")),
+            Map.entry("/api/v1/plans/{planId}/goals", Set.of("get", "post")),
+            Map.entry("/api/v1/plans/{planId}/goals/{id}", Set.of("get", "patch", "delete")),
+            Map.entry("/api/v1/plans/{planId}/goals/reorder", Set.of("post")),
+            Map.entry("/api/v1/plans/{planId}/contributions", Set.of("get", "post")),
+            Map.entry("/api/v1/plans/{planId}/contributions/{id}", Set.of("get", "patch", "delete")),
+            Map.entry("/api/v1/plans/{planId}/budget", Set.of("get", "patch")),
+            Map.entry("/api/v1/plans/{planId}/budget/envelopes/autogenerate", Set.of("post")),
+            Map.entry("/api/v1/plans/{planId}/calendar/monthly-tracker", Set.of("get", "post"))
     );
 
     @Autowired
@@ -69,5 +72,9 @@ class FinancialItemOpenApiTests {
                 .contains("ContributionRequest");
         assertThat(api.at("/paths/~1api~1v1~1plans~1{planId}~1contributions~1{id}/patch/responses/404").isMissingNode())
                 .isFalse();
+        assertThat(api.at("/paths/~1api~1v1~1plans~1{planId}~1budget/patch/requestBody/content/application~1json/schema/$ref").asText())
+                .contains("BudgetRequest");
+        assertThat(api.at("/paths/~1api~1v1~1plans~1{planId}~1calendar~1monthly-tracker/post/requestBody/content/application~1json/schema/$ref").asText())
+                .contains("MonthlyTrackerRequest");
     }
 }
