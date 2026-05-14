@@ -51,7 +51,7 @@ public class FinancialItemService {
 
     @Transactional
     public IncomeSource createIncome(UUID planId, FinancialItemRequests.IncomeRequest request) {
-        requirePlan(planId);
+        requireWritablePlan(planId);
         Instant now = Instant.now();
         IncomeSource income = new IncomeSource(
                 UUID.randomUUID(),
@@ -75,7 +75,9 @@ public class FinancialItemService {
 
     @Transactional
     public IncomeSource updateIncome(UUID planId, UUID incomeId, FinancialItemRequests.IncomeRequest request) {
-        IncomeSource current = income(planId, incomeId);
+        requireWritablePlan(planId);
+        IncomeSource current = repository.findIncome(planId, incomeId)
+                .orElseThrow(() -> notFound("Income was not found"));
         Instant now = Instant.now();
         IncomeSource next = new IncomeSource(
                 current.id(),
@@ -99,7 +101,7 @@ public class FinancialItemService {
 
     @Transactional
     public void deleteIncome(UUID planId, UUID incomeId) {
-        requirePlan(planId);
+        requireWritablePlan(planId);
         if (!repository.deleteIncome(planId, incomeId)) {
             throw notFound("Income was not found");
         }
@@ -119,7 +121,7 @@ public class FinancialItemService {
 
     @Transactional
     public ExpenseItem createExpense(UUID planId, FinancialItemRequests.ExpenseRequest request) {
-        requirePlan(planId);
+        requireWritablePlan(planId);
         Instant now = Instant.now();
         ExpenseItem expense = new ExpenseItem(
                 UUID.randomUUID(),
@@ -145,7 +147,9 @@ public class FinancialItemService {
 
     @Transactional
     public ExpenseItem updateExpense(UUID planId, UUID expenseId, FinancialItemRequests.ExpenseRequest request) {
-        ExpenseItem current = expense(planId, expenseId);
+        requireWritablePlan(planId);
+        ExpenseItem current = repository.findExpense(planId, expenseId)
+                .orElseThrow(() -> notFound("Expense was not found"));
         Instant now = Instant.now();
         ExpenseItem next = new ExpenseItem(
                 current.id(),
@@ -171,7 +175,7 @@ public class FinancialItemService {
 
     @Transactional
     public void deleteExpense(UUID planId, UUID expenseId) {
-        requirePlan(planId);
+        requireWritablePlan(planId);
         if (!repository.deleteExpense(planId, expenseId)) {
             throw notFound("Expense was not found");
         }
@@ -191,7 +195,7 @@ public class FinancialItemService {
 
     @Transactional
     public Goal createGoal(UUID planId, FinancialItemRequests.GoalRequest request) {
-        requirePlan(planId);
+        requireWritablePlan(planId);
         Instant now = Instant.now();
         int priority = request.priority() == null ? repository.findGoals(planId).size() + 1 : positiveInteger(request.priority(), "priority");
         Goal goal = new Goal(
@@ -218,7 +222,9 @@ public class FinancialItemService {
 
     @Transactional
     public Goal updateGoal(UUID planId, UUID goalId, FinancialItemRequests.GoalRequest request) {
-        Goal current = goal(planId, goalId);
+        requireWritablePlan(planId);
+        Goal current = repository.findGoal(planId, goalId)
+                .orElseThrow(() -> notFound("Goal was not found"));
         Instant now = Instant.now();
         Goal next = new Goal(
                 current.id(),
@@ -244,7 +250,7 @@ public class FinancialItemService {
 
     @Transactional
     public void deleteGoal(UUID planId, UUID goalId) {
-        requirePlan(planId);
+        requireWritablePlan(planId);
         if (!repository.deleteGoal(planId, goalId)) {
             throw notFound("Goal was not found");
         }
@@ -253,7 +259,7 @@ public class FinancialItemService {
 
     @Transactional
     public List<Goal> reorderGoals(UUID planId, FinancialItemRequests.GoalReorderRequest request) {
-        requirePlan(planId);
+        requireWritablePlan(planId);
         List<UUID> goalIds = required(request.goalIds(), "goalIds");
         List<Goal> currentGoals = repository.findGoals(planId);
         Set<UUID> currentIds = currentGoals.stream().map(Goal::id).collect(java.util.stream.Collectors.toSet());
@@ -268,6 +274,10 @@ public class FinancialItemService {
 
     private void requirePlan(UUID planId) {
         accessService.requirePlan(planId);
+    }
+
+    private void requireWritablePlan(UUID planId) {
+        accessService.requireWritablePlan(planId);
     }
 
     private static ResponseStatusException notFound(String message) {

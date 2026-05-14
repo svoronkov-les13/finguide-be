@@ -35,7 +35,7 @@ class FinancialItemServiceUnitTests {
 
     @Test
     void rejectsCreateIncomeWhenEndDateIsBeforeStartDate() {
-        when(accessService.requirePlan(PLAN_ID)).thenReturn(mock(PlanState.class));
+        when(accessService.requireWritablePlan(PLAN_ID)).thenReturn(mock(PlanState.class));
 
         var request = new FinancialItemRequests.IncomeRequest(
                 null,
@@ -57,7 +57,7 @@ class FinancialItemServiceUnitTests {
 
     @Test
     void rejectsGoalTargetYearBeforeContractMinimum() {
-        when(accessService.requirePlan(PLAN_ID)).thenReturn(mock(PlanState.class));
+        when(accessService.requireWritablePlan(PLAN_ID)).thenReturn(mock(PlanState.class));
         var request = new FinancialItemRequests.GoalRequest(
                 null,
                 "Слишком ранняя цель",
@@ -83,7 +83,7 @@ class FinancialItemServiceUnitTests {
     void rejectsGoalReorderWhenListDoesNotMatchCurrentGoals() {
         Goal first = goal("33333333-3333-4333-8333-333333333333", 1);
         Goal second = goal("44444444-4444-4444-8444-444444444444", 2);
-        when(accessService.requirePlan(PLAN_ID)).thenReturn(mock(PlanState.class));
+        when(accessService.requireWritablePlan(PLAN_ID)).thenReturn(mock(PlanState.class));
         when(repository.findGoals(PLAN_ID)).thenReturn(List.of(first, second));
 
         assertThatThrownBy(() -> service.reorderGoals(PLAN_ID, new FinancialItemRequests.GoalReorderRequest(List.of(first.id()))))
