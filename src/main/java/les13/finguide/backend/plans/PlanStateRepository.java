@@ -1,5 +1,6 @@
 package les13.finguide.backend.plans;
 
+import les13.finguide.backend.contributions.Contribution;
 import les13.finguide.backend.expenses.ExpenseItem;
 import les13.finguide.backend.goals.Goal;
 import les13.finguide.backend.incomes.IncomeSource;
@@ -52,6 +53,18 @@ public interface PlanStateRepository {
     boolean deleteGoal(UUID planId, UUID goalId);
 
     List<Goal> reorderGoals(UUID planId, List<UUID> goalIds);
+
+    List<Contribution> findContributions(UUID planId);
+
+    Optional<Contribution> findContribution(UUID planId, UUID contributionId);
+
+    Contribution createContribution(UUID planId, Contribution contribution);
+
+    Contribution updateContribution(UUID planId, Contribution contribution);
+
+    boolean deleteContribution(UUID planId, UUID contributionId);
+
+    void recalculateGoalSavedAmount(UUID planId, UUID goalId);
 
     ModelAssumptions updateModelAssumptions(UUID planId, ModelAssumptions assumptions);
 

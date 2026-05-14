@@ -184,7 +184,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                             rs.getString("name"),
                             rs.getString("icon"),
                             rs.getBigDecimal("current_cost"),
-                            rs.getBigDecimal("saved_amount"),
+                            java.math.BigDecimal.ZERO,
                             rs.getString("currency"),
                             rs.getInt("target_year"),
                             rs.getString("type"),
@@ -249,7 +249,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                     incomes,
                     expenses,
                     goals,
-                    List.<Contribution>of(),
+                    findContributions(planId),
                     budget,
                     assumptions,
                     plan.updatedAt()
@@ -487,6 +487,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
 
     @Override
     public boolean deleteGoal(UUID planId, UUID goalId) {
+        jdbcTemplate.update("delete from contributions where plan_id = ? and goal_id = ?", planId, goalId);
         int deleted = jdbcTemplate.update("delete from goals where plan_id = ? and id = ?", planId, goalId);
         if (deleted > 0) {
             touchPlan(planId, OffsetDateTime.now(ZoneOffset.UTC));
@@ -508,6 +509,83 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
         }
         touchPlan(planId, now);
         return findGoals(planId);
+    }
+
+    @Override
+    public List<Contribution> findContributions(UUID planId) {
+        return jdbcTemplate.query(
+                "select * from contributions where plan_id = ? order by contribution_date desc, created_at desc",
+                this::mapContribution,
+                planId
+        );
+    }
+
+    @Override
+    public Optional<Contribution> findContribution(UUID planId, UUID contributionId) {
+        return queryOptional(
+                "select * from contributions where plan_id = ? and id = ?",
+                this::mapContribution,
+                planId,
+                contributionId
+        );
+    }
+
+    @Override
+    public Contribution createContribution(UUID planId, Contribution contribution) {
+        jdbcTemplate.update(
+                "insert into contributions (id, plan_id, goal_id, amount, currency, contribution_date, note, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                contribution.id(),
+                planId,
+                contribution.goalId(),
+                contribution.amount(),
+                contribution.currency(),
+                contribution.date(),
+                contribution.note(),
+                offset(contribution.createdAt()),
+                offset(contribution.updatedAt())
+        );
+        touchPlan(planId, offset(contribution.updatedAt()));
+        return contribution;
+    }
+
+    @Override
+    public Contribution updateContribution(UUID planId, Contribution contribution) {
+        jdbcTemplate.update(
+                "update contributions set goal_id = ?, amount = ?, currency = ?, contribution_date = ?, note = ?, updated_at = ? where plan_id = ? and id = ?",
+                contribution.goalId(),
+                contribution.amount(),
+                contribution.currency(),
+                contribution.date(),
+                contribution.note(),
+                offset(contribution.updatedAt()),
+                planId,
+                contribution.id()
+        );
+        touchPlan(planId, offset(contribution.updatedAt()));
+        return contribution;
+    }
+
+    @Override
+    public boolean deleteContribution(UUID planId, UUID contributionId) {
+        int deleted = jdbcTemplate.update("delete from contributions where plan_id = ? and id = ?", planId, contributionId);
+        if (deleted > 0) {
+            touchPlan(planId, OffsetDateTime.now(ZoneOffset.UTC));
+        }
+        return deleted > 0;
+    }
+
+    @Override
+    public void recalculateGoalSavedAmount(UUID planId, UUID goalId) {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        jdbcTemplate.update(
+                "update goals set saved_amount = (select coalesce(sum(amount), 0) from contributions where plan_id = ? and goal_id = ?), updated_at = ? where plan_id = ? and id = ?",
+                planId,
+                goalId,
+                now,
+                planId,
+                goalId
+        );
+        touchPlan(planId, now);
     }
 
     @Override
@@ -609,6 +687,19 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                 integer(rs, "age"),
                 enumValue(UserProfile.Gender.class, rs.getString("gender")),
                 rs.getBigDecimal("initial_balance"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private Contribution mapContribution(ResultSet rs, int rowNum) throws SQLException {
+        return new Contribution(
+                rs.getObject("id", UUID.class),
+                rs.getObject("goal_id", UUID.class),
+                rs.getBigDecimal("amount"),
+                rs.getString("currency"),
+                localDate(rs, "contribution_date"),
+                rs.getString("note"),
                 instant(rs, "created_at"),
                 instant(rs, "updated_at")
         );

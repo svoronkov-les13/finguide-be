@@ -31,9 +31,9 @@
 - Swagger UI реального бэкенда: `http://66.42.121.18/finguide-api/swagger-ui.html`.
 - Legacy mock Swagger остаётся только для переходного сравнения: `http://66.42.121.18/finguide-mock/`.
 
-Текущая real-реализация на H2 уже покрывает чтение плана/дашборда/health/cashflow/scenarios, persisted analytics assumptions/current balance/yearly projection/pension settings/pension projection и CRUD для `IncomeSource`, `ExpenseItem`, `Goal`, включая `goals/reorder`. Остальные группы методов из карты ниже пока ведутся отдельными задачами.
+Текущая real-реализация на H2 уже покрывает чтение плана/дашборда/health/cashflow/scenarios, persisted analytics assumptions/current balance/yearly projection/pension settings/pension projection, CRUD для `IncomeSource`, `ExpenseItem`, `Goal`, включая `goals/reorder`, и persisted `Contribution` ledger. Остальные группы методов из карты ниже пока ведутся отдельными задачами.
 
-OpenAPI guardrail [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) включён в тестовый набор: checked-in `openapi/openapi.json` сейчас содержит 54 операции, real Springdoc покрывает 30 реализованных операций, а известный gap в 24 операции явно зафиксирован. Новые endpoints должны одновременно добавляться в real Springdoc и уменьшать этот gap; случайное исчезновение уже реализованной операции из `/v3/api-docs` ломает тесты.
+OpenAPI guardrail [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) включён в тестовый набор: checked-in `openapi/openapi.json` сейчас содержит 54 операции, real Springdoc покрывает 35 реализованных операций, а известный gap в 19 операций явно зафиксирован. Новые endpoints должны одновременно добавляться в real Springdoc и уменьшать этот gap; случайное исчезновение уже реализованной операции из `/v3/api-docs` ломает тесты.
 
 - Авторизация: `Authorization: Bearer <JWT>` с access token из Keycloak realm `finguide`. Бэкенд валидирует JWT как OAuth2 Resource Server и не владеет password-based `/auth/register/login/refresh/logout` endpoints. В demo/H2 режиме (`FINGUIDE_DEMO_MODE=true`) `/api/v1/**` временно открыт для интеграции фронтенда с real backend без Keycloak.
 - Все даты: ISO-8601 (`YYYY-MM-DD`, `date-time` UTC).
@@ -48,7 +48,7 @@ OpenAPI guardrail [#16](https://github.com/svoronkov-les13/finguide-be/issues/16
 
 ### Пагинация
 
-Все методы API со списками, которые могут вырасти неограниченно (`contributions`, `notifications`, `monthly-tracker`, `export jobs`), используют курсорную пагинацию:
+Целевой contract для методов API со списками, которые могут вырасти неограниченно (`contributions`, `notifications`, `monthly-tracker`, `export jobs`), использует курсорную пагинацию:
 
 ```txt
 GET /plans/{planId}/contributions?cursor=<opaque>&limit=50
@@ -163,7 +163,7 @@ If-Match: "<etag>"
 
 `id`, `goalId`, `amount`, `currency`, `date`, `note`.
 
-Бэкенд либо хранит `Goal.savedAmount` денормализованно, либо пересчитывает его из записей взносов и возвращает в `Goal`.
+В real backend `Goal.savedAmount` — производное значение: после create/update/delete взноса бэкенд пересчитывает его как `sum(Contribution.amount)` по цели. Поле `savedAmount` в goal create/patch не является источником истины.
 
 ### Пенсионные настройки (`PensionSettings`)
 
@@ -209,7 +209,7 @@ Keycloak владеет входом, регистрацией, refresh/logout, 
 - `GET/POST /plans/{planId}/expenses`, `GET/PATCH/DELETE /plans/{planId}/expenses/{id}` — реализовано в real backend.
 - `GET/POST /plans/{planId}/goals`, `GET/PATCH/DELETE /plans/{planId}/goals/{id}` — реализовано в real backend.
 - `POST /plans/{planId}/goals/reorder` — реализовано в real backend; тело `{ "goalIds": ["..."] }` должно содержать все текущие id целей ровно по одному разу.
-- `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}`
+- `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}` — реализовано в real backend; read требует доступ к плану, write требует writable plan access, общий anonymous seed read-only. `Goal.savedAmount` пересчитывается из суммы взносов по цели. Удаление цели удаляет связанные с ней взносы, чтобы не оставлять orphan ledger records. Текущая H2-реализация возвращает полный список без pagination/idempotency; это осознанно отложено до следующего production-storage этапа.
 - `GET/PATCH /plans/{planId}/pension` — реализовано в real backend; `PATCH` делает full replace persisted `PensionSettings` и требует writable plan access, поэтому общий anonymous seed read-only.
 - `GET/PATCH /plans/{planId}/budget`, `POST /plans/{planId}/budget/envelopes/autogenerate`
 

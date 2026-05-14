@@ -28,10 +28,12 @@ import java.util.UUID;
 })
 public class FinancialItemController {
     private final FinancialItemService service;
+    private final ContributionService contributionService;
     private final PlanApiMapper mapper;
 
-    public FinancialItemController(FinancialItemService service, PlanApiMapper mapper) {
+    public FinancialItemController(FinancialItemService service, ContributionService contributionService, PlanApiMapper mapper) {
         this.service = service;
+        this.contributionService = contributionService;
         this.mapper = mapper;
     }
 
@@ -143,5 +145,39 @@ public class FinancialItemController {
             @RequestBody FinancialItemRequests.GoalReorderRequest request
     ) {
         return ApiEnvelope.of(service.reorderGoals(planId, request).stream().map(mapper::goal).toList());
+    }
+
+    @GetMapping("/contributions")
+    public ApiEnvelope<Object> contributions(@PathVariable UUID planId) {
+        return ApiEnvelope.of(contributionService.contributions(planId).stream().map(mapper::contribution).toList());
+    }
+
+    @PostMapping("/contributions")
+    public ResponseEntity<ApiEnvelope<Map<String, Object>>> createContribution(
+            @PathVariable UUID planId,
+            @RequestBody ContributionRequests.ContributionRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiEnvelope.of(mapper.contribution(contributionService.createContribution(planId, request))));
+    }
+
+    @GetMapping("/contributions/{id}")
+    public ApiEnvelope<Map<String, Object>> contribution(@PathVariable UUID planId, @PathVariable UUID id) {
+        return ApiEnvelope.of(mapper.contribution(contributionService.contribution(planId, id)));
+    }
+
+    @PatchMapping("/contributions/{id}")
+    public ApiEnvelope<Map<String, Object>> updateContribution(
+            @PathVariable UUID planId,
+            @PathVariable UUID id,
+            @RequestBody ContributionRequests.ContributionRequest request
+    ) {
+        return ApiEnvelope.of(mapper.contribution(contributionService.updateContribution(planId, id, request)));
+    }
+
+    @DeleteMapping("/contributions/{id}")
+    public ResponseEntity<Void> deleteContribution(@PathVariable UUID planId, @PathVariable UUID id) {
+        contributionService.deleteContribution(planId, id);
+        return ResponseEntity.noContent().build();
     }
 }

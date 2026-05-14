@@ -135,6 +135,7 @@ class FinancialItemControllerTests {
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.name").value("Обучение"))
+                .andExpect(jsonPath("$.data.savedAmount").value(0))
                 .andReturn().getResponse().getContentAsString();
         String goalId = objectMapper.readTree(goalBody).at("/data/id").asText();
 
@@ -143,7 +144,7 @@ class FinancialItemControllerTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"savedAmount\":200000,\"priority\":1}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.savedAmount").value(200000));
+                .andExpect(jsonPath("$.data.savedAmount").value(0));
 
         JsonNode goals = objectMapper.readTree(mockMvc.perform(get("/api/v1/plans/{planId}/goals", planId).with(userJwt()))
                 .andExpect(status().isOk())

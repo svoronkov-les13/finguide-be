@@ -47,11 +47,12 @@ Legacy mock Swagger: <http://66.42.121.18/finguide-mock/> — только дл�
 - [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) OpenAPI coverage guard: real Springdoc защищён от регрессий относительно checked-in OpenAPI;
 - [#26](https://github.com/svoronkov-les13/finguide-be/issues/26) общий anonymous demo seed plan read-only для мутаций;
 - [#4](https://github.com/svoronkov-les13/finguide-be/issues/4) analytics/pension endpoints строятся из persisted plan state;
-- [#11](https://github.com/svoronkov-les13/finguide-be/issues/11) pension settings endpoints реализованы поверх persisted state.
+- [#11](https://github.com/svoronkov-les13/finguide-be/issues/11) pension settings endpoints реализованы поверх persisted state;
+- [#10](https://github.com/svoronkov-les13/finguide-be/issues/10) contributions ledger endpoints реализованы поверх persisted state; `Goal.savedAmount` теперь выводится из суммы взносов.
 
 Следующий backend guardrail:
 
-- [#10](https://github.com/svoronkov-les13/finguide-be/issues/10) — contributions ledger endpoints.
+- [#12](https://github.com/svoronkov-les13/finguide-be/issues/12) — budget/monthly tracker endpoints.
 
 ## Главная договорённость
 
