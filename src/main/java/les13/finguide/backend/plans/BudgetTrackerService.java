@@ -15,10 +15,12 @@ import java.time.Instant;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -42,10 +44,15 @@ public class BudgetTrackerService {
         accessService.requireWritablePlan(planId);
         BudgetSettings.Method method = parseMethod(requiredText(request.method(), "method"));
         List<BudgetEnvelope> envelopes = new ArrayList<>();
+        Set<UUID> envelopeIds = new HashSet<>();
         for (BudgetTrackerRequests.EnvelopeRequest envelope : request.envelopes() == null ? List.<BudgetTrackerRequests.EnvelopeRequest>of() : request.envelopes()) {
             BigDecimal limit = nonNegative(required(envelope.limit(), "limit"), "limit");
+            UUID envelopeId = envelope.id() == null ? UUID.randomUUID() : envelope.id();
+            if (!envelopeIds.add(envelopeId)) {
+                throw badRequest("envelope ids must be unique");
+            }
             envelopes.add(new BudgetEnvelope(
-                    envelope.id() == null ? UUID.randomUUID() : envelope.id(),
+                    envelopeId,
                     planId,
                     requiredText(envelope.name(), "name"),
                     limit,

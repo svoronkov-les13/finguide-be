@@ -16,6 +16,7 @@ import java.util.UUID;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -122,6 +123,58 @@ class BudgetTrackerControllerTests {
                                 }
                                 """.formatted(UUID.randomUUID())))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void rejectsDuplicateBudgetEnvelopeIds() throws Exception {
+        RequestPostProcessor jwt = userJwt("budget-duplicate-envelope-owner");
+        String planId = currentPlan(jwt).at("/data/id").asText();
+        UUID envelopeId = UUID.randomUUID();
+
+        mockMvc.perform(patch("/api/v1/plans/{planId}/budget", planId)
+                        .with(jwt)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "method": "envelope",
+                                  "envelopes": [
+                                    { "id": "%s", "name": "A", "limit": 1000, "icon": "home", "color": "#2563EB" },
+                                    { "id": "%s", "name": "B", "limit": 2000, "icon": "home", "color": "#2563EB" }
+                                  ],
+                                  "classifications": {}
+                                }
+                                """.formatted(envelopeId, envelopeId)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void deletingExpenseRemovesBudgetClassification() throws Exception {
+        RequestPostProcessor jwt = userJwt("budget-expense-delete-owner");
+        JsonNode current = currentPlan(jwt);
+        String planId = current.at("/data/id").asText();
+        String expenseId = current.at("/data/expenses/0/id").asText();
+
+        mockMvc.perform(patch("/api/v1/plans/{planId}/budget", planId)
+                        .with(jwt)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "method": "envelope",
+                                  "envelopes": [],
+                                  "classifications": {
+                                    "%s": "needs"
+                                  }
+                                }
+                                """.formatted(expenseId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.classifications." + expenseId).value("needs"));
+
+        mockMvc.perform(delete("/api/v1/plans/{planId}/expenses/{id}", planId, expenseId).with(jwt))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/plans/{planId}/budget", planId).with(jwt))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.classifications." + expenseId).doesNotExist());
     }
 
     @Test

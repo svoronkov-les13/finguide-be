@@ -460,6 +460,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
 
     @Override
     public boolean deleteExpense(UUID planId, UUID expenseId) {
+        jdbcTemplate.update("delete from budget_classifications where plan_id = ? and expense_id = ?", planId, expenseId);
         int deleted = jdbcTemplate.update("delete from expenses where plan_id = ? and id = ?", planId, expenseId);
         if (deleted > 0) {
             touchPlan(planId, OffsetDateTime.now(ZoneOffset.UTC));
