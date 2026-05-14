@@ -31,4 +31,13 @@ public final class BudgetTrackerRequests {
             String note
     ) {
     }
+
+    public record OperationJournalEntryRequest(
+            String date,
+            String title,
+            BigDecimal amount,
+            String type,
+            String status
+    ) {
+    }
 }

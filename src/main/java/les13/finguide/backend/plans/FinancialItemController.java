@@ -215,4 +215,37 @@ public class FinancialItemController {
         budgetTrackerService.upsertMonthlyTracker(planId, request);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/tracker/entries")
+    public ApiEnvelope<Object> operationJournal(
+            @PathVariable UUID planId,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month
+    ) {
+        return ApiEnvelope.of(budgetTrackerService.operationJournal(planId, year, month).stream().map(mapper::operationJournalEntry).toList());
+    }
+
+    @PostMapping("/tracker/entries")
+    public ResponseEntity<ApiEnvelope<Map<String, Object>>> createOperationJournalEntry(
+            @PathVariable UUID planId,
+            @RequestBody BudgetTrackerRequests.OperationJournalEntryRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiEnvelope.of(mapper.operationJournalEntry(budgetTrackerService.createOperationJournalEntry(planId, request))));
+    }
+
+    @PatchMapping("/tracker/entries/{entryId}")
+    public ApiEnvelope<Map<String, Object>> updateOperationJournalEntry(
+            @PathVariable UUID planId,
+            @PathVariable UUID entryId,
+            @RequestBody BudgetTrackerRequests.OperationJournalEntryRequest request
+    ) {
+        return ApiEnvelope.of(mapper.operationJournalEntry(budgetTrackerService.updateOperationJournalEntry(planId, entryId, request)));
+    }
+
+    @DeleteMapping("/tracker/entries/{entryId}")
+    public ResponseEntity<Void> deleteOperationJournalEntry(@PathVariable UUID planId, @PathVariable UUID entryId) {
+        budgetTrackerService.deleteOperationJournalEntry(planId, entryId);
+        return ResponseEntity.noContent().build();
+    }
 }

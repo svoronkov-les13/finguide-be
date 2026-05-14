@@ -46,7 +46,7 @@ Real backend currently supports:
 - persisted analytics assumptions, current balance, yearly projection and pension projection endpoints;
 - persisted pension settings `GET/PATCH /plans/{planId}/pension` with writable-plan guardrails;
 - persisted contributions ledger `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}` with `Goal.savedAmount` derived from contribution sums;
-- persisted budget settings `GET/PATCH /plans/{planId}/budget`, envelope autogeneration, and monthly tracker `GET/POST /plans/{planId}/calendar/monthly-tracker`;
+- persisted budget settings `GET/PATCH /plans/{planId}/budget`, envelope autogeneration, monthly tracker `GET/POST /plans/{planId}/calendar/monthly-tracker`, and operation journal `GET/POST/PATCH/DELETE /plans/{planId}/tracker/entries`;
 - persisted user scenarios `GET/POST /scenarios`, `GET/PATCH/DELETE /scenarios/{scenarioId}`, and `POST /scenarios/compare` with built-in read-only scenarios.
 
 Completed guardrails and analytics milestones:
@@ -72,7 +72,7 @@ src/main/java/les13/finguide/backend/
   goals/             goals and waterfall priority reorder
   analytics/         assumptions, cashflow, dashboard and health calculations
   pension/           pension settings/projection model
-  budget/            budget settings, envelopes and monthly tracker models
+  budget/            budget settings, envelopes, monthly tracker and operation journal models
   scenarios/         scenario CRUD and comparison model
   importexport/      target import/export boundary
   notifications/     target notification boundary
@@ -137,7 +137,7 @@ Relevant test areas:
 - income/expense/goal CRUD;
 - contribution ledger CRUD and derived goal progress;
 - OpenAPI exposure for financial item and scenario endpoints;
-- OpenAPI contract coverage guard: checked-in `openapi/openapi.json` has 54 operations; real Springdoc must cover every implemented operation and must not regress beyond the documented 9-operation gap.
+- OpenAPI contract coverage guard: checked-in `openapi/openapi.json` has 58 operations; real Springdoc must cover every implemented operation and must not regress beyond the documented 9-operation gap.
 
 ## Documentation
 

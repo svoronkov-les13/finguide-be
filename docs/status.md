@@ -33,13 +33,14 @@
 - `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}`;
 - `GET/PATCH /plans/{planId}/budget`, `POST /plans/{planId}/budget/envelopes/autogenerate`;
 - `GET/POST /plans/{planId}/calendar/monthly-tracker`;
+- `GET/POST /plans/{planId}/tracker/entries`, `PATCH/DELETE /plans/{planId}/tracker/entries/{entryId}` — persisted journal операций страницы `/tracking`;
 - `GET/POST /scenarios`, `GET/PATCH/DELETE /scenarios/{scenarioId}`, `POST /scenarios/compare` — persisted пользовательские сценарии и сравнение;
 - CRUD доходов, расходов и целей;
 - `POST /plans/{planId}/goals/reorder`;
 - Keycloak/OIDC boundary: JWT validation, audience check, lazy local profile mapping, user-owned current plan after first authenticated request, plan ownership checks;
 - frontend/auth bootstrap fixes: authenticated session no longer reuses anonymous demo cache/default profile;
 - H2 seed data from `schema.sql` + `data.sql`;
-- OpenAPI coverage guard [#16](https://github.com/svoronkov-les13/finguide-be/issues/16): checked-in `openapi/openapi.json` содержит 54 операции, real Springdoc покрывает 45 уже реализованных операций, а известный gap в 9 операций зафиксирован тестом и не должен расти случайно.
+- OpenAPI coverage guard [#16](https://github.com/svoronkov-les13/finguide-be/issues/16): checked-in `openapi/openapi.json` содержит 58 операций, real Springdoc покрывает 49 уже реализованных операций, а известный gap в 9 операций зафиксирован тестом и не должен расти случайно.
 
 Текущая checked-in OpenAPI спецификация всё ещё шире real Springdoc, но расхождение теперь явно зафиксировано тестом `OpenApiContractCoverageTests`. Следующие задачи должны уменьшать список missing operations по мере реализации endpoints.
 
