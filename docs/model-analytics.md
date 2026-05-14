@@ -252,6 +252,65 @@ depletionAge = retirementAge + retirementYears
 | retirementYears | 13 |
 | depletionAge | 63 |
 
+## Дополнение из Figma-прототипа
+
+Источник: опубликованный Figma Make prototype `smooth-try-70453479.figma.site`, разобран по bundled JS. Прототип подтверждает продуктовую модель, где финансовые цели не искажают базовый cashflow, а ведутся отдельным слоем планирования и фактических взносов.
+
+### Модули прототипа
+
+В навигации и коде прототипа присутствуют следующие функциональные блоки:
+
+- `dashboard` — финансовый дашборд, health score, прогноз, сценарные подсказки;
+- `foundation` / настройки основы — стартовый капитал, возраст, горизонт, доходность, инфляция;
+- `income` — источники доходов с периодом активности и ростом;
+- `expenses` — категории расходов с периодом активности и ростом;
+- `goals` — финансовые цели с текущей стоимостью, накопленным фактом, целевым годом и индексацией;
+- `goal-tracking` — журнал взносов к целям;
+- `pension` — пенсионный капитал и сценарии расходования;
+- `calendar` / tracker — план-факт финансовых событий;
+- `summary` / `settings` — сводка, импорт/экспорт, параметры профиля.
+
+### Чистый баланс и цели
+
+Прототип считает чистый баланс без целей:
+
+```txt
+netMonthlyBalance = monthlyIncome - monthlyExpenses
+netYearlyBalance = netMonthlyBalance * 12
+```
+
+Финансовые цели учитываются отдельно через рекомендуемый взнос:
+
+```txt
+monthlyGoalContribution = sum(requiredMonthlyContribution(oneTimeGoals))
+availableForPension = max(0, netMonthlyBalance - monthlyGoalContribution)
+```
+
+Это совпадает с backend-решением: one-time UI goals не уменьшают `netSavings`; backend отдаёт прогнозные `projected*` поля по целям, а не подменяет фактические `currentCost` / `savedAmount`.
+
+### Contribution ledger
+
+`goal-tracking` и export logic прототипа содержат `contributions` как фактические взносы:
+
+```txt
+Contribution = { goalId, amount, date, note }
+goal.savedAmount = sum(contributions.amount where contribution.goalId == goal.id)
+```
+
+Это соответствует backend issue #10: contribution ledger — источник фактического прогресса цели, а projected allocation — отдельный forecast-layer для достижимости целей.
+
+### Files / import / export
+
+Прототип содержит файловые сценарии:
+
+- import из `CSV` или `JSON`;
+- export в `CSV`;
+- export в `PDF`;
+- CSV export включает секции `Доходы`, `Расходы`, `Цели`, `Накопления (взносы)`, `Пенсия`, `Баланс`;
+- PDF export включает dashboard summary, цели, pension plan и графики.
+
+Контрактный вывод: будущий import/export должен сохранять раздельность фактических данных (`contributions`, `savedAmount`) и прогнозных расчётов (`projected*`, `availableForPension`, scenario summaries).
+
 ## Контрактные выводы
 
 1. `analytics/cashflow` должен показывать раздельно `totalIncome`, `totalExpenses`, `totalGoalExpenses`, `netSavings`, `capitalEndOfYear`.
