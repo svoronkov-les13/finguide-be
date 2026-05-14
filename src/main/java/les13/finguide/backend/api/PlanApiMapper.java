@@ -16,6 +16,9 @@ import les13.finguide.backend.pension.PensionProjection;
 import les13.finguide.backend.pension.PensionSpendDownPoint;
 import les13.finguide.backend.pension.PensionSettings;
 import les13.finguide.backend.plans.PlanState;
+import les13.finguide.backend.scenarios.Scenario;
+import les13.finguide.backend.scenarios.ScenarioComparison;
+import les13.finguide.backend.scenarios.ScenarioService;
 import les13.finguide.backend.users.UserProfile;
 import org.springframework.stereotype.Component;
 
@@ -165,6 +168,51 @@ public class PlanApiMapper {
         result.put("status", apiValue(entry.status()));
         result.put("note", entry.note());
         result.put("updatedAt", entry.updatedAt());
+        return result;
+    }
+
+    public Map<String, Object> scenario(Scenario scenario) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("id", ScenarioService.stableScenarioId(scenario));
+        result.put("basePlanId", string(scenario.basePlanId()));
+        result.put("name", scenario.name());
+        result.put("emoji", scenario.emoji());
+        result.put("description", scenario.description());
+        result.put("isBase", scenario.base());
+        result.put("base", scenario.base());
+        result.put("adjustments", scenarioAdjustments(scenario.adjustments()));
+        result.put("createdAt", scenario.createdAt());
+        result.put("updatedAt", scenario.updatedAt());
+        return result;
+    }
+
+    public Map<String, Object> scenarioAdjustments(Scenario.Adjustments adjustments) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("incomeAdjPct", adjustments.incomeAdjPct());
+        result.put("expenseAdjPct", adjustments.expenseAdjPct());
+        result.put("returnAdjPct", adjustments.returnAdjPct());
+        result.put("inflationAdjPct", adjustments.inflationAdjPct());
+        result.put("retirementAgeShift", adjustments.retirementAgeShift());
+        result.put("goalsCostAdjPct", adjustments.goalsCostAdjPct());
+        return result;
+    }
+
+    public Map<String, Object> scenarioComparison(ScenarioComparison comparison) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("scenarios", comparison.scenarios().stream().map(this::scenarioComparisonResult).toList());
+        return result;
+    }
+
+    private Map<String, Object> scenarioComparisonResult(ScenarioComparison.Result comparison) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("scenarioId", comparison.scenarioId());
+        result.put("name", comparison.name());
+        result.put("finalCapital", comparison.finalCapital());
+        result.put("minCapital", comparison.minCapital());
+        result.put("retirementYear", comparison.retirementYear());
+        result.put("capitalAtRetirement", comparison.capitalAtRetirement());
+        result.put("goalCoveragePct", comparison.goalCoveragePct());
+        result.put("projection", comparison.projection().stream().map(this::cashflow).toList());
         return result;
     }
 

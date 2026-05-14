@@ -9,6 +9,7 @@ import les13.finguide.backend.goals.Goal;
 import les13.finguide.backend.incomes.IncomeSource;
 import les13.finguide.backend.analytics.ModelAssumptions;
 import les13.finguide.backend.pension.PensionSettings;
+import les13.finguide.backend.scenarios.Scenario;
 
 import java.util.List;
 import java.util.Optional;
@@ -78,6 +79,16 @@ public interface PlanStateRepository {
     List<MonthlyTrackerEntry> findMonthlyTrackerEntries(UUID planId, int year);
 
     MonthlyTrackerEntry upsertMonthlyTrackerEntry(UUID planId, MonthlyTrackerEntry entry);
+
+    List<Scenario> findScenarios(UUID planId);
+
+    Optional<Scenario> findScenario(UUID planId, UUID scenarioId);
+
+    Scenario createScenario(Scenario scenario);
+
+    Scenario updateScenario(Scenario scenario);
+
+    boolean deleteScenario(UUID planId, UUID scenarioId);
 
     ModelAssumptions updateModelAssumptions(UUID planId, ModelAssumptions assumptions);
 

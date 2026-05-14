@@ -31,9 +31,9 @@
 - Swagger UI реального бэкенда: `http://66.42.121.18/finguide-api/swagger-ui.html`.
 - Legacy mock Swagger остаётся только для переходного сравнения: `http://66.42.121.18/finguide-mock/`.
 
-Текущая real-реализация на H2 уже покрывает чтение плана/дашборда/health/cashflow/scenarios, persisted analytics assumptions/current balance/yearly projection/pension settings/pension projection, CRUD для `IncomeSource`, `ExpenseItem`, `Goal`, включая `goals/reorder`, persisted `Contribution` ledger, persisted `BudgetSettings` и monthly tracker. Остальные группы методов из карты ниже пока ведутся отдельными задачами.
+Текущая real-реализация на H2 уже покрывает чтение плана/дашборда/health/cashflow, persisted scenario CRUD/compare, persisted analytics assumptions/current balance/yearly projection/pension settings/pension projection, CRUD для `IncomeSource`, `ExpenseItem`, `Goal`, включая `goals/reorder`, persisted `Contribution` ledger, persisted `BudgetSettings` и monthly tracker. Остальные группы методов из карты ниже пока ведутся отдельными задачами.
 
-OpenAPI guardrail [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) включён в тестовый набор: checked-in `openapi/openapi.json` сейчас содержит 54 операции, real Springdoc покрывает 40 реализованных операций, а известный gap в 14 операций явно зафиксирован. Новые endpoints должны одновременно добавляться в real Springdoc и уменьшать этот gap; случайное исчезновение уже реализованной операции из `/v3/api-docs` ломает тесты.
+OpenAPI guardrail [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) включён в тестовый набор: checked-in `openapi/openapi.json` сейчас содержит 54 операции, real Springdoc покрывает 45 реализованных операций, а известный gap в 9 операций явно зафиксирован. Новые endpoints должны одновременно добавляться в real Springdoc и уменьшать этот gap; случайное исчезновение уже реализованной операции из `/v3/api-docs` ломает тесты.
 
 - Авторизация: `Authorization: Bearer <JWT>` с access token из Keycloak realm `finguide`. Бэкенд валидирует JWT как OAuth2 Resource Server и не владеет password-based `/auth/register/login/refresh/logout` endpoints. В demo/H2 режиме (`FINGUIDE_DEMO_MODE=true`) `/api/v1/**` временно открыт для интеграции фронтенда с real backend без Keycloak.
 - Все даты: ISO-8601 (`YYYY-MM-DD`, `date-time` UTC).
@@ -68,7 +68,7 @@ GET /plans/{planId}/contributions?cursor=<opaque>&limit=50
 }
 ```
 
-Короткие справочные коллекции (`incomes`, `expenses`, `goals`, `envelopes`, пользовательские `scenarios`) возвращаются целиком без пагинации — они ограничены по бизнес-смыслу, например до 10 сценариев.
+Короткие справочные коллекции (`incomes`, `expenses`, `goals`, `envelopes`, пользовательские `scenarios`) возвращаются целиком без пагинации — они ограничены по бизнес-смыслу; пользовательских сценариев максимум 10.
 
 ### Идемпотентность запросов на запись
 
@@ -83,7 +83,7 @@ Idempotency-Key: <client-generated UUIDv4>
 - `POST /plans/{planId}/contributions`;
 - `POST /plans/{planId}/incomes`, `POST /plans/{planId}/expenses`, `POST /plans/{planId}/goals`;
 - `POST /import`, `POST /export`;
-- `POST /scenarios`, `POST /scenarios/compare`.
+- `POST /scenarios` и `POST /scenarios/compare` сейчас реализованы; idempotency storage остаётся целевым follow-up.
 
 Бэкенд хранит `(user_id, idempotency_key)` минимум 24 часа. Повтор с тем же ключом и тем же телом возвращает ранее сохранённый ответ; повтор с другим телом — `409 CONFLICT`.
 
@@ -188,7 +188,7 @@ Excel-модель требует два пенсионных расчёта:
 
 ### Сценарий (`Scenario`)
 
-`id`, `name`, `emoji`, `description`, `isBase`, `snapshot` или `adjustments`.
+`id`, `name`, `emoji`, `description`, `isBase` (canonical), `base` (temporary compatibility alias), `snapshot` или `adjustments`.
 
 Стандартные сценарии из макета: базовый, оптимистичный, пессимистичный. Пользовательские сценарии — до 10 штук.
 
@@ -228,9 +228,9 @@ Keycloak владеет входом, регистрацией, refresh/logout, 
 
 ### Сценарии
 
-- `GET/POST /scenarios`
-- `GET/PATCH/DELETE /scenarios/{scenarioId}`
-- `POST /scenarios/compare`
+- `GET/POST /scenarios` — implemented
+- `GET/PATCH/DELETE /scenarios/{scenarioId}` — implemented
+- `POST /scenarios/compare` — implemented
 
 ### Уведомления, импорт и экспорт
 

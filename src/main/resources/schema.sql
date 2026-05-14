@@ -1,4 +1,5 @@
 drop table if exists monthly_tracker_entries;
+drop table if exists scenarios;
 drop table if exists budget_classifications;
 drop table if exists budget_envelopes;
 drop table if exists budget_settings;
@@ -171,4 +172,22 @@ create table monthly_tracker_entries (
   created_at timestamp with time zone not null,
   updated_at timestamp with time zone not null,
   primary key (plan_id, tracker_month)
+);
+
+create table scenarios (
+  id uuid primary key,
+  plan_id uuid not null references financial_plans(id),
+  name varchar(120) not null,
+  emoji varchar(16),
+  description varchar(1024),
+  is_base boolean not null default false,
+  income_adj_pct numeric(9, 4) not null,
+  expense_adj_pct numeric(9, 4) not null,
+  return_adj_pct numeric(9, 4) not null,
+  inflation_adj_pct numeric(9, 4) not null,
+  retirement_age_shift integer not null,
+  goals_cost_adj_pct numeric(9, 4) not null,
+  snapshot_json clob,
+  created_at timestamp with time zone not null,
+  updated_at timestamp with time zone not null
 );

@@ -10,6 +10,7 @@ import les13.finguide.backend.expenses.ExpenseItem;
 import les13.finguide.backend.goals.Goal;
 import les13.finguide.backend.incomes.IncomeSource;
 import les13.finguide.backend.pension.PensionSettings;
+import les13.finguide.backend.scenarios.Scenario;
 import les13.finguide.backend.users.UserProfile;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.dao.DuplicateKeyException;
@@ -90,6 +91,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
             cloneGoals(seedPlanId, planId, now);
             cloneBudget(seedPlanId, planId, now);
             cloneMonthlyTracker(seedPlanId, planId, now);
+            cloneScenarios(seedPlanId, planId, now);
             return findById(planId).orElseThrow();
         } catch (DuplicateKeyException ignored) {
             return findCurrentForOwner(ownerUserId).orElseThrow();
@@ -243,6 +245,17 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     private void cloneMonthlyTracker(UUID seedPlanId, UUID planId, OffsetDateTime now) {
         jdbcTemplate.update(
                 "insert into monthly_tracker_entries (plan_id, tracker_month, status, note, created_at, updated_at) select ?, tracker_month, status, note, ?, ? from monthly_tracker_entries where plan_id = ?",
+                planId,
+                now,
+                now,
+                seedPlanId
+        );
+    }
+
+    private void cloneScenarios(UUID seedPlanId, UUID planId, OffsetDateTime now) {
+        jdbcTemplate.update(
+                "insert into scenarios (id, plan_id, name, emoji, description, is_base, income_adj_pct, expense_adj_pct, return_adj_pct, inflation_adj_pct, retirement_age_shift, goals_cost_adj_pct, snapshot_json, created_at, updated_at) " +
+                        "select random_uuid(), ?, name, emoji, description, is_base, income_adj_pct, expense_adj_pct, return_adj_pct, inflation_adj_pct, retirement_age_shift, goals_cost_adj_pct, snapshot_json, ?, ? from scenarios where plan_id = ?",
                 planId,
                 now,
                 now,
@@ -784,6 +797,84 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     }
 
     @Override
+    public List<Scenario> findScenarios(UUID planId) {
+        return jdbcTemplate.query(
+                "select * from scenarios where plan_id = ? order by created_at, name",
+                this::mapScenario,
+                planId
+        );
+    }
+
+    @Override
+    public Optional<Scenario> findScenario(UUID planId, UUID scenarioId) {
+        return queryOptional(
+                "select * from scenarios where plan_id = ? and id = ?",
+                this::mapScenario,
+                planId,
+                scenarioId
+        );
+    }
+
+    @Override
+    @Transactional
+    public Scenario createScenario(Scenario scenario) {
+        OffsetDateTime now = offset(scenario.createdAt());
+        jdbcTemplate.update(
+                "insert into scenarios (id, plan_id, name, emoji, description, is_base, income_adj_pct, expense_adj_pct, return_adj_pct, inflation_adj_pct, retirement_age_shift, goals_cost_adj_pct, snapshot_json, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                scenario.id(),
+                scenario.basePlanId(),
+                scenario.name(),
+                scenario.emoji(),
+                scenario.description(),
+                scenario.base(),
+                scenario.adjustments().incomeAdjPct(),
+                scenario.adjustments().expenseAdjPct(),
+                scenario.adjustments().returnAdjPct(),
+                scenario.adjustments().inflationAdjPct(),
+                scenario.adjustments().retirementAgeShift(),
+                scenario.adjustments().goalsCostAdjPct(),
+                null,
+                now,
+                now
+        );
+        touchPlan(scenario.basePlanId(), now);
+        return findScenario(scenario.basePlanId(), scenario.id()).orElseThrow();
+    }
+
+    @Override
+    @Transactional
+    public Scenario updateScenario(Scenario scenario) {
+        OffsetDateTime now = offset(scenario.updatedAt());
+        jdbcTemplate.update(
+                "update scenarios set name = ?, emoji = ?, description = ?, income_adj_pct = ?, expense_adj_pct = ?, return_adj_pct = ?, inflation_adj_pct = ?, retirement_age_shift = ?, goals_cost_adj_pct = ?, updated_at = ? where plan_id = ? and id = ?",
+                scenario.name(),
+                scenario.emoji(),
+                scenario.description(),
+                scenario.adjustments().incomeAdjPct(),
+                scenario.adjustments().expenseAdjPct(),
+                scenario.adjustments().returnAdjPct(),
+                scenario.adjustments().inflationAdjPct(),
+                scenario.adjustments().retirementAgeShift(),
+                scenario.adjustments().goalsCostAdjPct(),
+                now,
+                scenario.basePlanId(),
+                scenario.id()
+        );
+        touchPlan(scenario.basePlanId(), now);
+        return findScenario(scenario.basePlanId(), scenario.id()).orElseThrow();
+    }
+
+    @Override
+    @Transactional
+    public boolean deleteScenario(UUID planId, UUID scenarioId) {
+        int deleted = jdbcTemplate.update("delete from scenarios where plan_id = ? and id = ?", planId, scenarioId);
+        if (deleted > 0) {
+            touchPlan(planId, OffsetDateTime.now(ZoneOffset.UTC));
+        }
+        return deleted > 0;
+    }
+
+    @Override
     @Transactional
     public ModelAssumptions updateModelAssumptions(UUID planId, ModelAssumptions assumptions) {
         jdbcTemplate.update(
@@ -927,6 +1018,27 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                 YearMonth.parse(rs.getString("tracker_month")),
                 enumValue(MonthlyTrackerEntry.Status.class, rs.getString("status")),
                 rs.getString("note"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private Scenario mapScenario(ResultSet rs, int rowNum) throws SQLException {
+        return new Scenario(
+                rs.getObject("id", UUID.class),
+                rs.getObject("plan_id", UUID.class),
+                rs.getString("name"),
+                rs.getString("emoji"),
+                rs.getString("description"),
+                rs.getBoolean("is_base"),
+                new Scenario.Adjustments(
+                        rs.getBigDecimal("income_adj_pct"),
+                        rs.getBigDecimal("expense_adj_pct"),
+                        rs.getBigDecimal("return_adj_pct"),
+                        rs.getBigDecimal("inflation_adj_pct"),
+                        rs.getInt("retirement_age_shift"),
+                        rs.getBigDecimal("goals_cost_adj_pct")
+                ),
                 instant(rs, "created_at"),
                 instant(rs, "updated_at")
         );

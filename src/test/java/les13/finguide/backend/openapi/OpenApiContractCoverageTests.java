@@ -24,17 +24,12 @@ class OpenApiContractCoverageTests {
 
     private static final Set<String> KNOWN_CONTRACT_OPERATIONS_NOT_IN_SPRINGDOC = Set.of(
             "DELETE /api/v1/me/avatar",
-            "DELETE /api/v1/scenarios/{scenarioId}",
             "GET /api/v1/export/{jobId}",
             "GET /api/v1/notifications",
-            "GET /api/v1/scenarios/{scenarioId}",
             "PATCH /api/v1/me",
-            "PATCH /api/v1/scenarios/{scenarioId}",
             "POST /api/v1/export",
             "POST /api/v1/import",
             "POST /api/v1/notifications/read",
-            "POST /api/v1/scenarios",
-            "POST /api/v1/scenarios/compare",
             "PUT /api/v1/me/avatar",
             "PUT /api/v1/plans/current"
     );
