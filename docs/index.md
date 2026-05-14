@@ -36,7 +36,7 @@ Legacy mock Swagger: <http://66.42.121.18/finguide-mock/> — только дл�
 - `GET /me`;
 - `GET /plans/current`;
 - dashboard/health/cashflow/scenarios read;
-- analytics assumptions, current balance, yearly projection and pension projection from persisted state;
+- analytics assumptions, current balance, yearly projection, pension settings and pension projection from persisted state;
 - CRUD incomes/expenses/goals;
 - goals reorder;
 - Keycloak JWT Resource Server boundary;
@@ -46,11 +46,12 @@ Legacy mock Swagger: <http://66.42.121.18/finguide-mock/> — только дл�
 - self-hosted GitHub Actions deploy backend/web после push в `main`;
 - [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) OpenAPI coverage guard: real Springdoc защищён от регрессий относительно checked-in OpenAPI;
 - [#26](https://github.com/svoronkov-les13/finguide-be/issues/26) общий anonymous demo seed plan read-only для мутаций;
-- [#4](https://github.com/svoronkov-les13/finguide-be/issues/4) analytics/pension endpoints строятся из persisted plan state.
+- [#4](https://github.com/svoronkov-les13/finguide-be/issues/4) analytics/pension endpoints строятся из persisted plan state;
+- [#11](https://github.com/svoronkov-les13/finguide-be/issues/11) pension settings endpoints реализованы поверх persisted state.
 
 Следующий backend guardrail:
 
-- [#11](https://github.com/svoronkov-les13/finguide-be/issues/11) — pension settings endpoints.
+- [#10](https://github.com/svoronkov-les13/finguide-be/issues/10) — contributions ledger endpoints.
 
 ## Главная договорённость
 

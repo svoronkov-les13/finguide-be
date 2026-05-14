@@ -176,4 +176,4 @@ create table goals (
    - regression tests на все write endpoints.
 3. Добавить `is_current` или отдельный указатель current plan, если понадобится несколько планов на пользователя.
 4. Добавить `version int not null default 0` для редактируемых сущностей и `ETag`/`If-Match`.
-5. Расширить схему под roadmap: contributions, pension settings mutations, budget/monthly tracker, scenarios, import/export jobs, notifications.
+5. Расширить схему под roadmap: contributions, budget/monthly tracker, scenarios, import/export jobs, notifications. Pension settings mutations уже реализованы поверх текущей persisted схемы.

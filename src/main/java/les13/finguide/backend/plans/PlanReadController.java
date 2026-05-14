@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import les13.finguide.backend.api.ApiEnvelope;
 import les13.finguide.backend.api.PlanApiMapper;
 import les13.finguide.backend.analytics.ModelAssumptions;
+import les13.finguide.backend.pension.PensionSettings;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -88,6 +89,19 @@ public class PlanReadController {
     @GetMapping("/plans/{planId}/analytics/projection")
     public ApiEnvelope<Object> projection(@PathVariable UUID planId, @RequestParam(defaultValue = "30") int years) {
         return ApiEnvelope.of(planReadService.projection(planId, years).stream().map(mapper::yearlyProjection).toList());
+    }
+
+    @GetMapping("/plans/{planId}/pension")
+    public ApiEnvelope<Map<String, Object>> pension(@PathVariable UUID planId) {
+        return ApiEnvelope.of(mapper.pension(planReadService.pension(planId)));
+    }
+
+    @PatchMapping("/plans/{planId}/pension")
+    public ApiEnvelope<Map<String, Object>> updatePension(
+            @PathVariable UUID planId,
+            @RequestBody PensionSettings request
+    ) {
+        return ApiEnvelope.of(mapper.pension(planReadService.updatePension(planId, request)));
     }
 
     @GetMapping("/plans/{planId}/pension/projection")

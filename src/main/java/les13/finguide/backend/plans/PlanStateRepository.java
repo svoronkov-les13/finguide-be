@@ -4,6 +4,7 @@ import les13.finguide.backend.expenses.ExpenseItem;
 import les13.finguide.backend.goals.Goal;
 import les13.finguide.backend.incomes.IncomeSource;
 import les13.finguide.backend.analytics.ModelAssumptions;
+import les13.finguide.backend.pension.PensionSettings;
 
 import java.util.List;
 import java.util.Optional;
@@ -53,4 +54,6 @@ public interface PlanStateRepository {
     List<Goal> reorderGoals(UUID planId, List<UUID> goalIds);
 
     ModelAssumptions updateModelAssumptions(UUID planId, ModelAssumptions assumptions);
+
+    PensionSettings updatePensionSettings(UUID planId, PensionSettings pension);
 }
