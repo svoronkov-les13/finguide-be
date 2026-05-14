@@ -539,6 +539,28 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
         return assumptions;
     }
 
+    @Override
+    @Transactional
+    public PensionSettings updatePensionSettings(UUID planId, PensionSettings pension) {
+        jdbcTemplate.update(
+                "update pension_settings set current_age = ?, retirement_age = ?, monthly_expenses = ?, desired_monthly_expenses_current_prices = ?, currency = ?, expected_return_pct = ?, inflation_pct = ?, withdrawal_strategy = ?, state_pension_enabled = ?, state_pension_monthly = ? where plan_id = ?",
+                pension.currentAge(),
+                pension.retirementAge(),
+                pension.monthlyExpenses(),
+                pension.desiredMonthlyExpensesCurrentPrices(),
+                pension.currency(),
+                pension.expectedReturnPct(),
+                pension.inflationPct(),
+                dbValue(pension.withdrawalStrategy()),
+                pension.statePensionEnabled(),
+                pension.statePensionMonthly(),
+                planId
+        );
+        touchPlan(planId, OffsetDateTime.now(ZoneOffset.UTC));
+        return queryOptional("select * from pension_settings where plan_id = ?", this::mapPension, planId)
+                .orElseThrow(() -> new IllegalArgumentException("Pension settings not found for plan " + planId));
+    }
+
     private <T> Optional<T> queryOptional(String sql, org.springframework.jdbc.core.RowMapper<T> mapper, Object... args) {
         try {
             return Optional.ofNullable(jdbcTemplate.queryForObject(sql, mapper, args));

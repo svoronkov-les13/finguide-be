@@ -138,6 +138,16 @@ public class PlanReadService {
         return repository.updateModelAssumptions(planId, assumptions);
     }
 
+    public PensionSettings pension(UUID planId) {
+        return plan(planId).pension();
+    }
+
+    public PensionSettings updatePension(UUID planId, PensionSettings request) {
+        accessService.requireWritablePlan(planId);
+        PensionSettings pension = validatePensionSettings(request);
+        return repository.updatePensionSettings(planId, pension);
+    }
+
     public BalanceSnapshot currentBalance(UUID planId) {
         PlanState state = plan(planId);
         int year = Math.max(Year.now().getValue(), state.modelAssumptions().startYear());
@@ -263,6 +273,42 @@ public class PlanReadService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "initialCapital, investmentReturnPct and inflationSchedule are required");
         }
         return assumptions;
+    }
+
+    private static PensionSettings validatePensionSettings(PensionSettings pension) {
+        if (pension == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "pension body is required");
+        }
+        if (pension.currentAge() < 16 || pension.currentAge() > 100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "currentAge must be between 16 and 100");
+        }
+        if (pension.retirementAge() < 40 || pension.retirementAge() > 80) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "retirementAge must be between 40 and 80");
+        }
+        requireNonNegative(pension.monthlyExpenses(), "monthlyExpenses");
+        requireNonNegative(pension.desiredMonthlyExpensesCurrentPrices(), "desiredMonthlyExpensesCurrentPrices");
+        requireNonNegative(pension.statePensionMonthly(), "statePensionMonthly");
+        requirePercent(pension.expectedReturnPct(), "expectedReturnPct");
+        requirePercent(pension.inflationPct(), "inflationPct");
+        if (pension.currency() == null || !pension.currency().matches("[A-Z]{3}")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "currency must be a 3-letter uppercase code");
+        }
+        if (pension.withdrawalStrategy() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "withdrawalStrategy is required");
+        }
+        return pension;
+    }
+
+    private static void requireNonNegative(BigDecimal value, String field) {
+        if (value == null || value.signum() < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, field + " must be non-negative");
+        }
+    }
+
+    private static void requirePercent(BigDecimal value, String field) {
+        if (value == null || value.signum() < 0 || value.compareTo(BigDecimal.valueOf(30)) > 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, field + " must be between 0 and 30");
+        }
     }
 
     private BigDecimal capitalAtYearEnd(PlanState state, int yearsFromStart) {

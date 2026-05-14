@@ -43,13 +43,15 @@ Real backend currently supports:
 - user-owned current plan creation after login;
 - plan ownership checks for authenticated users;
 - H2 seed data loaded from `schema.sql` + `data.sql`;
-- persisted analytics assumptions, current balance, yearly projection and pension projection endpoints.
+- persisted analytics assumptions, current balance, yearly projection and pension projection endpoints;
+- persisted pension settings `GET/PATCH /plans/{planId}/pension` with writable-plan guardrails.
 
 Completed guardrails and analytics milestones:
 
 - [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) — OpenAPI coverage guard compares checked-in contract operations with real Springdoc and locks the known implementation gap;
 - [#26](https://github.com/svoronkov-les13/finguide-be/issues/26) — prevent mutations of the shared anonymous demo seed plan;
-- [#4](https://github.com/svoronkov-les13/finguide-be/issues/4) — serve analytics and pension projections from persisted plan state.
+- [#4](https://github.com/svoronkov-les13/finguide-be/issues/4) — serve analytics and pension projections from persisted plan state;
+- [#11](https://github.com/svoronkov-les13/finguide-be/issues/11) — persisted pension settings endpoints.
 
 ## Repository map
 
@@ -127,7 +129,7 @@ Relevant test areas:
 - plan read endpoints;
 - income/expense/goal CRUD;
 - OpenAPI exposure for financial item endpoints;
-- OpenAPI contract coverage guard: checked-in `openapi/openapi.json` has 54 operations; real Springdoc must cover every implemented operation and must not regress beyond the documented 26-operation gap.
+- OpenAPI contract coverage guard: checked-in `openapi/openapi.json` has 54 operations; real Springdoc must cover every implemented operation and must not regress beyond the documented 24-operation gap.
 
 ## Documentation
 

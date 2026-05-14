@@ -139,6 +139,148 @@ class PlanReadControllerTests {
                 .andExpect(status().isForbidden());
     }
 
+    @Test
+    void returnsPersistedPensionSettings() throws Exception {
+        String planId = "22222222-2222-4222-8222-222222222222";
+
+        mockMvc.perform(get("/api/v1/plans/{planId}/pension", planId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.currentAge").value(32))
+                .andExpect(jsonPath("$.data.retirementAge").value(60))
+                .andExpect(jsonPath("$.data.monthlyExpenses").value(120000))
+                .andExpect(jsonPath("$.data.desiredMonthlyExpensesCurrentPrices").value(120000))
+                .andExpect(jsonPath("$.data.currency").value("RUB"))
+                .andExpect(jsonPath("$.data.expectedReturnPct").value(9))
+                .andExpect(jsonPath("$.data.inflationPct").value(7))
+                .andExpect(jsonPath("$.data.withdrawalStrategy").value("spend_down_30y"))
+                .andExpect(jsonPath("$.data.statePensionEnabled").value(true))
+                .andExpect(jsonPath("$.data.statePensionMonthly").value(22000));
+    }
+
+    @Test
+    void updatesPersistedPensionSettingsForAuthenticatedPlan() throws Exception {
+        String subject = "pension-owner";
+        String planId = currentPlanId(subject);
+
+        mockMvc.perform(patch("/api/v1/plans/{planId}/pension", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Pension Owner")
+                                .claim("preferred_username", subject)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(pensionPatchJson(25000)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.currentAge").value(45))
+                .andExpect(jsonPath("$.data.retirementAge").value(67))
+                .andExpect(jsonPath("$.data.expectedReturnPct").value(5))
+                .andExpect(jsonPath("$.data.withdrawalStrategy").value("preserve_capital"))
+                .andExpect(jsonPath("$.data.statePensionMonthly").value(25000));
+
+        mockMvc.perform(get("/api/v1/plans/{planId}/pension", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Pension Owner")
+                                .claim("preferred_username", subject))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.currentAge").value(45))
+                .andExpect(jsonPath("$.data.retirementAge").value(67))
+                .andExpect(jsonPath("$.data.statePensionMonthly").value(25000));
+    }
+
+    @Test
+    void pensionProjectionUsesUpdatedSettings() throws Exception {
+        String subject = "pension-projection-owner";
+        String planId = currentPlanId(subject);
+
+        mockMvc.perform(patch("/api/v1/plans/{planId}/pension", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Pension Projection Owner")
+                                .claim("preferred_username", subject)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(pensionPatchJson(50000)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/plans/{planId}/pension/projection", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Pension Projection Owner")
+                                .claim("preferred_username", subject))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.currentAge").value(45))
+                .andExpect(jsonPath("$.data.retirementAge").value(67))
+                .andExpect(jsonPath("$.data.nominalReturnPct").value(5))
+                .andExpect(jsonPath("$.data.spendDown.desiredMonthlyExpensesCurrentPrices").value(180000));
+    }
+
+    @Test
+    void rejectsInvalidPensionSettings() throws Exception {
+        String subject = "pension-invalid-owner";
+        String planId = currentPlanId(subject);
+
+        mockMvc.perform(patch("/api/v1/plans/{planId}/pension", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Pension Invalid Owner")
+                                .claim("preferred_username", subject)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "currentAge": 12,
+                                  "retirementAge": 90,
+                                  "monthlyExpenses": -1,
+                                  "desiredMonthlyExpensesCurrentPrices": 180000,
+                                  "currency": "RUB",
+                                  "expectedReturnPct": 31,
+                                  "inflationPct": 3,
+                                  "withdrawalStrategy": "preserve_capital",
+                                  "statePensionEnabled": true,
+                                  "statePensionMonthly": 25000
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void rejectsInvalidPensionCurrency() throws Exception {
+        String subject = "pension-invalid-currency-owner";
+        String planId = currentPlanId(subject);
+
+        mockMvc.perform(patch("/api/v1/plans/{planId}/pension", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Pension Invalid Currency Owner")
+                                .claim("preferred_username", subject)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(pensionPatchJson(25000).replace("\"currency\": \"RUB\"", "\"currency\": \"12!\"")))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void rejectsMissingWithdrawalStrategy() throws Exception {
+        String subject = "pension-missing-strategy-owner";
+        String planId = currentPlanId(subject);
+
+        mockMvc.perform(patch("/api/v1/plans/{planId}/pension", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Pension Missing Strategy Owner")
+                                .claim("preferred_username", subject)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(pensionPatchJson(25000).replace("\"withdrawalStrategy\": \"preserve_capital\",", "")))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void rejectsPensionUpdateForAnonymousDemoPlan() throws Exception {
+        String planId = "22222222-2222-4222-8222-222222222222";
+
+        mockMvc.perform(patch("/api/v1/plans/{planId}/pension", planId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(pensionPatchJson(25000)))
+                .andExpect(status().isForbidden());
+    }
+
     private static String assumptionsPatchJson() {
         return """
                 {
@@ -157,6 +299,23 @@ class PlanReadControllerTests {
                   "sourceModel": "test override"
                 }
                 """;
+    }
+
+    private static String pensionPatchJson(int statePensionMonthly) {
+        return """
+                {
+                  "currentAge": 45,
+                  "retirementAge": 67,
+                  "monthlyExpenses": 150000,
+                  "desiredMonthlyExpensesCurrentPrices": 180000,
+                  "currency": "RUB",
+                  "expectedReturnPct": 5,
+                  "inflationPct": 3,
+                  "withdrawalStrategy": "preserve_capital",
+                  "statePensionEnabled": true,
+                  "statePensionMonthly": %d
+                }
+                """.formatted(statePensionMonthly);
     }
 
     private String currentPlanId(String subject) throws Exception {
