@@ -3,6 +3,7 @@ package les13.finguide.backend.api;
 import les13.finguide.backend.analytics.BalanceSnapshot;
 import les13.finguide.backend.analytics.CashFlowProjectionPoint;
 import les13.finguide.backend.analytics.HealthScore;
+import les13.finguide.backend.analytics.GoalAllocation;
 import les13.finguide.backend.analytics.ModelAssumptions;
 import les13.finguide.backend.analytics.YearlyProjectionPoint;
 import les13.finguide.backend.budget.BudgetEnvelope;
@@ -34,13 +35,17 @@ import java.util.UUID;
 @Component
 public class PlanApiMapper {
     public Map<String, Object> planState(PlanState state) {
+        return planState(state, Map.of());
+    }
+
+    public Map<String, Object> planState(PlanState state, Map<UUID, GoalAllocation> goalAllocations) {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("id", string(state.plan().id()));
         result.put("profile", profile(state.profile()));
         result.put("pension", pension(state.pension()));
         result.put("incomes", state.incomes().stream().map(this::income).toList());
         result.put("expenses", state.expenses().stream().map(this::expense).toList());
-        result.put("goals", state.goals().stream().map(this::goal).toList());
+        result.put("goals", state.goals().stream().map(goal -> goal(goal, goalAllocations.get(goal.id()))).toList());
         result.put("contributions", state.contributions().stream().map(this::contribution).toList());
         result.put("budget", budget(state.budget()));
         result.put("modelAssumptions", assumptions(state.modelAssumptions()));
@@ -108,6 +113,10 @@ public class PlanApiMapper {
     }
 
     public Map<String, Object> goal(Goal goal) {
+        return goal(goal, null);
+    }
+
+    public Map<String, Object> goal(Goal goal, GoalAllocation allocation) {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("id", string(goal.id()));
         result.put("name", goal.name());
@@ -121,6 +130,13 @@ public class PlanApiMapper {
         result.put("growthPct", goal.growthPct());
         result.put("indexLabel", goal.indexLabel());
         result.put("priority", goal.priority());
+        if (allocation != null) {
+            result.put("projectedTargetCost", allocation.targetCost());
+            result.put("projectedSavedAmount", allocation.savedAmount());
+            result.put("projectedProgressPct", allocation.progressPct());
+            result.put("projectedReachable", allocation.reachable());
+            result.put("projectedCompletionYear", allocation.completionYear());
+        }
         result.put("createdAt", goal.createdAt());
         result.put("updatedAt", goal.updatedAt());
         return result;

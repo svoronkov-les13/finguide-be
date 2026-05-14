@@ -50,7 +50,8 @@ public class PlanReadController {
 
     @GetMapping("/plans/current")
     public ApiEnvelope<Map<String, Object>> currentPlan() {
-        return ApiEnvelope.of(mapper.planState(planReadService.currentPlan()));
+        PlanState state = planReadService.currentPlan();
+        return ApiEnvelope.of(mapper.planState(state, planReadService.goalAllocations(state)));
     }
 
     @GetMapping("/plans/{planId}/dashboard")

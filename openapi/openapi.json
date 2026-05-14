@@ -3003,6 +3003,33 @@
             "type": "integer",
             "minimum": 1
           },
+          "projectedTargetCost": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Goal cost inflated from currentCost to targetYear for projected allocation."
+          },
+          "projectedSavedAmount": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Forecast amount allocated from income minus expenses by goal priority."
+          },
+          "projectedProgressPct": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Forecast progress toward projectedTargetCost, capped at 100."
+          },
+          "projectedReachable": {
+            "type": "boolean",
+            "description": "Whether projectedSavedAmount reaches projectedTargetCost within the projection horizon."
+          },
+          "projectedCompletionYear": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "First forecast year when the goal is fully allocated."
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"

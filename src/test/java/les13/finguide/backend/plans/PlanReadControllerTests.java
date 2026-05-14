@@ -71,6 +71,28 @@ class PlanReadControllerTests {
                 .andExpect(jsonPath("$.data[0].id").value("base"));
     }
 
+
+    @Test
+    void allocatesFreeCashflowToGoalsWithoutSubtractingGoalsFromNetSavings() throws Exception {
+        String planId = "22222222-2222-4222-8222-222222222222";
+
+        mockMvc.perform(get("/api/v1/plans/{planId}/analytics/cashflow", planId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].netSavings").value(2532000))
+                .andExpect(jsonPath("$.data[0].totalGoalExpenses").value(2532000))
+                .andExpect(jsonPath("$.data[1].netSavings").value(2797640.94))
+                .andExpect(jsonPath("$.data[1].totalGoalExpenses").value(2797640.94));
+
+        mockMvc.perform(get("/api/v1/plans/current"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.goals[0].projectedTargetCost").value(1605000.0))
+                .andExpect(jsonPath("$.data.goals[0].projectedSavedAmount").value(1605000.0))
+                .andExpect(jsonPath("$.data.goals[0].projectedProgressPct").value(100.0))
+                .andExpect(jsonPath("$.data.goals[0].projectedReachable").value(true))
+                .andExpect(jsonPath("$.data.goals[0].projectedCompletionYear").value(2026))
+                .andExpect(jsonPath("$.data.goals[1].projectedSavedAmount", greaterThan(0.0)));
+    }
+
     @Test
     void returnsPersistedAnalyticsAndPensionProjection() throws Exception {
         String planId = "22222222-2222-4222-8222-222222222222";
