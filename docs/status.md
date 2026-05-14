@@ -33,13 +33,13 @@
 - `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}`;
 - `GET/PATCH /plans/{planId}/budget`, `POST /plans/{planId}/budget/envelopes/autogenerate`;
 - `GET/POST /plans/{planId}/calendar/monthly-tracker`;
-- `GET /scenarios` — read-only список сценариев;
+- `GET/POST /scenarios`, `GET/PATCH/DELETE /scenarios/{scenarioId}`, `POST /scenarios/compare` — persisted пользовательские сценарии и сравнение;
 - CRUD доходов, расходов и целей;
 - `POST /plans/{planId}/goals/reorder`;
 - Keycloak/OIDC boundary: JWT validation, audience check, lazy local profile mapping, user-owned current plan after first authenticated request, plan ownership checks;
 - frontend/auth bootstrap fixes: authenticated session no longer reuses anonymous demo cache/default profile;
 - H2 seed data from `schema.sql` + `data.sql`;
-- OpenAPI coverage guard [#16](https://github.com/svoronkov-les13/finguide-be/issues/16): checked-in `openapi/openapi.json` содержит 54 операции, real Springdoc покрывает 40 уже реализованных операций, а известный gap в 14 операций зафиксирован тестом и не должен расти случайно.
+- OpenAPI coverage guard [#16](https://github.com/svoronkov-les13/finguide-be/issues/16): checked-in `openapi/openapi.json` содержит 54 операции, real Springdoc покрывает 45 уже реализованных операций, а известный gap в 9 операций зафиксирован тестом и не должен расти случайно.
 
 Текущая checked-in OpenAPI спецификация всё ещё шире real Springdoc, но расхождение теперь явно зафиксировано тестом `OpenApiContractCoverageTests`. Следующие задачи должны уменьшать список missing operations по мере реализации endpoints.
 
@@ -91,9 +91,9 @@ Frontend deploy также переведён на self-hosted runner на эт�
 - Done: pension settings — [#11](https://github.com/svoronkov-les13/finguide-be/issues/11);
 - Done: contributions ledger — [#10](https://github.com/svoronkov-les13/finguide-be/issues/10);
 - Done: budget/monthly tracker — [#12](https://github.com/svoronkov-les13/finguide-be/issues/12);
+- Done: scenarios CRUD/compare — [#13](https://github.com/svoronkov-les13/finguide-be/issues/13);
 - Now: frontend design foundation по FinPlan — design tokens, app shell/sidebar/topbar, shared UI primitives, dashboard desktop target;
 - Next: frontend generated client smoke — [finguide-web#2](https://github.com/svoronkov-les13/finguide-web/issues/2);
-- Then: scenarios CRUD/compare — [#13](https://github.com/svoronkov-les13/finguide-be/issues/13);
 - Later: `PUT /plans/current` — [#7](https://github.com/svoronkov-les13/finguide-be/issues/7);
 - Later: profile/avatar/account mutations — [#8](https://github.com/svoronkov-les13/finguide-be/issues/8);
 - Later: import/export — [#14](https://github.com/svoronkov-les13/finguide-be/issues/14);

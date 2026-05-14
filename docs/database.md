@@ -186,6 +186,24 @@ create table monthly_tracker_entries (
   primary key (plan_id, tracker_month)
 );
 
+create table scenarios (
+  id uuid primary key,
+  plan_id uuid not null references financial_plans(id),
+  name varchar(120) not null,
+  emoji varchar(16),
+  description varchar(1024),
+  is_base boolean not null default false,
+  income_adj_pct numeric(9, 4) not null,
+  expense_adj_pct numeric(9, 4) not null,
+  return_adj_pct numeric(9, 4) not null,
+  inflation_adj_pct numeric(9, 4) not null,
+  retirement_age_shift integer not null,
+  goals_cost_adj_pct numeric(9, 4) not null,
+  snapshot_json clob,
+  created_at timestamp with time zone not null,
+  updated_at timestamp with time zone not null
+);
+
 ```
 
 ## Seed данные
@@ -209,13 +227,15 @@ create table monthly_tracker_entries (
 
 `contributions.goal_id` references `goals(id)`. The repository deletes contributions explicitly before deleting a goal, so goal removal does not produce FK errors or orphan ledger rows.
 
+`scenarios` хранит пользовательские scenarios как adjustment deltas. Поле `snapshot_json` зарезервировано для будущих snapshot-сценариев; built-in `base`/`optimistic`/`pessimistic` генерируются кодом и не пишутся в таблицу.
+
 ## Важные ограничения текущей схемы
 
 - Один план на пользователя: `unique(owner_user_id)`.
 - Нет поля `is_current`; текущий план выводится из уникального плана владельца.
 - Нет поля `is_demo_seed`; seed определяется константным id/subject в коде и данных.
 - Нет soft delete, optimistic `version`, audit table и idempotency table.
-- Нет таблиц для `budget`, `monthly_tracker`, `scenarios`, `import/export jobs`, `notifications`.
+- Нет таблиц для `import/export jobs`, `notifications`. `budget`, `monthly_tracker` и пользовательские `scenarios` уже persisted в H2 demo.
 - H2 schema предназначена для demo/dev. Для PostgreSQL нужно вводить Flyway migrations и аккуратно разделить demo seed, user-owned plans и production данные.
 
 ## Целевая PostgreSQL миграция
@@ -229,4 +249,4 @@ create table monthly_tracker_entries (
    - regression tests на все write endpoints.
 3. Добавить `is_current` или отдельный указатель current plan, если понадобится несколько планов на пользователя.
 4. Добавить `version int not null default 0` для редактируемых сущностей и `ETag`/`If-Match`.
-5. Расширить схему под roadmap: scenarios, import/export jobs, notifications. Pension settings mutations, contributions ledger, budget settings and monthly tracker уже реализованы поверх текущей persisted схемы.
+5. Расширить схему под roadmap: import/export jobs, notifications и будущие snapshot scenarios. Pension settings mutations, contributions ledger, budget settings, monthly tracker и adjustment-based scenarios уже реализованы поверх текущей persisted схемы.

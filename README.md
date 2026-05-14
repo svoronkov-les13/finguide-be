@@ -35,7 +35,7 @@ Real backend currently supports:
 - `GET /api/v1` API index;
 - `GET /api/v1/me`;
 - `GET /api/v1/plans/current`;
-- plan dashboard, health, cashflow and read-only scenarios;
+- plan dashboard, health, cashflow and persisted scenario CRUD/compare;
 - CRUD for incomes, expenses and goals;
 - `POST /plans/{planId}/goals/reorder`;
 - Keycloak JWT validation and audience check;
@@ -46,7 +46,8 @@ Real backend currently supports:
 - persisted analytics assumptions, current balance, yearly projection and pension projection endpoints;
 - persisted pension settings `GET/PATCH /plans/{planId}/pension` with writable-plan guardrails;
 - persisted contributions ledger `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}` with `Goal.savedAmount` derived from contribution sums;
-- persisted budget settings `GET/PATCH /plans/{planId}/budget`, envelope autogeneration, and monthly tracker `GET/POST /plans/{planId}/calendar/monthly-tracker`.
+- persisted budget settings `GET/PATCH /plans/{planId}/budget`, envelope autogeneration, and monthly tracker `GET/POST /plans/{planId}/calendar/monthly-tracker`;
+- persisted user scenarios `GET/POST /scenarios`, `GET/PATCH/DELETE /scenarios/{scenarioId}`, and `POST /scenarios/compare` with built-in read-only scenarios.
 
 Completed guardrails and analytics milestones:
 
@@ -55,7 +56,8 @@ Completed guardrails and analytics milestones:
 - [#4](https://github.com/svoronkov-les13/finguide-be/issues/4) — serve analytics and pension projections from persisted plan state;
 - [#11](https://github.com/svoronkov-les13/finguide-be/issues/11) — persisted pension settings endpoints;
 - [#10](https://github.com/svoronkov-les13/finguide-be/issues/10) — persisted contributions ledger endpoints;
-- [#12](https://github.com/svoronkov-les13/finguide-be/issues/12) — persisted budget and monthly tracker endpoints.
+- [#12](https://github.com/svoronkov-les13/finguide-be/issues/12) — persisted budget and monthly tracker endpoints;
+- [#13](https://github.com/svoronkov-les13/finguide-be/issues/13) — persisted scenario CRUD and comparison endpoints.
 
 ## Repository map
 
@@ -71,7 +73,7 @@ src/main/java/les13/finguide/backend/
   analytics/         assumptions, cashflow, dashboard and health calculations
   pension/           pension settings/projection model
   budget/            budget settings, envelopes and monthly tracker models
-  scenarios/         target scenario model
+  scenarios/         scenario CRUD and comparison model
   importexport/      target import/export boundary
   notifications/     target notification boundary
 src/main/resources/
@@ -134,8 +136,8 @@ Relevant test areas:
 - plan read endpoints;
 - income/expense/goal CRUD;
 - contribution ledger CRUD and derived goal progress;
-- OpenAPI exposure for financial item endpoints;
-- OpenAPI contract coverage guard: checked-in `openapi/openapi.json` has 54 operations; real Springdoc must cover every implemented operation and must not regress beyond the documented 19-operation gap.
+- OpenAPI exposure for financial item and scenario endpoints;
+- OpenAPI contract coverage guard: checked-in `openapi/openapi.json` has 54 operations; real Springdoc must cover every implemented operation and must not regress beyond the documented 9-operation gap.
 
 ## Documentation
 

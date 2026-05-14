@@ -35,7 +35,7 @@ Legacy mock Swagger: <http://66.42.121.18/finguide-mock/> — только дл�
 - API index;
 - `GET /me`;
 - `GET /plans/current`;
-- dashboard/health/cashflow/scenarios read;
+- dashboard/health/cashflow and scenario CRUD/compare;
 - analytics assumptions, current balance, yearly projection, pension settings and pension projection from persisted state;
 - CRUD incomes/expenses/goals;
 - goals reorder;
@@ -45,6 +45,7 @@ Legacy mock Swagger: <http://66.42.121.18/finguide-mock/> — только дл�
 - frontend session restore без demo/default profile flash;
 - self-hosted GitHub Actions deploy backend/web после push в `main`;
 - [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) OpenAPI coverage guard: real Springdoc защищён от регрессий относительно checked-in OpenAPI;
+- [#13](https://github.com/svoronkov-les13/finguide-be/issues/13) persisted scenario CRUD/compare: user scenarios are adjustment deltas, built-ins are read-only;
 - [#26](https://github.com/svoronkov-les13/finguide-be/issues/26) общий anonymous demo seed plan read-only для мутаций;
 - [#4](https://github.com/svoronkov-les13/finguide-be/issues/4) analytics/pension endpoints строятся из persisted plan state;
 - [#11](https://github.com/svoronkov-les13/finguide-be/issues/11) pension settings endpoints реализованы поверх persisted state;
@@ -63,7 +64,7 @@ PlanState + ModelAssumptions
   -> годовой денежный поток
   -> сбережения и накопленный капитал
   -> пенсионная проекция
-  -> dashboard, health score, scenarios
+  -> dashboard, health score, scenarios CRUD/compare
 ```
 
 Канонический расчётный endpoint:

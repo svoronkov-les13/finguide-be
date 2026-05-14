@@ -108,10 +108,4 @@ public class PlanReadController {
     public ApiEnvelope<Map<String, Object>> pensionProjection(@PathVariable UUID planId) {
         return ApiEnvelope.of(mapper.pensionProjection(planReadService.pensionProjection(planId)));
     }
-
-    @GetMapping("/scenarios")
-    public ApiEnvelope<Object> scenarios() {
-        UUID currentPlanId = planReadService.currentPlan().plan().id();
-        return ApiEnvelope.of(planReadService.scenarios(currentPlanId));
-    }
 }

@@ -233,29 +233,6 @@ public class PlanReadService {
         );
     }
 
-    public List<Map<String, Object>> scenarios(UUID basePlanId) {
-        PlanState state = plan(basePlanId);
-        return List.of(
-                scenario("base", "Основной план", "📊", "Текущий финансовый план", true, state.plan().id(), Map.of("incomeAdjPct", 0, "expenseAdjPct", 0, "returnAdjPct", 0, "inflationAdjPct", 0, "retirementAgeShift", 0, "goalsCostAdjPct", 0), state.updatedAt()),
-                scenario("optimistic", "Оптимистичный", "🚀", "Доходы растут быстрее, расходы медленнее", false, state.plan().id(), Map.of("incomeAdjPct", 15, "expenseAdjPct", 5, "returnAdjPct", 1, "inflationAdjPct", -1, "retirementAgeShift", -2, "goalsCostAdjPct", 0), state.updatedAt()),
-                scenario("pessimistic", "Пессимистичный", "⚡", "Стресс-тест: снижение доходов и рост расходов", false, state.plan().id(), Map.of("incomeAdjPct", -10, "expenseAdjPct", 12, "returnAdjPct", -2, "inflationAdjPct", 2, "retirementAgeShift", 3, "goalsCostAdjPct", 15), state.updatedAt())
-        );
-    }
-
-    private Map<String, Object> scenario(String id, String name, String emoji, String description, boolean isBase, UUID basePlanId, Map<String, Object> adjustments, java.time.Instant updatedAt) {
-        return Map.of(
-                "id", id,
-                "name", name,
-                "emoji", emoji,
-                "description", description,
-                "isBase", isBase,
-                "basePlanId", basePlanId.toString(),
-                "adjustments", adjustments,
-                "createdAt", updatedAt,
-                "updatedAt", updatedAt
-        );
-    }
-
     private static ModelAssumptions validateAssumptions(ModelAssumptions assumptions) {
         if (assumptions == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "assumptions body is required");
@@ -318,7 +295,7 @@ public class PlanReadService {
         return cashflow(state, yearsFromStart).get(yearsFromStart - 1).capitalEndOfYear();
     }
 
-    private static List<CashFlowProjectionPoint> cashflow(PlanState state, int horizon) {
+    public static List<CashFlowProjectionPoint> cashflow(PlanState state, int horizon) {
         int startYear = Math.max(Year.now().getValue(), state.modelAssumptions().startYear());
         BigDecimal capital = state.modelAssumptions().initialCapital();
         List<CashFlowProjectionPoint> result = new ArrayList<>();

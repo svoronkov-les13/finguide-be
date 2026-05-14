@@ -50,6 +50,7 @@
 - [x] [#11](https://github.com/svoronkov-les13/finguide-be/issues/11) — persisted pension settings endpoints `GET/PATCH /plans/{planId}/pension`, TDD coverage, OpenAPI gap уменьшен до 24 операций.
 - [x] [#10](https://github.com/svoronkov-les13/finguide-be/issues/10) — contributions ledger endpoints `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}`, TDD coverage, OpenAPI gap уменьшен до 19 операций.
 - [x] [#12](https://github.com/svoronkov-les13/finguide-be/issues/12) — budget/monthly tracker endpoints `GET/PATCH /plans/{planId}/budget`, `POST /plans/{planId}/budget/envelopes/autogenerate`, `GET/POST /plans/{planId}/calendar/monthly-tracker`, TDD coverage, OpenAPI gap уменьшен до 14 операций.
+- [x] [#13](https://github.com/svoronkov-les13/finguide-be/issues/13) — scenarios CRUD/compare endpoints `GET/POST /scenarios`, `GET/PATCH/DELETE /scenarios/{scenarioId}`, `POST /scenarios/compare`, TDD coverage, OpenAPI gap уменьшен до 9 операций.
 - [ ] [finguide-web#7](https://github.com/svoronkov-les13/finguide-web/issues/7) — выделить первые implementation issues: design tokens, app shell/sidebar/topbar, shared UI primitives, dashboard desktop target.
 
 ### Next — frontend contract smoke + first redesigned screens
@@ -57,9 +58,8 @@
 - [ ] [finguide-web#2](https://github.com/svoronkov-les13/finguide-web/issues/2) — smoke generated client после стабилизации контракта.
 - [ ] Frontend по [finguide-web#7](https://github.com/svoronkov-les13/finguide-web/issues/7): dashboard redesign и onboarding/common data screens.
 
-### Then — tracker, scenarios, tables
+### Then — tracker, scenario tables
 
-- [ ] [#13](https://github.com/svoronkov-les13/finguide-be/issues/13) — scenarios CRUD/compare.
 - [ ] Frontend по [finguide-web#7](https://github.com/svoronkov-les13/finguide-web/issues/7): incomes/expenses, goals, scenario tables, tracker UI.
 
 ### Later — account, replace-plan, async perimeter, polish
