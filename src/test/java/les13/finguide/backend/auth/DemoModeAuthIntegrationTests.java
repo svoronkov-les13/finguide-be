@@ -118,6 +118,28 @@ class DemoModeAuthIntegrationTests {
     }
 
     @Test
+    void anonymousDemoModeCannotMutateSeedPlan() throws Exception {
+        mockMvc.perform(post("/api/v1/plans/{planId}/incomes", SEED_PLAN_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "Anonymous bonus",
+                                  "amount": 50000,
+                                  "currency": "RUB",
+                                  "frequency": "yearly",
+                                  "growthType": "manual",
+                                  "growthPct": 3,
+                                  "startDate": "2026-01-01"
+                                }
+                                """))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/v1/plans/{planId}/incomes", SEED_PLAN_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(3)));
+    }
+
+    @Test
     void authenticatedMutationDoesNotAffectAnotherUserOrSeedPlan() throws Exception {
         String firstPlan = currentPlanId("mutation-user-one", "one@example.com", "Первый");
         String secondPlan = currentPlanId("mutation-user-two", "two@example.com", "Второй");

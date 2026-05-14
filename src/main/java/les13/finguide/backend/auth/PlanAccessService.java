@@ -57,6 +57,14 @@ public class PlanAccessService {
         throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Plan is not available for current user");
     }
 
+    public PlanState requireWritablePlan(UUID planId) {
+        PlanState state = requirePlan(planId);
+        if (demoBypass()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Anonymous demo plan is read-only");
+        }
+        return state;
+    }
+
     @Transactional
     public UserProfile currentProfile() {
         if (demoBypass()) {
