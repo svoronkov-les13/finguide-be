@@ -128,7 +128,7 @@ Relevant test areas:
 - plan read endpoints;
 - income/expense/goal CRUD;
 - OpenAPI exposure for financial item endpoints;
-- OpenAPI contract coverage guard: checked-in `openapi/openapi.json` has 54 operations; real Springdoc must cover every implemented operation and must not regress beyond the documented 31-operation gap.
+- OpenAPI contract coverage guard: checked-in `openapi/openapi.json` has 54 operations; real Springdoc must cover every implemented operation and must not regress beyond the documented 26-operation gap.
 
 ## Documentation
 

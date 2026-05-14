@@ -510,6 +510,35 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
         return findGoals(planId);
     }
 
+    @Override
+    @Transactional
+    public ModelAssumptions updateModelAssumptions(UUID planId, ModelAssumptions assumptions) {
+        jdbcTemplate.update(
+                "update model_assumptions set start_year = ?, projection_end_year = ?, horizon_years = ?, birth_year = ?, months_per_year = ?, currency = ?, initial_capital = ?, investment_return_pct = ?, source_model = ? where plan_id = ?",
+                assumptions.startYear(),
+                assumptions.projectionEndYear(),
+                assumptions.horizonYears(),
+                assumptions.birthYear(),
+                assumptions.monthsPerYear(),
+                assumptions.currency(),
+                assumptions.initialCapital(),
+                assumptions.investmentReturnPct(),
+                assumptions.sourceModel(),
+                planId
+        );
+        jdbcTemplate.update("delete from inflation_rates where plan_id = ?", planId);
+        for (YearRatePoint point : assumptions.inflationSchedule()) {
+            jdbcTemplate.update(
+                    "insert into inflation_rates (plan_id, rate_year, rate_pct) values (?, ?, ?)",
+                    planId,
+                    point.year(),
+                    point.ratePct()
+            );
+        }
+        touchPlan(planId, OffsetDateTime.now(ZoneOffset.UTC));
+        return assumptions;
+    }
+
     private <T> Optional<T> queryOptional(String sql, org.springframework.jdbc.core.RowMapper<T> mapper, Object... args) {
         try {
             return Optional.ofNullable(jdbcTemplate.queryForObject(sql, mapper, args));

@@ -3,6 +3,7 @@ package les13.finguide.backend.plans;
 import les13.finguide.backend.expenses.ExpenseItem;
 import les13.finguide.backend.goals.Goal;
 import les13.finguide.backend.incomes.IncomeSource;
+import les13.finguide.backend.analytics.ModelAssumptions;
 
 import java.util.List;
 import java.util.Optional;
@@ -50,4 +51,6 @@ public interface PlanStateRepository {
     boolean deleteGoal(UUID planId, UUID goalId);
 
     List<Goal> reorderGoals(UUID planId, List<UUID> goalIds);
+
+    ModelAssumptions updateModelAssumptions(UUID planId, ModelAssumptions assumptions);
 }

@@ -25,13 +25,17 @@
 - `GET /plans/{planId}/dashboard`;
 - `GET /plans/{planId}/analytics/health`;
 - `GET /plans/{planId}/analytics/cashflow`;
+- `GET /plans/{planId}/analytics/assumptions` и `PATCH /plans/{planId}/analytics/assumptions`;
+- `GET /plans/{planId}/analytics/balance/current`;
+- `GET /plans/{planId}/analytics/projection?years=...`;
+- `GET /plans/{planId}/pension/projection`;
 - `GET /scenarios` — read-only список сценариев;
 - CRUD доходов, расходов и целей;
 - `POST /plans/{planId}/goals/reorder`;
 - Keycloak/OIDC boundary: JWT validation, audience check, lazy local profile mapping, user-owned current plan after first authenticated request, plan ownership checks;
 - frontend/auth bootstrap fixes: authenticated session no longer reuses anonymous demo cache/default profile;
 - H2 seed data from `schema.sql` + `data.sql`;
-- OpenAPI coverage guard [#16](https://github.com/svoronkov-les13/finguide-be/issues/16): checked-in `openapi/openapi.json` содержит 54 операции, real Springdoc покрывает 23 уже реализованные операции, а известный gap в 31 операцию зафиксирован тестом и не должен расти случайно.
+- OpenAPI coverage guard [#16](https://github.com/svoronkov-les13/finguide-be/issues/16): checked-in `openapi/openapi.json` содержит 54 операции, real Springdoc покрывает 28 уже реализованных операций, а известный gap в 26 операций зафиксирован тестом и не должен расти случайно.
 
 Текущая checked-in OpenAPI спецификация всё ещё шире real Springdoc, но расхождение теперь явно зафиксировано тестом `OpenApiContractCoverageTests`. Следующие задачи должны уменьшать список missing operations по мере реализации endpoints.
 
@@ -78,8 +82,8 @@ Frontend deploy также переведён на self-hosted runner на эт�
 
 Основные открытые группы с учётом FinPlan redesign [finguide-web#7](https://github.com/svoronkov-les13/finguide-web/issues/7):
 
-- Now: запрет мутации общего anonymous demo seed plan — [#26](https://github.com/svoronkov-les13/finguide-be/issues/26);
-- Now: analytics/pension из persisted state — [#4](https://github.com/svoronkov-les13/finguide-be/issues/4);
+- Done: запрет мутации общего anonymous demo seed plan — [#26](https://github.com/svoronkov-les13/finguide-be/issues/26);
+- In progress: analytics/pension из persisted state — [#4](https://github.com/svoronkov-les13/finguide-be/issues/4);
 - Now: frontend design foundation по FinPlan — design tokens, app shell/sidebar/topbar, shared UI primitives, dashboard desktop target;
 - Next: pension settings — [#11](https://github.com/svoronkov-les13/finguide-be/issues/11);
 - Next: contributions ledger — [#10](https://github.com/svoronkov-les13/finguide-be/issues/10);

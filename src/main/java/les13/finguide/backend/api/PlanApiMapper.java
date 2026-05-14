@@ -1,5 +1,6 @@
 package les13.finguide.backend.api;
 
+import les13.finguide.backend.analytics.BalanceSnapshot;
 import les13.finguide.backend.analytics.CashFlowProjectionPoint;
 import les13.finguide.backend.analytics.HealthScore;
 import les13.finguide.backend.analytics.ModelAssumptions;
@@ -10,6 +11,8 @@ import les13.finguide.backend.contributions.Contribution;
 import les13.finguide.backend.expenses.ExpenseItem;
 import les13.finguide.backend.goals.Goal;
 import les13.finguide.backend.incomes.IncomeSource;
+import les13.finguide.backend.pension.PensionProjection;
+import les13.finguide.backend.pension.PensionSpendDownPoint;
 import les13.finguide.backend.pension.PensionSettings;
 import les13.finguide.backend.plans.PlanState;
 import les13.finguide.backend.users.UserProfile;
@@ -166,6 +169,57 @@ public class PlanApiMapper {
         result.put("expenses", point.expenses());
         result.put("goalsCost", point.goalsCost());
         result.put("netSavings", point.netSavings());
+        return result;
+    }
+
+    public Map<String, Object> balance(BalanceSnapshot snapshot) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("year", snapshot.year());
+        result.put("monthlyIncome", snapshot.monthlyIncome());
+        result.put("yearlyIncome", snapshot.yearlyIncome());
+        result.put("totalIncome", snapshot.totalIncome());
+        result.put("monthlyExpenses", snapshot.monthlyExpenses());
+        result.put("yearlyExpenses", snapshot.yearlyExpenses());
+        result.put("monthlyGoalExpenses", snapshot.monthlyGoalExpenses());
+        result.put("yearlyGoalExpenses", snapshot.yearlyGoalExpenses());
+        result.put("goalExpenses", snapshot.goalExpenses());
+        result.put("totalOutflow", snapshot.totalOutflow());
+        result.put("netSavings", snapshot.netSavings());
+        return result;
+    }
+
+    public Map<String, Object> pensionProjection(PensionProjection projection) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("currentAge", projection.currentAge());
+        result.put("retirementAge", projection.retirementAge());
+        result.put("retirementYear", projection.retirementYear());
+        result.put("capitalAtRetirement", projection.capitalAtRetirement());
+        result.put("nominalReturnPct", projection.nominalReturnPct());
+        result.put("averageInflationPct", projection.averageInflationPct());
+        result.put("realReturnPct", projection.realReturnPct());
+        result.put("preserveCapital", Map.of(
+                "annualSpendableAtRetirement", projection.preserveCapital().annualSpendableAtRetirement(),
+                "annualSpendableCurrentPrices", projection.preserveCapital().annualSpendableCurrentPrices(),
+                "monthlySpendableCurrentPrices", projection.preserveCapital().monthlySpendableCurrentPrices()
+        ));
+        result.put("spendDown", Map.of(
+                "desiredMonthlyExpensesCurrentPrices", projection.spendDown().desiredMonthlyExpensesCurrentPrices(),
+                "desiredAnnualExpensesAtRetirement", projection.spendDown().desiredAnnualExpensesAtRetirement(),
+                "retirementYears", projection.spendDown().retirementYears(),
+                "depletionAge", projection.spendDown().depletionAge(),
+                "series", projection.spendDown().series().stream().map(this::pensionSpendDown).toList()
+        ));
+        return result;
+    }
+
+    private Map<String, Object> pensionSpendDown(PensionSpendDownPoint point) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("year", point.year());
+        result.put("age", point.age());
+        result.put("beginningCapital", point.beginningCapital());
+        result.put("plannedExpense", point.plannedExpense());
+        result.put("nominalReturnPct", point.nominalReturnPct());
+        result.put("endingCapital", point.endingCapital());
         return result;
     }
 
