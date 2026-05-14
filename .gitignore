@@ -17,3 +17,5 @@ site/
 # Runtime
 *.log
 .env
+
+.worktrees/
