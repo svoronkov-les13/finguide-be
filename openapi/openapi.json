@@ -2463,7 +2463,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OperationJournalEntryRequest"
+                "$ref": "#/components/schemas/OperationJournalEntryPatchRequest"
               }
             }
           }
@@ -4319,6 +4319,36 @@
           "type",
           "status"
         ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "title": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "income",
+              "expense",
+              "goal"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "actual"
+            ]
+          }
+        }
+      },
+      "OperationJournalEntryPatchRequest": {
+        "type": "object",
         "properties": {
           "date": {
             "type": "string",
