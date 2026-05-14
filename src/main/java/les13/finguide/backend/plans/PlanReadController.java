@@ -3,9 +3,13 @@ package les13.finguide.backend.plans;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import les13.finguide.backend.api.ApiEnvelope;
 import les13.finguide.backend.api.PlanApiMapper;
+import les13.finguide.backend.analytics.ModelAssumptions;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
@@ -61,6 +65,34 @@ public class PlanReadController {
     @GetMapping("/plans/{planId}/analytics/cashflow")
     public ApiEnvelope<Object> cashflow(@PathVariable UUID planId) {
         return ApiEnvelope.of(planReadService.cashflow(planId).stream().map(mapper::cashflow).toList());
+    }
+
+    @GetMapping("/plans/{planId}/analytics/assumptions")
+    public ApiEnvelope<Map<String, Object>> assumptions(@PathVariable UUID planId) {
+        return ApiEnvelope.of(mapper.assumptions(planReadService.assumptions(planId)));
+    }
+
+    @PatchMapping("/plans/{planId}/analytics/assumptions")
+    public ApiEnvelope<Map<String, Object>> updateAssumptions(
+            @PathVariable UUID planId,
+            @RequestBody ModelAssumptions request
+    ) {
+        return ApiEnvelope.of(mapper.assumptions(planReadService.updateAssumptions(planId, request)));
+    }
+
+    @GetMapping("/plans/{planId}/analytics/balance/current")
+    public ApiEnvelope<Map<String, Object>> currentBalance(@PathVariable UUID planId) {
+        return ApiEnvelope.of(mapper.balance(planReadService.currentBalance(planId)));
+    }
+
+    @GetMapping("/plans/{planId}/analytics/projection")
+    public ApiEnvelope<Object> projection(@PathVariable UUID planId, @RequestParam(defaultValue = "30") int years) {
+        return ApiEnvelope.of(planReadService.projection(planId, years).stream().map(mapper::yearlyProjection).toList());
+    }
+
+    @GetMapping("/plans/{planId}/pension/projection")
+    public ApiEnvelope<Map<String, Object>> pensionProjection(@PathVariable UUID planId) {
+        return ApiEnvelope.of(mapper.pensionProjection(planReadService.pensionProjection(planId)));
     }
 
     @GetMapping("/scenarios")
