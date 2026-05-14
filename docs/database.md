@@ -135,6 +135,18 @@ create table goals (
   created_at timestamp with time zone not null,
   updated_at timestamp with time zone not null
 );
+
+create table contributions (
+  id uuid primary key,
+  plan_id uuid not null references financial_plans(id),
+  goal_id uuid not null references goals(id),
+  amount numeric(19, 2) not null,
+  currency varchar(3) not null,
+  contribution_date date not null,
+  note varchar(1024),
+  created_at timestamp with time zone not null,
+  updated_at timestamp with time zone not null
+);
 ```
 
 ## Seed данные
@@ -154,7 +166,9 @@ create table goals (
 - inflation rates for 2024–2027;
 - 3 incomes;
 - 3 expenses;
-- 3 goals.
+- 3 goals with `saved_amount = 0` because goal progress is derived from contributions.
+
+`contributions.goal_id` references `goals(id)`. The repository deletes contributions explicitly before deleting a goal, so goal removal does not produce FK errors or orphan ledger rows.
 
 ## Важные ограничения текущей схемы
 
@@ -162,7 +176,7 @@ create table goals (
 - Нет поля `is_current`; текущий план выводится из уникального плана владельца.
 - Нет поля `is_demo_seed`; seed определяется константным id/subject в коде и данных.
 - Нет soft delete, optimistic `version`, audit table и idempotency table.
-- Нет таблиц для `contributions`, `budget`, `monthly_tracker`, `scenarios`, `import/export jobs`, `notifications`.
+- Нет таблиц для `budget`, `monthly_tracker`, `scenarios`, `import/export jobs`, `notifications`.
 - H2 schema предназначена для demo/dev. Для PostgreSQL нужно вводить Flyway migrations и аккуратно разделить demo seed, user-owned plans и production данные.
 
 ## Целевая PostgreSQL миграция
@@ -176,4 +190,4 @@ create table goals (
    - regression tests на все write endpoints.
 3. Добавить `is_current` или отдельный указатель current plan, если понадобится несколько планов на пользователя.
 4. Добавить `version int not null default 0` для редактируемых сущностей и `ETag`/`If-Match`.
-5. Расширить схему под roadmap: contributions, budget/monthly tracker, scenarios, import/export jobs, notifications. Pension settings mutations уже реализованы поверх текущей persisted схемы.
+5. Расширить схему под roadmap: budget/monthly tracker, scenarios, import/export jobs, notifications. Pension settings mutations и contributions ledger уже реализованы поверх текущей persisted схемы.

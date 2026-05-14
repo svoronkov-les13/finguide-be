@@ -1,3 +1,4 @@
+drop table if exists contributions;
 drop table if exists goals;
 drop table if exists expenses;
 drop table if exists incomes;
@@ -114,6 +115,18 @@ create table goals (
   growth_pct numeric(9, 4) not null,
   index_label varchar(255),
   priority integer not null,
+  created_at timestamp with time zone not null,
+  updated_at timestamp with time zone not null
+);
+
+create table contributions (
+  id uuid primary key,
+  plan_id uuid not null references financial_plans(id),
+  goal_id uuid not null references goals(id),
+  amount numeric(19, 2) not null,
+  currency varchar(3) not null,
+  contribution_date date not null,
+  note varchar(1024),
   created_at timestamp with time zone not null,
   updated_at timestamp with time zone not null
 );

@@ -44,14 +44,16 @@ Real backend currently supports:
 - plan ownership checks for authenticated users;
 - H2 seed data loaded from `schema.sql` + `data.sql`;
 - persisted analytics assumptions, current balance, yearly projection and pension projection endpoints;
-- persisted pension settings `GET/PATCH /plans/{planId}/pension` with writable-plan guardrails.
+- persisted pension settings `GET/PATCH /plans/{planId}/pension` with writable-plan guardrails;
+- persisted contributions ledger `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}` with `Goal.savedAmount` derived from contribution sums.
 
 Completed guardrails and analytics milestones:
 
 - [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) — OpenAPI coverage guard compares checked-in contract operations with real Springdoc and locks the known implementation gap;
 - [#26](https://github.com/svoronkov-les13/finguide-be/issues/26) — prevent mutations of the shared anonymous demo seed plan;
 - [#4](https://github.com/svoronkov-les13/finguide-be/issues/4) — serve analytics and pension projections from persisted plan state;
-- [#11](https://github.com/svoronkov-les13/finguide-be/issues/11) — persisted pension settings endpoints.
+- [#11](https://github.com/svoronkov-les13/finguide-be/issues/11) — persisted pension settings endpoints;
+- [#10](https://github.com/svoronkov-les13/finguide-be/issues/10) — persisted contributions ledger endpoints.
 
 ## Repository map
 
@@ -60,6 +62,7 @@ src/main/java/les13/finguide/backend/
   auth/              Keycloak JWT, current user, audience and plan access checks
   users/             local business profile mapped to Keycloak identity
   plans/             current plan, persisted H2 state, financial item CRUD
+  contributions/     contribution ledger domain model
   incomes/           income domain model
   expenses/          expense domain model
   goals/             goals and waterfall priority reorder
@@ -128,8 +131,9 @@ Relevant test areas:
 - persisted H2 repository;
 - plan read endpoints;
 - income/expense/goal CRUD;
+- contribution ledger CRUD and derived goal progress;
 - OpenAPI exposure for financial item endpoints;
-- OpenAPI contract coverage guard: checked-in `openapi/openapi.json` has 54 operations; real Springdoc must cover every implemented operation and must not regress beyond the documented 24-operation gap.
+- OpenAPI contract coverage guard: checked-in `openapi/openapi.json` has 54 operations; real Springdoc must cover every implemented operation and must not regress beyond the documented 19-operation gap.
 
 ## Documentation
 

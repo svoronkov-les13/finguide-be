@@ -48,11 +48,11 @@
 - [x] [#26](https://github.com/svoronkov-les13/finguide-be/issues/26) — запретить мутацию общего anonymous demo seed plan — PR #28, merge `08776ab`.
 - [x] [#4](https://github.com/svoronkov-les13/finguide-be/issues/4) — analytics/cashflow/pension из persisted state: persisted assumptions/balance/projection/pension endpoints, TDD coverage, OpenAPI gap уменьшен до 26 операций — PR #29, merge `d430187`.
 - [x] [#11](https://github.com/svoronkov-les13/finguide-be/issues/11) — persisted pension settings endpoints `GET/PATCH /plans/{planId}/pension`, TDD coverage, OpenAPI gap уменьшен до 24 операций.
+- [x] [#10](https://github.com/svoronkov-les13/finguide-be/issues/10) — contributions ledger endpoints `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}`, TDD coverage, OpenAPI gap уменьшен до 19 операций.
 - [ ] [finguide-web#7](https://github.com/svoronkov-les13/finguide-web/issues/7) — выделить первые implementation issues: design tokens, app shell/sidebar/topbar, shared UI primitives, dashboard desktop target.
 
-### Next — domain ledger + first redesigned screens
+### Next — frontend contract smoke + first redesigned screens
 
-- [ ] [#10](https://github.com/svoronkov-les13/finguide-be/issues/10) — contributions ledger endpoints.
 - [ ] [finguide-web#2](https://github.com/svoronkov-les13/finguide-web/issues/2) — smoke generated client после стабилизации контракта.
 - [ ] Frontend по [finguide-web#7](https://github.com/svoronkov-les13/finguide-web/issues/7): dashboard redesign и onboarding/common data screens.
 

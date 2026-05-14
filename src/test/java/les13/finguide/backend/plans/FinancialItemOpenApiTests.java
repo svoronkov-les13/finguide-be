@@ -25,7 +25,9 @@ class FinancialItemOpenApiTests {
             "/api/v1/plans/{planId}/expenses/{id}", Set.of("get", "patch", "delete"),
             "/api/v1/plans/{planId}/goals", Set.of("get", "post"),
             "/api/v1/plans/{planId}/goals/{id}", Set.of("get", "patch", "delete"),
-            "/api/v1/plans/{planId}/goals/reorder", Set.of("post")
+            "/api/v1/plans/{planId}/goals/reorder", Set.of("post"),
+            "/api/v1/plans/{planId}/contributions", Set.of("get", "post"),
+            "/api/v1/plans/{planId}/contributions/{id}", Set.of("get", "patch", "delete")
     );
 
     @Autowired
@@ -63,5 +65,9 @@ class FinancialItemOpenApiTests {
                 .isEqualTo(2024);
         assertThat(api.at("/components/schemas/GoalRequest/description").asText())
                 .contains("omitted fields keep current values");
+        assertThat(api.at("/paths/~1api~1v1~1plans~1{planId}~1contributions/post/requestBody/content/application~1json/schema/$ref").asText())
+                .contains("ContributionRequest");
+        assertThat(api.at("/paths/~1api~1v1~1plans~1{planId}~1contributions~1{id}/patch/responses/404").isMissingNode())
+                .isFalse();
     }
 }
