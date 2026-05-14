@@ -42,15 +42,14 @@ Real backend currently supports:
 - lazy local profile mapping from JWT claims;
 - user-owned current plan creation after login;
 - plan ownership checks for authenticated users;
-- H2 seed data loaded from `schema.sql` + `data.sql`.
+- H2 seed data loaded from `schema.sql` + `data.sql`;
+- persisted analytics assumptions, current balance, yearly projection and pension projection endpoints.
 
-Completed guardrails:
+Completed guardrails and analytics milestones:
 
-- [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) — OpenAPI coverage guard compares checked-in contract operations with real Springdoc and locks the known implementation gap.
-
-Known open guardrails:
-
-- [#26](https://github.com/svoronkov-les13/finguide-be/issues/26) — prevent mutations of the shared anonymous demo seed plan.
+- [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) — OpenAPI coverage guard compares checked-in contract operations with real Springdoc and locks the known implementation gap;
+- [#26](https://github.com/svoronkov-les13/finguide-be/issues/26) — prevent mutations of the shared anonymous demo seed plan;
+- [#4](https://github.com/svoronkov-les13/finguide-be/issues/4) — serve analytics and pension projections from persisted plan state.
 
 ## Repository map
 

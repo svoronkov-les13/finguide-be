@@ -49,7 +49,7 @@ FINGUIDE_DEMO_MODE=true
 spring.sql.init.mode=always
 ```
 
-Anonymous requests читают seeded plan `22222222-2222-4222-8222-222222222222`. Authenticated users получают собственный cloned current plan. Запрет мутации общего anonymous seed выделен в отдельную задачу [#26](https://github.com/svoronkov-les13/finguide-be/issues/26).
+Anonymous requests читают seeded plan `22222222-2222-4222-8222-222222222222`. Authenticated users получают собственный cloned current plan. Общий anonymous seed read-only для финансовых мутаций и PATCH analytics assumptions.
 
 ## CI/CD
 
@@ -83,9 +83,9 @@ Frontend deploy также переведён на self-hosted runner на эт�
 Основные открытые группы с учётом FinPlan redesign [finguide-web#7](https://github.com/svoronkov-les13/finguide-web/issues/7):
 
 - Done: запрет мутации общего anonymous demo seed plan — [#26](https://github.com/svoronkov-les13/finguide-be/issues/26);
-- In progress: analytics/pension из persisted state — [#4](https://github.com/svoronkov-les13/finguide-be/issues/4);
+- Done: analytics/pension из persisted state — [#4](https://github.com/svoronkov-les13/finguide-be/issues/4);
+- Now: pension settings — [#11](https://github.com/svoronkov-les13/finguide-be/issues/11);
 - Now: frontend design foundation по FinPlan — design tokens, app shell/sidebar/topbar, shared UI primitives, dashboard desktop target;
-- Next: pension settings — [#11](https://github.com/svoronkov-les13/finguide-be/issues/11);
 - Next: contributions ledger — [#10](https://github.com/svoronkov-les13/finguide-be/issues/10);
 - Next: frontend generated client smoke — [finguide-web#2](https://github.com/svoronkov-les13/finguide-web/issues/2);
 - Then: budget/monthly tracker — [#12](https://github.com/svoronkov-les13/finguide-be/issues/12);
