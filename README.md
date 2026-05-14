@@ -44,9 +44,12 @@ Real backend currently supports:
 - plan ownership checks for authenticated users;
 - H2 seed data loaded from `schema.sql` + `data.sql`.
 
+Completed guardrails:
+
+- [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) — OpenAPI coverage guard compares checked-in contract operations with real Springdoc and locks the known implementation gap.
+
 Known open guardrails:
 
-- [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) — checked-in OpenAPI is broader than current Springdoc; add coverage test.
 - [#26](https://github.com/svoronkov-les13/finguide-be/issues/26) — prevent mutations of the shared anonymous demo seed plan.
 
 ## Repository map
@@ -124,7 +127,8 @@ Relevant test areas:
 - persisted H2 repository;
 - plan read endpoints;
 - income/expense/goal CRUD;
-- OpenAPI exposure for financial item endpoints.
+- OpenAPI exposure for financial item endpoints;
+- OpenAPI contract coverage guard: checked-in `openapi/openapi.json` has 54 operations; real Springdoc must cover every implemented operation and must not regress beyond the documented 31-operation gap.
 
 ## Documentation
 
@@ -137,12 +141,15 @@ mkdocs build --strict
 
 GitHub Pages deployment is handled by `.github/workflows/pages.yml` on pushes to `main` that touch `docs/**`, `mkdocs.yml`, `requirements-docs.txt` or the workflow itself.
 
+Backend production demo deployment is handled by `.github/workflows/deploy.yml` on every push to `main`: the self-hosted runner on `66.42.121.18` runs `mvn -B clean package`, installs `/opt/finguide-api/finguide-be.jar`, restarts `finguide-api.service`, then smoke-tests health.
+
 Important pages:
 
 - `docs/status.md` — actual implementation status;
 - `docs/roadmap.md` — completed and planned work;
 - `docs/database.md` — current H2 DDL and migration notes;
 - `docs/contract.md` — backend/frontend API contract;
+- `docs/operations.md` — CI/CD, runner and deploy details;
 - `docs/model-analytics.md` — Excel model analysis;
 - `docs/backend-architecture-keycloak.md` — architecture and auth.
 

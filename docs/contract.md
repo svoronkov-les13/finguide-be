@@ -32,6 +32,9 @@
 - Legacy mock Swagger остаётся только для переходного сравнения: `http://66.42.121.18/finguide-mock/`.
 
 Текущая real-реализация на H2 уже покрывает чтение плана/дашборда/health/cashflow/scenarios и CRUD для `IncomeSource`, `ExpenseItem`, `Goal`, включая `goals/reorder`. Остальные группы методов из карты ниже пока ведутся отдельными задачами.
+
+OpenAPI guardrail [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) включён в тестовый набор: checked-in `openapi/openapi.json` сейчас содержит 54 операции, real Springdoc покрывает 23 реализованные операции, а известный gap в 31 операцию явно зафиксирован. Новые endpoints должны одновременно добавляться в real Springdoc и уменьшать этот gap; случайное исчезновение уже реализованной операции из `/v3/api-docs` ломает тесты.
+
 - Авторизация: `Authorization: Bearer <JWT>` с access token из Keycloak realm `finguide`. Бэкенд валидирует JWT как OAuth2 Resource Server и не владеет password-based `/auth/register/login/refresh/logout` endpoints. В demo/H2 режиме (`FINGUIDE_DEMO_MODE=true`) `/api/v1/**` временно открыт для интеграции фронтенда с real backend без Keycloak.
 - Все даты: ISO-8601 (`YYYY-MM-DD`, `date-time` UTC).
 - Деньги: число в валюте записи + `currency`; агрегаты возвращаются в базовой валюте плана.

@@ -23,6 +23,7 @@ Legacy mock Swagger: <http://66.42.121.18/finguide-mock/> — только дл�
 - [Roadmap](roadmap.md) — готовые и будущие задачи.
 - [База данных](database.md) — фактическая H2 schema и ограничения demo persistence.
 - [Контракт API](contract.md) — целевой договор backend ↔ frontend.
+- [Operations и CI/CD](operations.md) — self-hosted runner, auto-deploy и smoke checks.
 - [Аналитическая Excel-модель](model-analytics.md) — канонические расчёты из исходной модели.
 - [Архитектура бэкенда и Keycloak](backend-architecture-keycloak.md) — целевое устройство backend/auth.
 - [Модули бэкенда](backend-modules.md) — пакетная структура и границы модулей.
@@ -40,11 +41,12 @@ Legacy mock Swagger: <http://66.42.121.18/finguide-mock/> — только дл�
 - Keycloak JWT Resource Server boundary;
 - user-owned current plan после логина;
 - защита authenticated users от чтения/мутации чужих планов;
-- frontend session restore без demo/default profile flash.
+- frontend session restore без demo/default profile flash;
+- self-hosted GitHub Actions deploy backend/web после push в `main`;
+- [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) OpenAPI coverage guard: real Springdoc защищён от регрессий относительно checked-in OpenAPI.
 
 Открытые guardrails:
 
-- [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) — real Springdoc coverage vs checked-in OpenAPI;
 - [#26](https://github.com/svoronkov-les13/finguide-be/issues/26) — запрет мутации общего anonymous demo seed plan.
 
 ## Главная договорённость

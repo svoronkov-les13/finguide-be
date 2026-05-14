@@ -26,9 +26,14 @@
 
 ## Дальше
 
+### CI/CD и guardrails — 2026-05-14
+
+- [x] Backend auto-deploy из `main` через self-hosted GitHub Actions runner на `66.42.121.18` — commit `1ed1fed`.
+- [x] Frontend auto-deploy из `main` через self-hosted GitHub Actions runner на `66.42.121.18` — web commit `ce9e8eb`.
+- [x] [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) — OpenAPI coverage guard для real Swagger — commit `3cc7165`.
+
 ### Iteration 1 — guardrails + persisted analytics, 2026-05-04 → 2026-05-10
 
-- [ ] [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) — OpenAPI coverage guard для real Swagger.
 - [ ] [#26](https://github.com/svoronkov-les13/finguide-be/issues/26) — запретить мутацию общего anonymous demo seed plan.
 - [ ] [#4](https://github.com/svoronkov-les13/finguide-be/issues/4) — analytics/cashflow/pension из persisted state.
 

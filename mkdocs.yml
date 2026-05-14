@@ -57,6 +57,7 @@ nav:
   - Roadmap: roadmap.md
   - База данных: database.md
   - Контракт API: contract.md
+  - Operations и CI/CD: operations.md
   - Аналитическая Excel-модель: model-analytics.md
   - Архитектура:
       - Бэкенд и Keycloak: backend-architecture-keycloak.md

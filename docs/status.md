@@ -10,6 +10,8 @@
 - Real OpenAPI JSON: <http://66.42.121.18/finguide-api/v3/api-docs>
 - Keycloak realm: <http://66.42.121.18/auth/realms/finguide>
 - GitHub Pages docs: <https://svoronkov-les13.github.io/finguide-be/>
+- Backend service: `finguide-api.service`
+- Backend jar: `/opt/finguide-api/finguide-be.jar`
 
 ## Backend
 
@@ -28,9 +30,10 @@
 - `POST /plans/{planId}/goals/reorder`;
 - Keycloak/OIDC boundary: JWT validation, audience check, lazy local profile mapping, user-owned current plan after first authenticated request, plan ownership checks;
 - frontend/auth bootstrap fixes: authenticated session no longer reuses anonymous demo cache/default profile;
-- H2 seed data from `schema.sql` + `data.sql`.
+- H2 seed data from `schema.sql` + `data.sql`;
+- OpenAPI coverage guard [#16](https://github.com/svoronkov-les13/finguide-be/issues/16): checked-in `openapi/openapi.json` содержит 54 операции, real Springdoc покрывает 23 уже реализованные операции, а известный gap в 31 операцию зафиксирован тестом и не должен расти случайно.
 
-Текущая checked-in OpenAPI спецификация шире real Springdoc. Guardrail-задача: [#16](https://github.com/svoronkov-les13/finguide-be/issues/16).
+Текущая checked-in OpenAPI спецификация всё ещё шире real Springdoc, но расхождение теперь явно зафиксировано тестом `OpenApiContractCoverageTests`. Следующие задачи должны уменьшать список missing operations по мере реализации endpoints.
 
 ## Demo/H2 режим
 
@@ -43,6 +46,20 @@ spring.sql.init.mode=always
 ```
 
 Anonymous requests читают seeded plan `22222222-2222-4222-8222-222222222222`. Authenticated users получают собственный cloned current plan. Запрет мутации общего anonymous seed выделен в отдельную задачу [#26](https://github.com/svoronkov-les13/finguide-be/issues/26).
+
+## CI/CD
+
+Backend deploy автоматизирован через `.github/workflows/deploy.yml`:
+
+- trigger: push в `main` или ручной `workflow_dispatch`;
+- runner: self-hosted на `66.42.121.18`, labels `self-hosted`, `finguide-be`;
+- gate: `mvn -B clean package`;
+- deploy: установка jar в `/opt/finguide-api/finguide-be.jar` и restart `finguide-api.service`;
+- smoke: локальный `127.0.0.1:3093/actuator/health` и публичный `/finguide-api/actuator/health`.
+
+Docs deploy автоматизирован через `.github/workflows/pages.yml` и `mkdocs build --strict`.
+
+Frontend deploy также переведён на self-hosted runner на этом же сервере: push в `main` собирает `dist/` и выкладывает публичный стенд под `/fg/`.
 
 ## Frontend
 
@@ -61,6 +78,7 @@ Anonymous requests читают seeded plan `22222222-2222-4222-8222-22222222222
 
 Основные открытые группы:
 
+- запрет мутации общего anonymous demo seed plan — [#26](https://github.com/svoronkov-les13/finguide-be/issues/26);
 - analytics/pension из persisted state — [#4](https://github.com/svoronkov-les13/finguide-be/issues/4);
 - `PUT /plans/current` — [#7](https://github.com/svoronkov-les13/finguide-be/issues/7);
 - profile/avatar/account mutations — [#8](https://github.com/svoronkov-les13/finguide-be/issues/8);
