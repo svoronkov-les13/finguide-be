@@ -31,9 +31,9 @@
 - Swagger UI реального бэкенда: `http://66.42.121.18/finguide-api/swagger-ui.html`.
 - Legacy mock Swagger остаётся только для переходного сравнения: `http://66.42.121.18/finguide-mock/`.
 
-Текущая real-реализация на H2 уже покрывает чтение плана/дашборда/health/cashflow/scenarios и CRUD для `IncomeSource`, `ExpenseItem`, `Goal`, включая `goals/reorder`. Остальные группы методов из карты ниже пока ведутся отдельными задачами.
+Текущая real-реализация на H2 уже покрывает чтение плана/дашборда/health/cashflow/scenarios, persisted analytics assumptions/current balance/yearly projection/pension projection и CRUD для `IncomeSource`, `ExpenseItem`, `Goal`, включая `goals/reorder`. Остальные группы методов из карты ниже пока ведутся отдельными задачами.
 
-OpenAPI guardrail [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) включён в тестовый набор: checked-in `openapi/openapi.json` сейчас содержит 54 операции, real Springdoc покрывает 23 реализованные операции, а известный gap в 31 операцию явно зафиксирован. Новые endpoints должны одновременно добавляться в real Springdoc и уменьшать этот gap; случайное исчезновение уже реализованной операции из `/v3/api-docs` ломает тесты.
+OpenAPI guardrail [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) включён в тестовый набор: checked-in `openapi/openapi.json` сейчас содержит 54 операции, real Springdoc покрывает 28 реализованных операций, а известный gap в 26 операций явно зафиксирован. Новые endpoints должны одновременно добавляться в real Springdoc и уменьшать этот gap; случайное исчезновение уже реализованной операции из `/v3/api-docs` ломает тесты.
 
 - Авторизация: `Authorization: Bearer <JWT>` с access token из Keycloak realm `finguide`. Бэкенд валидирует JWT как OAuth2 Resource Server и не владеет password-based `/auth/register/login/refresh/logout` endpoints. В demo/H2 режиме (`FINGUIDE_DEMO_MODE=true`) `/api/v1/**` временно открыт для интеграции фронтенда с real backend без Keycloak.
 - Все даты: ISO-8601 (`YYYY-MM-DD`, `date-time` UTC).
@@ -215,14 +215,14 @@ Keycloak владеет входом, регистрацией, refresh/logout, 
 
 ### Аналитика и производные данные
 
-- `GET /plans/{planId}/dashboard`
-- `GET /plans/{planId}/analytics/projection?years=30`
-- `GET/PATCH /plans/{planId}/analytics/assumptions`
-- `GET /plans/{planId}/analytics/balance/current`
-- `GET /plans/{planId}/analytics/cashflow?startYear=2024&endYear=2076`
-- `GET /plans/{planId}/analytics/health`
+- `GET /plans/{planId}/dashboard` — реализовано в real backend.
+- `GET /plans/{planId}/analytics/projection?years=30` — реализовано в real backend; строит годовую проекцию из persisted `PlanState`.
+- `GET/PATCH /plans/{planId}/analytics/assumptions` — реализовано в real backend; `PATCH` требует writable plan access, поэтому общий anonymous seed read-only.
+- `GET /plans/{planId}/analytics/balance/current` — реализовано в real backend.
+- `GET /plans/{planId}/analytics/cashflow?startYear=2024&endYear=2076` — базовый 12-летний cashflow реализован в real backend; параметры периода остаются частью целевого contract.
+- `GET /plans/{planId}/analytics/health` — реализовано в real backend.
 - `GET/POST /plans/{planId}/calendar/monthly-tracker`
-- `GET /plans/{planId}/pension/projection`
+- `GET /plans/{planId}/pension/projection` — реализовано в real backend; строится из persisted state и текущих pension settings.
 
 `analytics/cashflow` — главный метод API в стиле Excel-модели. Он возвращает годовые строки: возраст, номер периода, доходы, расходы, расходы на цели, чистые сбережения, капитал на начало/конец года.
 
