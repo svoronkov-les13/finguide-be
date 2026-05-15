@@ -170,7 +170,7 @@ public class PlanReadService {
         BigDecimal yearlyExpenses = yearlyOneTimeExpenses(state);
         BigDecimal monthlyGoalExpenses = BigDecimal.ZERO;
         Map<Integer, BigDecimal> actualGoalExpensesByYear = actualGoalExpensesByYear(state, 1);
-        BigDecimal yearlyGoalExpenses = goalAllocationPlan(state, 1, actualGoalExpensesByYear).byYear().getOrDefault(year, BigDecimal.ZERO)
+        BigDecimal yearlyGoalExpenses = plannedGoalExpensesByYear(state, 1).getOrDefault(year, BigDecimal.ZERO)
                 .add(actualGoalExpensesByYear.getOrDefault(year, BigDecimal.ZERO));
         BigDecimal goalExpenses = monthlyGoalExpenses.multiply(TWELVE).add(yearlyGoalExpenses);
         BigDecimal totalOutflow = monthlyExpenses.multiply(TWELVE).add(yearlyExpenses).add(goalExpenses);
@@ -316,7 +316,7 @@ public class PlanReadService {
     private static List<CashFlowProjectionPoint> cashflow(PlanState state, int horizon, Map<Integer, BigDecimal> actualGoalExpensesByYear) {
         int startYear = Math.max(Year.now().getValue(), state.modelAssumptions().startYear());
         BigDecimal capital = state.modelAssumptions().initialCapital();
-        Map<Integer, BigDecimal> goalAllocationsByYear = goalAllocationPlan(state, horizon, actualGoalExpensesByYear).byYear();
+        Map<Integer, BigDecimal> plannedGoalExpensesByYear = plannedGoalExpensesByYear(state, horizon);
         List<CashFlowProjectionPoint> result = new ArrayList<>();
         for (int offset = 0; offset < horizon; offset++) {
             int year = startYear + offset;
@@ -326,7 +326,7 @@ public class PlanReadService {
             BigDecimal monthlyExpenses = grow(monthlyExpenses(state), averageExpenseGrowth(state), offset);
             BigDecimal yearlyExpenses = grow(yearlyOneTimeExpenses(state), averageExpenseGrowth(state), offset);
             BigDecimal totalExpenses = monthlyExpenses.multiply(TWELVE).add(yearlyExpenses);
-            BigDecimal yearlyGoalExpenses = goalAllocationsByYear.getOrDefault(year, BigDecimal.ZERO)
+            BigDecimal yearlyGoalExpenses = plannedGoalExpensesByYear.getOrDefault(year, BigDecimal.ZERO)
                     .add(actualGoalExpensesByYear.getOrDefault(year, BigDecimal.ZERO));
             BigDecimal netSavings = totalIncome.subtract(totalExpenses).subtract(yearlyGoalExpenses);
             BigDecimal capitalStart = capital;
@@ -502,6 +502,21 @@ public class PlanReadService {
                 .filter(contribution -> contribution.amount().signum() > 0)
                 .filter(contribution -> contribution.date().getYear() >= startYear && contribution.date().getYear() <= endYear)
                 .forEach(contribution -> byYear.merge(contribution.date().getYear(), contribution.amount(), BigDecimal::add));
+        return byYear;
+    }
+
+    private static Map<Integer, BigDecimal> plannedGoalExpensesByYear(PlanState state, int horizon) {
+        int startYear = Math.max(Year.now().getValue(), state.modelAssumptions().startYear());
+        int endYear = startYear + horizon - 1;
+        Map<Integer, BigDecimal> byYear = new LinkedHashMap<>();
+        for (Goal goal : state.goals()) {
+            if (goal.targetYear() < startYear || goal.targetYear() > endYear) {
+                continue;
+            }
+            BigDecimal targetCost = targetCost(goal, startYear);
+            BigDecimal remaining = targetCost.subtract(goal.savedAmount()).max(BigDecimal.ZERO);
+            byYear.merge(goal.targetYear(), remaining, BigDecimal::add);
+        }
         return byYear;
     }
 
