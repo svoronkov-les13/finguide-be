@@ -654,7 +654,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     @Override
     public void recalculateGoalSavedAmount(UUID planId, UUID goalId) {
         List<GoalSavingsTarget> goals = jdbcTemplate.query(
-                "select id, current_cost from goals where plan_id = ? order by priority, target_year, id",
+                "select id, current_cost from goals where plan_id = ? order by target_year, priority, id",
                 (rs, rowNum) -> new GoalSavingsTarget(rs.getObject("id", UUID.class), rs.getBigDecimal("current_cost")),
                 planId
         );

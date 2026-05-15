@@ -469,7 +469,7 @@ public class PlanReadService {
     private static GoalAllocationPlan goalAllocationPlan(PlanState state, int horizon) {
         int startYear = Math.max(Year.now().getValue(), state.modelAssumptions().startYear());
         List<Goal> goals = state.goals().stream()
-                .sorted(Comparator.comparingInt(Goal::priority).thenComparingInt(Goal::targetYear).thenComparing(Goal::id))
+                .sorted(Comparator.comparingInt(Goal::targetYear).thenComparingInt(Goal::priority).thenComparing(Goal::id))
                 .toList();
 
         Map<UUID, BigDecimal> targetCosts = new LinkedHashMap<>();

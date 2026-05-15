@@ -234,7 +234,7 @@ class BudgetTrackerControllerTests {
     }
 
     @Test
-    void actualGoalTrackerEntriesContributeToGoalsAndOverflowByPriority() throws Exception {
+    void actualGoalTrackerEntriesContributeToGoalsAndOverflowByYearThenPriority() throws Exception {
         RequestPostProcessor jwt = userJwt("operation-journal-goal-owner");
         JsonNode current = currentPlan(jwt);
         String planId = current.at("/data/id").asText();
@@ -271,11 +271,12 @@ class BudgetTrackerControllerTests {
         mockMvc.perform(get("/api/v1/plans/current").with(jwt))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.goals[0].savedAmount").value(1500000))
-                .andExpect(jsonPath("$.data.goals[1].savedAmount").value(100000));
+                .andExpect(jsonPath("$.data.goals[1].savedAmount").value(0))
+                .andExpect(jsonPath("$.data.goals[2].savedAmount").value(100000));
     }
 
     @Test
-    void monthlyTrackerAmountsOverflowToNextGoalByPriority() throws Exception {
+    void monthlyTrackerAmountsOverflowToNextGoalByYearThenPriority() throws Exception {
         RequestPostProcessor jwt = userJwt("monthly-tracker-overflow-owner");
         String planId = currentPlan(jwt).at("/data/id").asText();
 
@@ -307,9 +308,12 @@ class BudgetTrackerControllerTests {
 
         mockMvc.perform(get("/api/v1/plans/current").with(jwt))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.goals[0].name").value("Финансовая подушка"))
                 .andExpect(jsonPath("$.data.goals[0].savedAmount").value(1500000))
-                .andExpect(jsonPath("$.data.goals[1].savedAmount").value(100000))
-                .andExpect(jsonPath("$.data.goals[2].savedAmount").value(0));
+                .andExpect(jsonPath("$.data.goals[1].name").value("Первый взнос на квартиру"))
+                .andExpect(jsonPath("$.data.goals[1].savedAmount").value(0))
+                .andExpect(jsonPath("$.data.goals[2].name").value("Новый автомобиль"))
+                .andExpect(jsonPath("$.data.goals[2].savedAmount").value(100000));
     }
 
     @Test
