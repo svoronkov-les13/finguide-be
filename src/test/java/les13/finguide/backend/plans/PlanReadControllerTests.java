@@ -54,14 +54,14 @@ class PlanReadControllerTests {
         mockMvc.perform(get("/api/v1/plans/{planId}/dashboard", planId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.totalMonthlyIncome").value(345000))
-                .andExpect(jsonPath("$.data.netMonthlyBalance").value(-15000))
-                .andExpect(jsonPath("$.data.netYearlyBalance").value(0))
+                .andExpect(jsonPath("$.data.netMonthlyBalance").value(196000))
+                .andExpect(jsonPath("$.data.netYearlyBalance").value(2532000))
                 .andExpect(jsonPath("$.data.yearlyProjection", hasSize(4)));
 
         mockMvc.perform(get("/api/v1/plans/{planId}/analytics/health", planId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.items", hasSize(3)))
-                .andExpect(jsonPath("$.data.items[0].status").value("bad"));
+                .andExpect(jsonPath("$.data.items[0].status").value("good"));
 
         mockMvc.perform(get("/api/v1/plans/{planId}/analytics/cashflow", planId))
                 .andExpect(status().isOk())
@@ -76,16 +76,16 @@ class PlanReadControllerTests {
 
 
     @Test
-    void allocatesGoalSpendingAndSubtractsItFromNetSavingsAndCapital() throws Exception {
+    void schedulesPlannedGoalSpendingInTargetYearAndSubtractsItFromCapital() throws Exception {
         String planId = "22222222-2222-4222-8222-222222222222";
 
         mockMvc.perform(get("/api/v1/plans/{planId}/analytics/cashflow", planId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[0].netSavings").value(0))
-                .andExpect(jsonPath("$.data[0].totalGoalExpenses").value(2532000))
-                .andExpect(jsonPath("$.data[0].capitalEndOfYear").value(2650000.0))
-                .andExpect(jsonPath("$.data[1].netSavings").value(0.0))
-                .andExpect(jsonPath("$.data[1].totalGoalExpenses").value(2797640.94));
+                .andExpect(jsonPath("$.data[0].netSavings").value(2532000))
+                .andExpect(jsonPath("$.data[0].totalGoalExpenses").value(0))
+                .andExpect(jsonPath("$.data[0].capitalEndOfYear").value(5182000.0))
+                .andExpect(jsonPath("$.data[1].netSavings").value(1192640.94))
+                .andExpect(jsonPath("$.data[1].totalGoalExpenses").value(1605000.0));
 
         mockMvc.perform(get("/api/v1/plans/current"))
                 .andExpect(status().isOk())
@@ -152,16 +152,16 @@ class PlanReadControllerTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.monthlyIncome").value(345000))
                 .andExpect(jsonPath("$.data.totalIncome").value(4320000))
-                .andExpect(jsonPath("$.data.goalExpenses").value(2532000))
-                .andExpect(jsonPath("$.data.totalOutflow").value(4320000))
-                .andExpect(jsonPath("$.data.netSavings").value(0));
+                .andExpect(jsonPath("$.data.goalExpenses").value(0))
+                .andExpect(jsonPath("$.data.totalOutflow").value(1788000))
+                .andExpect(jsonPath("$.data.netSavings").value(2532000));
 
         mockMvc.perform(get("/api/v1/plans/{planId}/analytics/projection?years=2", planId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data", hasSize(2)))
                 .andExpect(jsonPath("$.data[0].income").value(4320000))
-                .andExpect(jsonPath("$.data[0].goalsCost").value(2532000))
-                .andExpect(jsonPath("$.data[0].netSavings").value(0));
+                .andExpect(jsonPath("$.data[0].goalsCost").value(0))
+                .andExpect(jsonPath("$.data[0].netSavings").value(2532000));
 
         mockMvc.perform(get("/api/v1/plans/{planId}/pension/projection", planId))
                 .andExpect(status().isOk())
