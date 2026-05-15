@@ -62,12 +62,12 @@ public class PlanReadService {
         BigDecimal yearlyExpenses = yearlyExpenses(state);
         List<CashFlowProjectionPoint> cashflow = cashflow(planId);
         BigDecimal currentYearGoalExpenses = cashflow.isEmpty() ? BigDecimal.ZERO : cashflow.get(0).totalGoalExpenses();
-        BigDecimal monthlyGoalContribution = currentYearGoalExpenses.divide(TWELVE, 0, RoundingMode.HALF_UP);
-        BigDecimal netMonthly = monthlyIncome.subtract(monthlyExpenses).subtract(monthlyGoalContribution);
+        BigDecimal netMonthly = monthlyIncome.subtract(monthlyExpenses).subtract(currentYearGoalExpenses.divide(TWELVE, 0, RoundingMode.HALF_UP));
         BigDecimal netYearly = yearlyIncome.subtract(yearlyExpenses).subtract(currentYearGoalExpenses);
         BigDecimal totalGoalsCost = state.goals().stream().map(Goal::currentCost).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal totalGoalsSaved = state.goals().stream().map(Goal::savedAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal totalGoalsRemaining = totalGoalsCost.subtract(totalGoalsSaved).max(BigDecimal.ZERO);
+        BigDecimal monthlyGoalContribution = recommendedMonthlyGoalContribution(state);
         BigDecimal savingsRate = yearlyIncome.signum() == 0
                 ? BigDecimal.ZERO
                 : netYearly.multiply(HUNDRED).divide(yearlyIncome, 1, RoundingMode.HALF_UP);
@@ -469,6 +469,18 @@ public class PlanReadService {
                 .filter(goal -> goal.targetYear() == year)
                 .map(goal -> goal.currentCost().subtract(goal.savedAmount()).max(BigDecimal.ZERO))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private static BigDecimal recommendedMonthlyGoalContribution(PlanState state) {
+        int currentYear = Math.max(Year.now().getValue(), state.modelAssumptions().startYear());
+        BigDecimal weightedMonthlyNeed = state.goals().stream()
+                .map(goal -> {
+                    BigDecimal remaining = targetCost(goal, currentYear).subtract(goal.savedAmount()).max(BigDecimal.ZERO);
+                    int monthsUntilTarget = Math.max(1, (goal.targetYear() - currentYear + 1) * state.modelAssumptions().monthsPerYear());
+                    return remaining.divide(BigDecimal.valueOf(monthsUntilTarget), 2, RoundingMode.HALF_UP);
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return weightedMonthlyNeed.setScale(0, RoundingMode.HALF_UP);
     }
 
     private static int projectionHorizon(PlanState state) {

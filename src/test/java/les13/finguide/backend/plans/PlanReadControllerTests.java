@@ -54,6 +54,7 @@ class PlanReadControllerTests {
         mockMvc.perform(get("/api/v1/plans/{planId}/dashboard", planId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.totalMonthlyIncome").value(345000))
+                .andExpect(jsonPath("$.data.monthlyGoalContribution", greaterThan(0)))
                 .andExpect(jsonPath("$.data.netMonthlyBalance").value(196000))
                 .andExpect(jsonPath("$.data.netYearlyBalance").value(2532000))
                 .andExpect(jsonPath("$.data.yearlyProjection", hasSize(4)));
