@@ -98,6 +98,24 @@ class ContributionControllerTests {
     }
 
     @Test
+    void capsManualContributionOverflowWhenThereIsNoNextGoal() throws Exception {
+        RequestPostProcessor jwt = userJwt("contribution-overflow-last-owner");
+        JsonNode current = currentPlan(jwt);
+        String planId = current.at("/data/id").asText();
+        String lastGoalId = current.at("/data/goals/2/id").asText();
+
+        mockMvc.perform(post("/api/v1/plans/{planId}/contributions", planId)
+                        .with(jwt)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(contributionJson(lastGoalId, 4000000, "2026-05-14", "Over target")))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/v1/plans/current").with(jwt))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.goals[2].savedAmount").value(3500000));
+    }
+
+    @Test
     void deletingGoalAlsoDeletesItsContributions() throws Exception {
         RequestPostProcessor jwt = userJwt("contribution-goal-delete-owner");
         JsonNode current = currentPlan(jwt);

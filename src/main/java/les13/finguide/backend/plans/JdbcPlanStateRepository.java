@@ -653,15 +653,42 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
 
     @Override
     public void recalculateGoalSavedAmount(UUID planId, UUID goalId) {
-        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        jdbcTemplate.update(
-                "update goals set saved_amount = (select coalesce(sum(amount), 0) from contributions where plan_id = ? and goal_id = ?), updated_at = ? where plan_id = ? and id = ?",
-                planId,
-                goalId,
-                now,
-                planId,
-                goalId
+        List<GoalSavingsTarget> goals = jdbcTemplate.query(
+                "select id, current_cost from goals where plan_id = ? order by priority, target_year, id",
+                (rs, rowNum) -> new GoalSavingsTarget(rs.getObject("id", UUID.class), rs.getBigDecimal("current_cost")),
+                planId
         );
+        if (goals.isEmpty()) {
+            return;
+        }
+
+        Map<UUID, BigDecimal> manualByGoal = new LinkedHashMap<>();
+        jdbcTemplate.query(
+                "select goal_id, coalesce(sum(amount), 0) amount from contributions where plan_id = ? group by goal_id",
+                (RowCallbackHandler) rs -> manualByGoal.put(rs.getObject("goal_id", UUID.class), rs.getBigDecimal("amount")),
+                planId
+        );
+        BigDecimal generatedPool = queryOptional(
+                "select coalesce(sum(amount), 0) from operation_journal_entries where plan_id = ? and entry_type = 'goal' and status = 'actual' and amount > 0",
+                (rs, rowNum) -> rs.getBigDecimal(1),
+                planId
+        ).orElse(BigDecimal.ZERO);
+
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        BigDecimal overflow = generatedPool.max(BigDecimal.ZERO);
+        for (GoalSavingsTarget goal : goals) {
+            BigDecimal available = overflow.add(manualByGoal.getOrDefault(goal.id(), BigDecimal.ZERO).max(BigDecimal.ZERO));
+            BigDecimal target = goal.currentCost().max(BigDecimal.ZERO);
+            BigDecimal saved = available.min(target).setScale(2, RoundingMode.HALF_UP);
+            overflow = available.subtract(saved).max(BigDecimal.ZERO);
+            jdbcTemplate.update(
+                    "update goals set saved_amount = ?, updated_at = ? where plan_id = ? and id = ?",
+                    saved,
+                    now,
+                    planId,
+                    goal.id()
+            );
+        }
         touchPlan(planId, now);
     }
 
@@ -1045,6 +1072,8 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
         return value.name().toLowerCase();
     }
 
+    private record GoalSavingsTarget(UUID id, BigDecimal currentCost) {
+    }
 
     private FinancialPlan mapPlan(ResultSet rs, int rowNum) throws SQLException {
         return new FinancialPlan(

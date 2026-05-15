@@ -131,7 +131,7 @@ public class BudgetTrackerService {
     public OperationJournalEntry createOperationJournalEntry(UUID planId, BudgetTrackerRequests.OperationJournalEntryRequest request) {
         accessService.requireWritablePlan(planId);
         Instant now = Instant.now();
-        return repository.createOperationJournalEntry(new OperationJournalEntry(
+        OperationJournalEntry created = repository.createOperationJournalEntry(new OperationJournalEntry(
                 UUID.randomUUID(),
                 planId,
                 parseDate(requiredText(request.date(), "date")),
@@ -142,6 +142,8 @@ public class BudgetTrackerService {
                 now,
                 now
         ));
+        repository.recalculateGoalSavedAmount(planId, null);
+        return created;
     }
 
     @Transactional
@@ -150,7 +152,7 @@ public class BudgetTrackerService {
         OperationJournalEntry current = repository.findOperationJournalEntry(planId, entryId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "operation journal entry was not found"));
         Instant now = Instant.now();
-        return repository.updateOperationJournalEntry(new OperationJournalEntry(
+        OperationJournalEntry updated = repository.updateOperationJournalEntry(new OperationJournalEntry(
                 current.id(),
                 current.planId(),
                 request.date() == null ? current.date() : parseDate(requiredText(request.date(), "date")),
@@ -161,6 +163,8 @@ public class BudgetTrackerService {
                 current.createdAt(),
                 now
         ));
+        repository.recalculateGoalSavedAmount(planId, null);
+        return updated;
     }
 
     @Transactional
@@ -169,6 +173,7 @@ public class BudgetTrackerService {
         if (!repository.deleteOperationJournalEntry(planId, entryId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "operation journal entry was not found");
         }
+        repository.recalculateGoalSavedAmount(planId, null);
     }
 
     private static BudgetSettings.Method parseMethod(String value) {
