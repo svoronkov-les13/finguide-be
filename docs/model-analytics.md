@@ -139,7 +139,7 @@ totalGoalExpenses[year] = totalMonthlyGoalExpenses[year] + totalYearlyGoalExpens
 freeCashflow[year] = totalIncome[year] - normalizedExpenses[year]
 # если используются signed Numbers values: freeCashflow = totalIncome + totalExpenses
 pool += freeCashflow[year]
-for goal in goals sorted by priority, targetYear, id:
+for goal in goals sorted by targetYear, priority, id:
   targetCost = currentCost grown by goal.growthPct until targetYear
   allocated = min(pool, targetCost - previouslyAllocatedToGoal)
   projectedSavedAmount += allocated
@@ -148,8 +148,9 @@ for goal in goals sorted by priority, targetYear, id:
 
 Поэтому:
 
-- `netSavings` в API не должен уменьшаться на одноразовые цели из UI;
-- `totalGoalExpenses` нужно использовать только для явных recurring/planned goal expense lines, если они представлены в модели;
+- `totalGoalExpenses` отражает прогнозное финансирование UI-целей в конкретном году;
+- `netSavings` в API уменьшается на `totalGoalExpenses`, потому что цель — это реальный денежный outflow;
+- `capitalEndOfYear`, dashboard balance, health/savings rate и scenario projections строятся поверх этого post-goal cashflow;
 - `Goal.savedAmount` остаётся фактическим/ledger-состоянием, а прогнозные поля — отдельные: `projectedTargetCost`, `projectedSavedAmount`, `projectedProgressPct`, `projectedReachable`, `projectedCompletionYear`.
 
 ## Баланс текущего года
@@ -279,14 +280,15 @@ netMonthlyBalance = monthlyIncome - monthlyExpenses
 netYearlyBalance = netMonthlyBalance * 12
 ```
 
-Финансовые цели учитываются отдельно через рекомендуемый взнос:
+Финансовые цели учитываются как прогнозный денежный outflow текущего года:
 
 ```txt
-monthlyGoalContribution = sum(requiredMonthlyContribution(oneTimeGoals))
-availableForPension = max(0, netMonthlyBalance - monthlyGoalContribution)
+monthlyGoalContribution = currentYearGoalExpenses / 12
+netMonthlyBalance = monthlyIncome - monthlyExpenses - monthlyGoalContribution
+availableForPension = max(0, netMonthlyBalance)
 ```
 
-Это совпадает с backend-решением: one-time UI goals не уменьшают `netSavings`; backend отдаёт прогнозные `projected*` поля по целям, а не подменяет фактические `currentCost` / `savedAmount`.
+Backend отдаёт `projected*` поля по целям отдельно от фактических `currentCost` / `savedAmount`, но само финансирование целей уменьшает `netSavings` и капитал.
 
 ### Contribution ledger
 
@@ -314,7 +316,7 @@ goal.savedAmount = sum(contributions.amount where contribution.goalId == goal.id
 ## Контрактные выводы
 
 1. `analytics/cashflow` должен показывать раздельно `totalIncome`, `totalExpenses`, `totalGoalExpenses`, `netSavings`, `capitalEndOfYear`.
-2. `netSavings` для текущих одноразовых UI-целей считается без вычитания goal allocation. Если появятся recurring goal expense lines из листа `Цели`, они должны быть отдельным источником `totalGoalExpenses`.
+2. `netSavings = totalIncome - totalExpenses - totalGoalExpenses`; цель считается денежным outflow и уменьшает капитал.
 3. `analytics/balance/current` должен зеркалить лист `Баланс` по текущему году.
 4. `analytics/projection` и `pension/projection` должны строиться из одного расчётного ядра, а `dashboard`, `health`, `scenarios/compare` — быть сводками поверх него.
 5. `Goal` должен разделять фактические поля (`currentCost`, `savedAmount`) и прогнозные поля (`projected*`), чтобы отображение прогресса не портило данные редактирования.

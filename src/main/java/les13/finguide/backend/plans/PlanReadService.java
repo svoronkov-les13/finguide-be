@@ -60,19 +60,18 @@ public class PlanReadService {
         BigDecimal yearlyIncome = yearlyIncome(state);
         BigDecimal monthlyExpenses = monthlyExpenses(state);
         BigDecimal yearlyExpenses = yearlyExpenses(state);
-        BigDecimal netMonthly = monthlyIncome.subtract(monthlyExpenses);
-        BigDecimal netYearly = yearlyIncome.subtract(yearlyExpenses);
+        int currentYear = Math.max(Year.now().getValue(), state.modelAssumptions().startYear());
+        BigDecimal currentYearGoalExpenses = goalAllocationPlan(state, 1).byYear().getOrDefault(currentYear, BigDecimal.ZERO);
+        BigDecimal monthlyGoalContribution = currentYearGoalExpenses.divide(TWELVE, 0, RoundingMode.HALF_UP);
+        BigDecimal netMonthly = monthlyIncome.subtract(monthlyExpenses).subtract(monthlyGoalContribution);
+        BigDecimal netYearly = yearlyIncome.subtract(yearlyExpenses).subtract(currentYearGoalExpenses);
         BigDecimal totalGoalsCost = state.goals().stream().map(Goal::currentCost).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal totalGoalsSaved = state.goals().stream().map(Goal::savedAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal totalGoalsRemaining = totalGoalsCost.subtract(totalGoalsSaved).max(BigDecimal.ZERO);
         BigDecimal savingsRate = yearlyIncome.signum() == 0
                 ? BigDecimal.ZERO
                 : netYearly.multiply(HUNDRED).divide(yearlyIncome, 1, RoundingMode.HALF_UP);
-        int currentYear = Math.max(Year.now().getValue(), state.modelAssumptions().startYear());
-        int latestGoalYear = state.goals().stream().mapToInt(Goal::targetYear).max().orElse(currentYear + 1);
-        int monthsToGoal = Math.max(1, (latestGoalYear - currentYear + 1) * state.modelAssumptions().monthsPerYear());
-        BigDecimal monthlyGoalContribution = totalGoalsRemaining.divide(BigDecimal.valueOf(monthsToGoal), 0, RoundingMode.HALF_UP);
-        BigDecimal availableForPension = netMonthly.subtract(monthlyGoalContribution).max(BigDecimal.ZERO);
+        BigDecimal availableForPension = netMonthly.max(BigDecimal.ZERO);
         int yearsToRetirement = Math.max(0, state.pension().retirementAge() - state.pension().currentAge());
         BigDecimal projectedPensionCapital = state.modelAssumptions().initialCapital()
                 .add(availableForPension.multiply(TWELVE).multiply(BigDecimal.valueOf(yearsToRetirement)));
@@ -167,7 +166,7 @@ public class PlanReadService {
         BigDecimal monthlyGoalExpenses = BigDecimal.ZERO;
         BigDecimal yearlyGoalExpenses = goalAllocationPlan(state, 1).byYear().getOrDefault(year, BigDecimal.ZERO);
         BigDecimal goalExpenses = monthlyGoalExpenses.multiply(TWELVE).add(yearlyGoalExpenses);
-        BigDecimal totalOutflow = monthlyExpenses.multiply(TWELVE).add(yearlyExpenses);
+        BigDecimal totalOutflow = monthlyExpenses.multiply(TWELVE).add(yearlyExpenses).add(goalExpenses);
         return new BalanceSnapshot(
                 year,
                 monthlyIncome,
@@ -317,7 +316,7 @@ public class PlanReadService {
             BigDecimal yearlyExpenses = grow(yearlyOneTimeExpenses(state), averageExpenseGrowth(state), offset);
             BigDecimal totalExpenses = monthlyExpenses.multiply(TWELVE).add(yearlyExpenses);
             BigDecimal yearlyGoalExpenses = goalAllocationsByYear.getOrDefault(year, BigDecimal.ZERO);
-            BigDecimal netSavings = totalIncome.subtract(totalExpenses);
+            BigDecimal netSavings = totalIncome.subtract(totalExpenses).subtract(yearlyGoalExpenses);
             BigDecimal capitalStart = capital;
             BigDecimal investmentReturn = state.modelAssumptions().investmentReturnPct();
             capital = capital.add(netSavings).add(capital.max(BigDecimal.ZERO).multiply(investmentReturn).divide(HUNDRED, 2, RoundingMode.HALF_UP));
