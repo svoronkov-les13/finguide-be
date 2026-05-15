@@ -12,6 +12,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -94,6 +95,47 @@ class PlanReadControllerTests {
                 .andExpect(jsonPath("$.data.goals[0].projectedReachable").value(true))
                 .andExpect(jsonPath("$.data.goals[0].projectedCompletionYear").value(2026))
                 .andExpect(jsonPath("$.data.goals[1].projectedSavedAmount", greaterThan(0.0)));
+    }
+
+    @Test
+    void actualGoalContributionsReduceCurrentYearCapital() throws Exception {
+        String subject = "actual-goal-outflow-owner";
+        String planId = currentPlanId(subject);
+        String currentPlan = mockMvc.perform(get("/api/v1/plans/current")
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Actual Goal Outflow Owner")
+                                .claim("preferred_username", subject))))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String goalId = new com.fasterxml.jackson.databind.ObjectMapper().readTree(currentPlan).at("/data/goals/0/id").asText();
+
+        mockMvc.perform(post("/api/v1/plans/{planId}/contributions", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Actual Goal Outflow Owner")
+                                .claim("preferred_username", subject)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "goalId": "%s",
+                                  "amount": 3000000,
+                                  "currency": "RUB",
+                                  "date": "2026-05-15",
+                                  "note": "close goal"
+                                }
+                                """.formatted(goalId)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/v1/plans/{planId}/analytics/cashflow", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Actual Goal Outflow Owner")
+                                .claim("preferred_username", subject))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].totalGoalExpenses").value(3000000))
+                .andExpect(jsonPath("$.data[0].netSavings").value(-468000))
+                .andExpect(jsonPath("$.data[0].capitalEndOfYear").value(2182000.0));
     }
 
     @Test
