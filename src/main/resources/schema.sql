@@ -169,6 +169,7 @@ create table monthly_tracker_entries (
   plan_id uuid not null references financial_plans(id),
   tracker_month varchar(7) not null,
   status varchar(32) not null,
+  amount numeric(19, 2) not null default 0,
   note varchar(1024),
   created_at timestamp with time zone not null,
   updated_at timestamp with time zone not null,

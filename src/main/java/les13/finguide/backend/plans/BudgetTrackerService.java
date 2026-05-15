@@ -113,7 +113,9 @@ public class BudgetTrackerService {
         YearMonth month = parseMonth(requiredText(request.month(), "month"));
         MonthlyTrackerEntry.Status status = parseStatus(requiredText(request.status(), "status"));
         Instant now = Instant.now();
-        repository.upsertMonthlyTrackerEntry(planId, new MonthlyTrackerEntry(month, status, request.note(), now, now));
+        BigDecimal amount = nonNegative(request.amount() == null ? BigDecimal.ZERO : request.amount(), "amount");
+        repository.upsertMonthlyTrackerEntry(planId, new MonthlyTrackerEntry(month, status, amount, request.note(), now, now));
+        repository.recalculateGoalSavedAmount(planId, null);
     }
 
     public List<OperationJournalEntry> operationJournal(UUID planId, Integer year, Integer month) {

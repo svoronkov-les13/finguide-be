@@ -183,6 +183,7 @@ public class PlanApiMapper {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("month", entry.month().toString());
         result.put("status", apiValue(entry.status()));
+        result.put("amount", entry.amount());
         result.put("note", entry.note());
         result.put("updatedAt", entry.updatedAt());
         return result;

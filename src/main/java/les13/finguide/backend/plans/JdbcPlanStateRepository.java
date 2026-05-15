@@ -246,7 +246,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
 
     private void cloneMonthlyTracker(UUID seedPlanId, UUID planId, OffsetDateTime now) {
         jdbcTemplate.update(
-                "insert into monthly_tracker_entries (plan_id, tracker_month, status, note, created_at, updated_at) select ?, tracker_month, status, note, ?, ? from monthly_tracker_entries where plan_id = ?",
+                "insert into monthly_tracker_entries (plan_id, tracker_month, status, amount, note, created_at, updated_at) select ?, tracker_month, status, amount, note, ?, ? from monthly_tracker_entries where plan_id = ?",
                 planId,
                 now,
                 now,
@@ -668,11 +668,17 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                 (RowCallbackHandler) rs -> manualByGoal.put(rs.getObject("goal_id", UUID.class), rs.getBigDecimal("amount")),
                 planId
         );
-        BigDecimal generatedPool = queryOptional(
+        BigDecimal journalGeneratedPool = queryOptional(
                 "select coalesce(sum(amount), 0) from operation_journal_entries where plan_id = ? and entry_type = 'goal' and status = 'actual' and amount > 0",
                 (rs, rowNum) -> rs.getBigDecimal(1),
                 planId
         ).orElse(BigDecimal.ZERO);
+        BigDecimal monthlyGeneratedPool = queryOptional(
+                "select coalesce(sum(amount), 0) from monthly_tracker_entries where plan_id = ? and amount > 0",
+                (rs, rowNum) -> rs.getBigDecimal(1),
+                planId
+        ).orElse(BigDecimal.ZERO);
+        BigDecimal generatedPool = journalGeneratedPool.add(monthlyGeneratedPool);
 
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         BigDecimal overflow = generatedPool.max(BigDecimal.ZERO);
@@ -746,8 +752,9 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     public MonthlyTrackerEntry upsertMonthlyTrackerEntry(UUID planId, MonthlyTrackerEntry entry) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         int updated = jdbcTemplate.update(
-                "update monthly_tracker_entries set status = ?, note = ?, updated_at = ? where plan_id = ? and tracker_month = ?",
+                "update monthly_tracker_entries set status = ?, amount = ?, note = ?, updated_at = ? where plan_id = ? and tracker_month = ?",
                 dbValue(entry.status()),
+                entry.amount(),
                 entry.note(),
                 now,
                 planId,
@@ -755,10 +762,11 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
         );
         if (updated == 0) {
             jdbcTemplate.update(
-                    "insert into monthly_tracker_entries (plan_id, tracker_month, status, note, created_at, updated_at) values (?, ?, ?, ?, ?, ?)",
+                    "insert into monthly_tracker_entries (plan_id, tracker_month, status, amount, note, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?)",
                     planId,
                     entry.month().toString(),
                     dbValue(entry.status()),
+                    entry.amount(),
                     entry.note(),
                     now,
                     now
@@ -1141,6 +1149,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
         return new MonthlyTrackerEntry(
                 YearMonth.parse(rs.getString("tracker_month")),
                 enumValue(MonthlyTrackerEntry.Status.class, rs.getString("status")),
+                rs.getBigDecimal("amount"),
                 rs.getString("note"),
                 instant(rs, "created_at"),
                 instant(rs, "updated_at")

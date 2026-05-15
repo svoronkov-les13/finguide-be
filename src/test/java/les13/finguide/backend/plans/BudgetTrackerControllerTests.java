@@ -189,6 +189,7 @@ class BudgetTrackerControllerTests {
                                 {
                                   "month": "2026-05",
                                   "status": "completed",
+                                  "amount": 150000,
                                   "note": "On track"
                                 }
                                 """))
@@ -199,8 +200,13 @@ class BudgetTrackerControllerTests {
                 .andExpect(jsonPath("$.data", hasSize(1)))
                 .andExpect(jsonPath("$.data[0].month").value("2026-05"))
                 .andExpect(jsonPath("$.data[0].status").value("completed"))
+                .andExpect(jsonPath("$.data[0].amount").value(150000))
                 .andExpect(jsonPath("$.data[0].note").value("On track"))
                 .andExpect(jsonPath("$.data[0].updatedAt").exists());
+
+        mockMvc.perform(get("/api/v1/plans/current").with(jwt))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.goals[0].savedAmount").value(150000));
 
         mockMvc.perform(post("/api/v1/plans/{planId}/calendar/monthly-tracker", planId)
                         .with(jwt)
@@ -209,6 +215,7 @@ class BudgetTrackerControllerTests {
                                 {
                                   "month": "2026-05",
                                   "status": "partial",
+                                  "amount": 75000,
                                   "note": "Half done"
                                 }
                                 """))
@@ -218,7 +225,12 @@ class BudgetTrackerControllerTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data", hasSize(1)))
                 .andExpect(jsonPath("$.data[0].status").value("partial"))
+                .andExpect(jsonPath("$.data[0].amount").value(75000))
                 .andExpect(jsonPath("$.data[0].note").value("Half done"));
+
+        mockMvc.perform(get("/api/v1/plans/current").with(jwt))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.goals[0].savedAmount").value(75000));
     }
 
     @Test

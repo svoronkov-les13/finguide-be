@@ -28,6 +28,7 @@ public final class BudgetTrackerRequests {
     public record MonthlyTrackerRequest(
             String month,
             String status,
+            BigDecimal amount,
             String note
     ) {
     }
