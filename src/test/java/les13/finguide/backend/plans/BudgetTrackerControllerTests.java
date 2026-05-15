@@ -275,6 +275,46 @@ class BudgetTrackerControllerTests {
     }
 
     @Test
+    void monthlyTrackerAmountsOverflowToNextGoalByPriority() throws Exception {
+        RequestPostProcessor jwt = userJwt("monthly-tracker-overflow-owner");
+        JsonNode current = currentPlan(jwt);
+        String planId = current.at("/data/id").asText();
+        String firstGoalId = current.at("/data/goals/0/id").asText();
+
+        mockMvc.perform(post("/api/v1/plans/{planId}/contributions", planId)
+                        .with(jwt)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "goalId": "%s",
+                                  "amount": 1500000,
+                                  "currency": "RUB",
+                                  "date": "2026-05-14",
+                                  "note": "Complete first goal"
+                                }
+                                """.formatted(firstGoalId)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/v1/plans/{planId}/calendar/monthly-tracker", planId)
+                        .with(jwt)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "month": "2026-05",
+                                  "status": "completed",
+                                  "amount": 196000,
+                                  "note": "May savings"
+                                }
+                                """))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/plans/current").with(jwt))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.goals[0].savedAmount").value(1500000))
+                .andExpect(jsonPath("$.data.goals[1].savedAmount").value(196000));
+    }
+
+    @Test
     void createsUpdatesListsAndDeletesOperationJournalEntries() throws Exception {
         RequestPostProcessor jwt = userJwt("operation-journal-owner");
         String planId = currentPlan(jwt).at("/data/id").asText();
