@@ -277,23 +277,7 @@ class BudgetTrackerControllerTests {
     @Test
     void monthlyTrackerAmountsOverflowToNextGoalByPriority() throws Exception {
         RequestPostProcessor jwt = userJwt("monthly-tracker-overflow-owner");
-        JsonNode current = currentPlan(jwt);
-        String planId = current.at("/data/id").asText();
-        String firstGoalId = current.at("/data/goals/0/id").asText();
-
-        mockMvc.perform(post("/api/v1/plans/{planId}/contributions", planId)
-                        .with(jwt)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "goalId": "%s",
-                                  "amount": 1500000,
-                                  "currency": "RUB",
-                                  "date": "2026-05-14",
-                                  "note": "Complete first goal"
-                                }
-                                """.formatted(firstGoalId)))
-                .andExpect(status().isCreated());
+        String planId = currentPlan(jwt).at("/data/id").asText();
 
         mockMvc.perform(post("/api/v1/plans/{planId}/calendar/monthly-tracker", planId)
                         .with(jwt)
@@ -302,8 +286,21 @@ class BudgetTrackerControllerTests {
                                 {
                                   "month": "2026-05",
                                   "status": "completed",
-                                  "amount": 196000,
-                                  "note": "May savings"
+                                  "amount": 1500000,
+                                  "note": "First month"
+                                }
+                                """))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(post("/api/v1/plans/{planId}/calendar/monthly-tracker", planId)
+                        .with(jwt)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "month": "2026-06",
+                                  "status": "completed",
+                                  "amount": 100000,
+                                  "note": "Second month"
                                 }
                                 """))
                 .andExpect(status().isNoContent());
@@ -311,7 +308,8 @@ class BudgetTrackerControllerTests {
         mockMvc.perform(get("/api/v1/plans/current").with(jwt))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.goals[0].savedAmount").value(1500000))
-                .andExpect(jsonPath("$.data.goals[1].savedAmount").value(196000));
+                .andExpect(jsonPath("$.data.goals[1].savedAmount").value(100000))
+                .andExpect(jsonPath("$.data.goals[2].savedAmount").value(0));
     }
 
     @Test
