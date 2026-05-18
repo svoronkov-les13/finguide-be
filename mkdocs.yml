@@ -59,6 +59,7 @@ nav:
   - Контракт API: contract.md
   - Operations и CI/CD: operations.md
   - RFC Ops-периметр: ops-rfc.md
+  - RFC Kubernetes dev/prod на winemap.world: winemap-k8s-dev-prod-rfc.md
   - Аналитическая модель: model-analytics.md
   - Files: https://svoronkov-les13.github.io/finguide-be/superpowers/plans/2026-05-14-contributions-ledger/#files
   - Архитектура:
