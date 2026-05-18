@@ -5,11 +5,13 @@
 - **Площадка:** `winemap.world` / host `Fibonacci`
 - **Scope:** FinGuide backend, frontend, PostgreSQL, Redis, auth configuration, CI/CD, observability, backup/restore и safe rollout в существующий MicroK8s cluster.
 - **Источник:** исходный RFC `http://66.42.121.18/java-k8s-dev-prod-rfc.html`, адаптирован под GitHub Pages документацию FinGuide.
-- **Связанные страницы:** [Operations и CI/CD](operations.md), [RFC Ops-периметр](ops-rfc.md), [Текущее состояние](status.md), [Roadmap](roadmap.md)
+- **Связанные страницы:** [RFC Ops-периметр](ops-rfc.md), [Operations и CI/CD](operations.md), [Текущее состояние](status.md), [Roadmap](roadmap.md)
 
 ## 1. Executive summary
 
-FinGuide можно развернуть на существующей площадке `winemap.world` как отдельный dev/prod периметр в MicroK8s, но только в additive-режиме: новая инфраструктура добавляется рядом с текущим приложением `winemap`, не импортирует его ресурсы в Terraform state и не меняет уже работающие namespaces, services, ingress, PVC или host nginx routing без отдельного RFC.
+Этот RFC является concrete deployment profile для umbrella [RFC Ops-периметр](ops-rfc.md). Он описывает, как выполнить общий Ops baseline на существующей площадке `winemap.world`, если команда выбирает Kubernetes-путь вместо hardened VM пути.
+
+FinGuide можно развернуть на `winemap.world` как отдельный dev/prod периметр в MicroK8s, но только в additive-режиме: новая инфраструктура добавляется рядом с текущим приложением `winemap`, не импортирует его ресурсы в Terraform state и не меняет уже работающие namespaces, services, ingress, PVC или host nginx routing без отдельного RFC.
 
 Рекомендуемый baseline:
 
@@ -24,6 +26,8 @@ FinGuide можно развернуть на существующей площ�
 - начать с discovery → namespaces/quotas → data services → backend → frontend → observability.
 
 `winemap.world` по ресурсам подходит для стартового dev/prod FinGuide: 12 logical CPU, 31 GiB RAM, около 371 GiB свободного диска, MicroK8s уже поднят. Главный риск — shared single-node cluster рядом с текущим `winemap`, MongoDB, Qdrant и Loki/Grafana. Поэтому RFC делает упор на namespace isolation, ResourceQuota/LimitRange, backups, explicit approvals и diff-before-apply guardrails.
+
+Relationship to Ops RFC: этот документ не снижает требования Ops RFC. PostgreSQL/Flyway, backup/restore, secrets rotation, staging/pre-prod validation, prod promotion approval, observability, TLS and rollback остаются обязательными. Отличие только в runtime substrate: Kubernetes namespaces/Helm вместо systemd/static deploy.
 
 ## 2. Current platform state
 
@@ -78,6 +82,14 @@ FinGuide IaC **не должен**:
 Принцип: **new FinGuide infrastructure is additive, isolated and reversible**.
 
 ## 5. Target environments
+
+Naming alignment with the Ops RFC:
+
+- Ops RFC `dev` = local engineer workflow and remains outside this cluster.
+- Ops RFC `staging` / pre-prod = this RFC's `finguide-dev` namespace.
+- Ops RFC `prod` = this RFC's `finguide-prod` namespace.
+
+The namespace name `finguide-dev` is kept because it is concise and conventional in Kubernetes, but functionally it is the shared pre-prod/staging environment for release validation.
 
 ### 5.1 Dev
 
@@ -502,7 +514,7 @@ Prod minimum:
 - daily PostgreSQL logical dump;
 - optional WAL/PITR later when data importance grows;
 - encrypted private storage;
-- retention: 7 daily + 4 weekly + 3 monthly;
+- retention: 7 daily + 4 weekly + 6 monthly;
 - monthly restore drill;
 - backup success/failure alert.
 
@@ -604,7 +616,7 @@ Implementation is acceptable when:
 
 - [ ] `finguide-dev` and `finguide-prod` namespaces exist with quotas.
 - [ ] Existing `winemap`, `mongodb`, `qdrant`, `loki-grafana` resources are unchanged.
-- [ ] Dev/prod FinGuide use separate PostgreSQL, Redis and secrets.
+- [ ] `finguide-dev`/`finguide-prod` map to Ops RFC staging/prod and use separate PostgreSQL, Redis and secrets.
 - [ ] Backend runs with PostgreSQL, not H2.
 - [ ] Flyway migrations run through a migration Job.
 - [ ] Frontend points to correct environment API/OIDC issuer.
@@ -627,6 +639,7 @@ Need decide before implementation:
 5. Keycloak location: existing external/shared, in-cluster, or temporary dev-only setup.
 6. Whether PostgreSQL/Flyway support lands in `finguide-be` before infra repo is created.
 7. Whether prod should initially share the same single node or wait for a separate VM/managed DB.
+8. Whether this Kubernetes profile is approved as the production path, or kept as an implementation option while the Ops RFC starts with hardened VM milestones.
 
 ## 22. Recommended decision
 
@@ -636,11 +649,11 @@ Approve this baseline:
 - use additive Terraform/Ansible/Helm only;
 - keep current `winemap` installation untouched;
 - PostgreSQL/Redis per environment inside Kubernetes for the first iteration;
-- backend must move to PostgreSQL/Flyway before prod data;
+- backend must move to PostgreSQL/Flyway before prod data, matching the Ops RFC persistence baseline;
 - use GHCR for images unless another registry is chosen;
 - use existing Loki/Grafana/Prometheus only in read-only/no-upgrade mode;
 - use Sentry SaaS, not self-hosted Sentry;
 - do not include full ELK/OpenSearch in baseline;
 - roll out by phases: discovery → namespaces → data → backend → frontend → observability.
 
-This gives the cheapest safe path now, preserves the current `winemap` installation, and keeps the option to migrate FinGuide to Selectel or a dedicated cluster later using the same Helm/Ansible structure.
+This gives the cheapest safe Kubernetes path now, preserves the current `winemap` installation, and keeps the option to migrate FinGuide to Selectel or a dedicated cluster later using the same Helm/Ansible structure. If the team does not explicitly approve Kubernetes yet, the Ops RFC hardened VM path remains the default near-term path, and this document should be treated as the ready implementation profile for a later platform decision.

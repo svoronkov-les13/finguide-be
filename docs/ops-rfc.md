@@ -4,13 +4,15 @@
 - **Дата:** 2026-05-18
 - **Scope:** demo → production-ready периметр для FinGuide backend, frontend, Keycloak, данных, observability и релизного процесса.
 - **Owner:** Ops / platform track
-- **Связанные страницы:** [Operations и CI/CD](operations.md), [Текущее состояние](status.md), [Roadmap](roadmap.md)
+- **Связанные страницы:** [Operations и CI/CD](operations.md), [RFC Kubernetes dev/prod на winemap.world](winemap-k8s-dev-prod-rfc.md), [Текущее состояние](status.md), [Roadmap](roadmap.md)
 
 ## 1. Executive summary
 
 FinGuide уже имеет рабочий публичный demo-стенд: frontend под `/fg/`, Spring Boot backend под `/finguide-api`, Keycloak realm и self-hosted GitHub Actions deploy на один сервер. Это хорошо для быстрой продуктовой итерации, но текущий Ops-периметр всё ещё остаётся demo-периметром: embedded H2, ручная серверная конфигурация, ограниченные smoke checks, нет формализованных backup/restore процедур, нет наблюдаемости уровня инцидентов, нет отдельного staging окружения и нет описанной политики секретов.
 
 Этот RFC предлагает эволюционный план без big-bang миграции. Идея: сохранить скорость разработки, но добавить минимальный production-grade слой вокруг уже работающего стенда. В первую очередь фиксируем инфраструктурную базу: инвентаризацию, секреты, резервное копирование, health/readiness, логи и runbooks. Затем переводим stateful-часть на PostgreSQL + Flyway, вводим staging/prod разделение, усиливаем CI/CD gate и только после этого добавляем полноценные SLO/alerts, blue-green/canary-подходы и IaC.
+
+Этот документ — umbrella RFC для Ops-направления. Конкретный вариант размещения FinGuide в MicroK8s на `winemap.world` описан в отдельном [RFC Kubernetes dev/prod на winemap.world](winemap-k8s-dev-prod-rfc.md). Kubernetes RFC не отменяет этот Ops RFC, а является одним из deployment profiles: он должен выполнять те же требования по PostgreSQL/Flyway, backup/restore, secrets, staging/prod split, observability, TLS и rollback.
 
 ## 2. Current state
 
@@ -66,7 +68,7 @@ FinGuide уже имеет рабочий публичный demo-стенд: fr
 ### 3.2 Non-goals for this RFC
 
 - Rewriting the application architecture into microservices.
-- Moving immediately to Kubernetes.
+- Mandating Kubernetes as the only production path. Kubernetes is allowed only as an explicitly approved deployment profile that satisfies this Ops baseline.
 - Building enterprise-grade multi-region HA before there is production load.
 - Replacing the current CI/CD system if self-hosted Actions remains adequate.
 - Solving product analytics/BI; this RFC covers service observability and reliability.
@@ -83,7 +85,9 @@ Adopt three logical environments, even if the first implementation still uses on
 | `staging` | release candidate validation | seeded/synthetic | merge to staging branch or manual workflow | internal only |
 | `prod` | user-facing service | durable real data | tagged release or approved main deploy | yes |
 
-Minimum acceptable first step: create `staging` as a separate backend service/profile and frontend path on the existing server, with separate DB/schema, separate Keycloak client and separate config. Later it can move to separate VM.
+Minimum acceptable first step: create `staging` as a separate backend service/profile and frontend path on the existing server, with separate DB/schema, separate Keycloak client and separate config. Later it can move to a separate VM or to an approved Kubernetes profile.
+
+Naming note: in the winemap Kubernetes RFC the cluster namespace `finguide-dev` plays the same role as this RFC's `staging`/pre-prod environment. Local engineer `dev` remains outside the cluster.
 
 ### 4.2 Runtime topology
 
@@ -111,7 +115,9 @@ Backup job
   |-- restore verification job
 ```
 
-Kubernetes is not recommended yet. The app is currently small, and moving to Kubernetes now would increase operational surface area before the basics are solved. A hardened single VM with systemd, PostgreSQL, nginx, backups and observability is the right next step.
+Default recommendation for the current demo path is a hardened VM first: systemd/static frontend, PostgreSQL, nginx, backups and observability. Kubernetes is not required to reach the first production-ready milestone.
+
+If the team explicitly chooses `winemap.world` as the target platform, the Kubernetes profile must be additive and isolated: only `finguide-*` namespaces/resources, no mutation of existing `winemap` workloads, separate dev/prod data services, and the same Ops gates from this RFC. In that case, the Kubernetes RFC becomes the implementation detail for sections 4–6, not a competing roadmap.
 
 ### 4.3 Persistence
 
@@ -320,11 +326,12 @@ Each runbook should have:
 
 ### Phase 0 — inventory and guardrails
 
-Goal: make current demo operation explicit and safer without changing runtime architecture.
+Goal: make current demo operation explicit and safer before changing runtime architecture.
 
 Tasks:
 
-- Document all services, ports, paths, systemd units and deploy directories.
+- Document all services, ports, paths, systemd units, deploy directories and current GitHub Pages/CI flows.
+- For the winemap Kubernetes profile, run read-only cluster discovery and document existing namespaces, NodePorts, storage classes and conflict matrix.
 - Add runbook skeletons for deploy, rollback and incident response.
 - Add a secrets inventory with names only, no values.
 - Add branch protection proposal for `main`.
@@ -334,6 +341,7 @@ Tasks:
 Exit criteria:
 
 - A new engineer can identify what is running and how it is deployed.
+- If Kubernetes is selected, diff/discovery proves planned changes are scoped to `finguide-*` resources only.
 - Docs build is strict and green.
 - No secret values are present in docs/issues.
 
@@ -414,21 +422,22 @@ Exit criteria:
 
 ### 6.1 Single VM vs Kubernetes
 
-Recommendation: **single hardened VM now, Kubernetes later only if operational pressure justifies it**.
+Recommendation: **single hardened VM is the default near-term path; Kubernetes on `winemap.world` is acceptable only as an explicit isolated deployment profile**.
 
 Rationale:
 
-- Current app has low service count.
-- Existing deploy is systemd/static files and works.
-- Kubernetes adds etcd/control-plane/ingress/storage complexity.
+- Current app has low service count and the existing systemd/static deploy works.
 - The urgent risks are data durability, secrets, backups and observability, not orchestration.
+- Kubernetes adds ingress/storage/secret/runner complexity, so it must not bypass Phase 0–3 guardrails.
+- `winemap.world` already runs MicroK8s with enough capacity, so it can be a cost-effective target if isolation, quotas, backups and no-touch rules for existing workloads are enforced.
 
-Revisit when:
+Use the hardened VM path when speed and simplicity matter most. Use the winemap Kubernetes profile when the team accepts shared-cluster risk and wants containerized dev/prod parity now. Revisit the decision when:
 
 - multiple independent backend services appear;
 - horizontal scaling is needed;
-- infrastructure team has clear Kubernetes ownership;
-- deployment/rollback needs exceed what systemd release directories can provide.
+- infrastructure ownership is clear;
+- deployment/rollback needs exceed what systemd release directories can provide;
+- a dedicated cluster or managed DB becomes available.
 
 ### 6.2 PostgreSQL location
 
@@ -438,13 +447,14 @@ Options:
 2. Managed PostgreSQL.
 3. Separate self-managed DB VM.
 
-Recommendation for first production step: **managed PostgreSQL if budget allows; otherwise same-VM PostgreSQL with off-host backups**.
+Recommendation for first production step: **managed PostgreSQL if budget allows; otherwise environment-local PostgreSQL with off-host backups**. For the current VM path this means same-VM PostgreSQL; for the winemap Kubernetes profile this means per-environment PostgreSQL StatefulSets/PVCs or a managed DB if chosen later.
 
 Trade-off:
 
-- Same VM is cheap and simple, but host loss affects app and DB simultaneously.
+- Same VM or same-node Kubernetes PostgreSQL is cheap and simple, but host loss affects app and DB simultaneously.
 - Managed DB reduces backup/patch burden and improves durability, but adds cost and provider coupling.
 - Separate DB VM is flexible but increases ops burden.
+- Kubernetes PVCs are not backups; prod dumps must leave the node.
 
 ### 6.3 Deployment promotion model
 
@@ -465,7 +475,7 @@ Recommendation: **option 2 now, option 3 later if release cadence becomes formal
 | Token/secret exposure | high | short-lived tokens, rotation runbook, secret scanning, no inline secrets |
 | Self-hosted runner compromise | high | minimal runner permissions, service user isolation, no broad secrets on runner |
 | Alert fatigue | medium | start with few high-signal alerts only |
-| Overengineering slows product work | medium | phased delivery, no Kubernetes before basics |
+| Overengineering slows product work | medium | phased delivery; Kubernetes only through the isolated winemap profile after discovery/preflight |
 | Manual server drift | medium | inventory first, then lightweight IaC/runbooks |
 | HTTP public endpoints with auth | medium/high | add TLS before production data |
 
@@ -476,7 +486,7 @@ The Ops work can be considered complete for the first production-ready milestone
 - [ ] Production-like backend runs on PostgreSQL with Flyway migrations.
 - [ ] Daily encrypted off-host DB backup exists.
 - [ ] Restore drill is documented and has succeeded at least once.
-- [ ] Staging and prod configs are separated.
+- [ ] Staging/pre-prod and prod configs are separated. In the winemap profile this maps to `finguide-dev` and `finguide-prod`.
 - [ ] Prod deploy has explicit promotion or approval.
 - [ ] Backend/frontend/Keycloak health checks are monitored.
 - [ ] At least one synthetic journey validates app + API integration.
@@ -503,7 +513,8 @@ This RFC should be tracked as one Ops epic with smaller implementation issues:
    - alert on missing backups.
 4. **Staging/prod split**
    - separate config, Keycloak client, deploy workflows;
-   - staging smoke before prod promotion.
+   - staging smoke before prod promotion;
+   - for winemap Kubernetes, map staging/pre-prod to `finguide-dev` namespace and prod to `finguide-prod`.
 5. **Observability baseline**
    - metrics/logs/dashboard;
    - synthetic check;
@@ -518,12 +529,12 @@ This RFC should be tracked as one Ops epic with smaller implementation issues:
 
 ## 10. Open questions
 
-1. Should first production DB be managed PostgreSQL or self-hosted on the current VM?
-2. Should staging live on the same VM initially or on a separate small VM?
+1. Should first production DB be managed PostgreSQL, self-hosted on the current VM, or per-environment PostgreSQL inside winemap Kubernetes?
+2. Should staging/pre-prod live on the current VM, a separate small VM, or `finguide-dev` namespace on winemap?
 3. What alert channel should be canonical: Telegram, email, GitHub issue, or another incident tool?
 4. What is the initial acceptable RPO/RTO once real user data exists?
 5. Should prod deploy require manual approval immediately, or only after PostgreSQL is introduced?
 
 ## 11. Recommended next action
 
-Create and prioritize the Ops epic in the GitHub Project, then implement Phase 0 before more production-facing changes. Phase 0 is intentionally documentation-heavy because it reduces operational ambiguity immediately and creates the runway for PostgreSQL/backups/staging without disrupting current product work.
+Create and prioritize the Ops epic in the GitHub Project, then implement Phase 0 before more production-facing changes. Phase 0 is intentionally documentation-heavy because it reduces operational ambiguity immediately and creates the runway for PostgreSQL/backups/staging without disrupting current product work. If the team chooses the winemap Kubernetes profile, Phase 0 must include read-only cluster discovery and a conflict matrix before any namespace or Helm changes.
