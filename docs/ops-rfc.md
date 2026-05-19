@@ -175,30 +175,41 @@ Backup job
 
 ### 4.5 CI/CD release flow
 
-Текущий auto-deploy из `main` допустим для demo. Для production-like данных нужен двухступенчатый flow:
+CI/CD должен соответствовать Kubernetes RFC для `finguide.les13.tech`: demo не должен собираться заново из плавающей ветки после появления dev/pre-prod. В demo продвигается тот же image tag или artifact, который уже прошёл проверки в `finguide-dev`.
+
+Рекомендуемый flow:
 
 1. Pull request gate:
-   - backend: unit/integration tests, OpenAPI coverage, migration validation;
-   - frontend: typecheck, tests, build;
-   - docs: strict mkdocs build.
-2. Merge в `main`:
-   - deploy в dev/pre-prod автоматически;
-   - smoke и synthetic checks.
-3. Promotion в demo/prod:
-   - manual approval или tagged release;
-   - backup preflight;
-   - deploy;
-   - post-deploy smoke;
-   - rollback decision window.
+   - backend: `mvn -B test`, OpenAPI coverage guard, migration validation;
+   - frontend: tests/typecheck/build;
+   - infra: `helm template`, `helm diff`, namespace-scope check, policy check;
+   - docs: `mkdocs build --strict`.
+2. Build and publish:
+   - собрать backend Docker image из `finguide-be`;
+   - собрать frontend Docker image из `finguide-web` с environment-aware runtime/build config;
+   - опубликовать images в registry, по умолчанию GitHub Container Registry (`ghcr.io`).
+3. Deploy to dev/pre-prod:
+   - автоматически deploy в `finguide-dev`, когда это окружение появится;
+   - выполнить migration rehearsal, smoke tests и synthetic checks.
+4. Promote to demo:
+   - вручную или через approved workflow продвинуть те же image tags в `finguide-demo`;
+   - перед demo migration выполнить backup preflight, когда данные станут значимыми;
+   - запустить demo migration Job;
+   - выполнить post-deploy smoke и принять rollback decision.
+
+До появления `finguide-dev` допускается прямой deploy demo из `main`, но это только transitional mode. После появления dev/pre-prod публичный demo должен получать уже проверенный artifact/image, а не rebuild from moving branch.
 
 Рекомендуемые workflow names:
 
 - `backend-ci.yml`
-- `backend-deploy-staging.yml`
-- `backend-deploy-prod.yml`
+- `backend-image.yml`
+- `backend-deploy-dev.yml`
+- `backend-promote-demo.yml`
 - `frontend-ci.yml`
-- `frontend-deploy-staging.yml`
-- `frontend-deploy-prod.yml`
+- `frontend-image.yml`
+- `frontend-deploy-dev.yml`
+- `frontend-promote-demo.yml`
+- `infra-diff.yml`
 - `docs-pages.yml`
 
 ### 4.6 Rollback
