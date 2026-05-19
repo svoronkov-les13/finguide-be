@@ -59,7 +59,7 @@ nav:
   - Контракт API: contract.md
   - Operations и CI/CD: operations.md
   - RFC Ops-периметр: ops-rfc.md
-  - RFC Kubernetes dev/prod на winemap.world: winemap-k8s-dev-prod-rfc.md
+  - RFC Kubernetes demo/dev на finguide.les13.tech: winemap-k8s-dev-prod-rfc.md
   - Аналитическая модель: model-analytics.md
   - Files: https://svoronkov-les13.github.io/finguide-be/superpowers/plans/2026-05-14-contributions-ledger/#files
   - Архитектура:
@@ -67,5 +67,5 @@ nav:
       - Модули бэкенда: backend-modules.md
   - "Отчёт #18 Keycloak/OIDC": testing-report-issue-18.md
   - Спецификация OpenAPI: https://github.com/svoronkov-les13/finguide-be/blob/main/openapi/openapi.json
-  - Swagger UI real backend: http://66.42.121.18/finguide-api/swagger-ui.html
+  - Swagger UI legacy backend: http://66.42.121.18/finguide-api/swagger-ui.html
   - Legacy mock Swagger: http://66.42.121.18/finguide-mock/

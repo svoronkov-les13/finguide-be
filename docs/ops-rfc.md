@@ -4,34 +4,34 @@
 - **Дата:** 2026-05-18
 - **Scope:** demo → production-ready периметр для FinGuide backend, frontend, Keycloak, данных, observability и релизного процесса.
 - **Owner:** Ops / platform track
-- **Связанные страницы:** [Operations и CI/CD](operations.md), [RFC Kubernetes dev/prod на winemap.world](winemap-k8s-dev-prod-rfc.md), [Текущее состояние](status.md), [Roadmap](roadmap.md)
+- **Связанные страницы:** [Operations и CI/CD](operations.md), [RFC Kubernetes demo/dev на finguide.les13.tech](winemap-k8s-dev-prod-rfc.md), [Текущее состояние](status.md), [Roadmap](roadmap.md)
 
 ## 1. Executive summary
 
 FinGuide уже имеет рабочий публичный demo-стенд: frontend под `/fg/`, Spring Boot backend под `/finguide-api`, Keycloak realm и self-hosted GitHub Actions deploy на один сервер. Это хорошо для быстрой продуктовой итерации, но текущий Ops-периметр всё ещё остаётся demo-периметром: embedded H2, ручная серверная конфигурация, ограниченные smoke checks, нет формализованных backup/restore процедур, нет наблюдаемости уровня инцидентов, нет отдельного staging окружения и нет описанной политики секретов.
 
-Этот RFC предлагает эволюционный план без big-bang миграции. Идея: сохранить скорость разработки, но добавить минимальный production-grade слой вокруг уже работающего стенда. В первую очередь фиксируем инфраструктурную базу: инвентаризацию, секреты, резервное копирование, health/readiness, логи и runbooks. Затем переводим stateful-часть на PostgreSQL + Flyway, вводим staging/prod разделение, усиливаем CI/CD gate и только после этого добавляем полноценные SLO/alerts, blue-green/canary-подходы и IaC.
+Этот RFC предлагает эволюционный план без big-bang миграции. Идея: сохранить скорость разработки, но добавить минимальный production-grade слой вокруг уже работающего стенда. Новый целевой сервер для production-like demo — `finguide.les13.tech`; позже на нём же появится dev/pre-prod, но FinGuide не должен занимать все ресурсы, потому что сервер будет shared для других проектов. В первую очередь фиксируем инфраструктурную базу: инвентаризацию, секреты, резервное копирование, health/readiness, логи и runbooks. Затем переводим stateful-часть на PostgreSQL + Flyway, вводим staging/prod разделение, усиливаем CI/CD gate и только после этого добавляем полноценные SLO/alerts, blue-green/canary-подходы и IaC.
 
-Этот документ — umbrella RFC для Ops-направления. Конкретный вариант размещения FinGuide в MicroK8s на `winemap.world` описан в отдельном [RFC Kubernetes dev/prod на winemap.world](winemap-k8s-dev-prod-rfc.md). Kubernetes RFC не отменяет этот Ops RFC, а является одним из deployment profiles: он должен выполнять те же требования по PostgreSQL/Flyway, backup/restore, secrets, staging/prod split, observability, TLS и rollback.
+Этот документ — umbrella RFC для Ops-направления. Конкретный вариант размещения FinGuide на новом сервере `finguide.les13.tech` описан в отдельном [RFC Kubernetes demo/dev на finguide.les13.tech](winemap-k8s-dev-prod-rfc.md). Kubernetes RFC не отменяет этот Ops RFC, а является одним из deployment profiles: он должен выполнять те же требования по PostgreSQL/Flyway, backup/restore, secrets, dev/demo split, observability, TLS и rollback.
 
 ## 2. Current state
 
 ### 2.1 Public endpoints
 
-- Frontend: `http://66.42.121.18/fg/`
-- Backend API: `http://66.42.121.18/finguide-api/api/v1`
-- Backend health: `http://66.42.121.18/finguide-api/actuator/health`
-- Swagger UI: `http://66.42.121.18/finguide-api/swagger-ui.html`
-- Springdoc OpenAPI JSON: `http://66.42.121.18/finguide-api/v3/api-docs`
-- Keycloak realm: `http://66.42.121.18/auth/realms/finguide`
+- Frontend: legacy demo `http://66.42.121.18/fg/`; target demo `https://finguide.les13.tech/`
+- Backend API: legacy `http://66.42.121.18/finguide-api/api/v1`; target `https://finguide.les13.tech/api/v1` or `https://api.finguide.les13.tech/api/v1`
+- Backend health: legacy `http://66.42.121.18/finguide-api/actuator/health`; target `/actuator/health` behind the new HTTPS route
+- Swagger UI: legacy `http://66.42.121.18/finguide-api/swagger-ui.html`; target under the new API host/path
+- Springdoc OpenAPI JSON: legacy `http://66.42.121.18/finguide-api/v3/api-docs`; target under the new API host/path
+- Keycloak realm: legacy `http://66.42.121.18/auth/realms/finguide`; target issuer must use HTTPS and exact redirect URIs for demo/dev
 - GitHub Pages docs: `https://svoronkov-les13.github.io/finguide-be/`
 
 ### 2.2 Runtime and deploy
 
 - Backend: Java 21, Spring Boot 3.3, Spring Security OAuth2 Resource Server, Spring Data JDBC.
 - Persistence: embedded H2 demo state, initialized from `schema.sql` and `data.sql`.
-- Backend deployment: self-hosted GitHub Actions runner on `66.42.121.18`, systemd service `finguide-api.service`, runtime jar `/opt/finguide-api/finguide-be.jar`.
-- Frontend deployment: self-hosted GitHub Actions runner on the same server, static assets under `/var/www/mtproxy-info/fg`.
+- Backend deployment: currently self-hosted GitHub Actions runner on legacy `66.42.121.18`, systemd service `finguide-api.service`, runtime jar `/opt/finguide-api/finguide-be.jar`. Target deployment moves the public demo to `finguide.les13.tech`, preferably with container/Helm or an equally documented hardened VM profile.
+- Frontend deployment: currently self-hosted GitHub Actions runner on legacy server, static assets under `/var/www/mtproxy-info/fg`. Target frontend publishes on `https://finguide.les13.tech/`.
 - Docs deployment: GitHub Pages through `mkdocs build --strict`.
 - Deploy gate: backend `mvn -B clean package`; frontend `bun install --frozen-lockfile` + `bun run build:fg`; docs `mkdocs build --strict`.
 
@@ -85,9 +85,9 @@ Adopt three logical environments, even if the first implementation still uses on
 | `staging` | release candidate validation | seeded/synthetic | merge to staging branch or manual workflow | internal only |
 | `prod` | user-facing service | durable real data | tagged release or approved main deploy | yes |
 
-Minimum acceptable first step: create `staging` as a separate backend service/profile and frontend path on the existing server, with separate DB/schema, separate Keycloak client and separate config. Later it can move to a separate VM or to an approved Kubernetes profile.
+Minimum acceptable first step: publish the public production-like `demo` on `finguide.les13.tech` with its own DB/schema, Keycloak client and config. The same server may later host `dev`/pre-prod as a separate environment, but it must have separate data and credentials.
 
-Naming note: in the winemap Kubernetes RFC the cluster namespace `finguide-dev` plays the same role as this RFC's `staging`/pre-prod environment. Local engineer `dev` remains outside the cluster.
+Naming note: in the `finguide.les13.tech` Kubernetes RFC, `finguide-demo` maps to the public production-like demo and `finguide-dev` maps to staging/pre-prod. Local engineer `dev` remains outside the cluster.
 
 ### 4.2 Runtime topology
 
@@ -117,7 +117,7 @@ Backup job
 
 Default recommendation for the current demo path is a hardened VM first: systemd/static frontend, PostgreSQL, nginx, backups and observability. Kubernetes is not required to reach the first production-ready milestone.
 
-If the team explicitly chooses `winemap.world` as the target platform, the Kubernetes profile must be additive and isolated: only `finguide-*` namespaces/resources, no mutation of existing `winemap` workloads, separate dev/prod data services, and the same Ops gates from this RFC. In that case, the Kubernetes RFC becomes the implementation detail for sections 4–6, not a competing roadmap.
+If the team chooses Kubernetes on `finguide.les13.tech`, the profile must be additive and isolated: only `finguide-*` namespaces/resources, separate demo/dev data services, conservative ResourceQuota/LimitRange, and the same Ops gates from this RFC. The server must retain headroom for future non-FinGuide projects.
 
 ### 4.3 Persistence
 
@@ -331,7 +331,7 @@ Goal: make current demo operation explicit and safer before changing runtime arc
 Tasks:
 
 - Document all services, ports, paths, systemd units, deploy directories and current GitHub Pages/CI flows.
-- For the winemap Kubernetes profile, run read-only cluster discovery and document existing namespaces, NodePorts, storage classes and conflict matrix.
+- For the `finguide.les13.tech` profile, run read-only host/cluster discovery and document resources, ingress/ports, storage classes and conflict matrix.
 - Add runbook skeletons for deploy, rollback and incident response.
 - Add a secrets inventory with names only, no values.
 - Add branch protection proposal for `main`.
@@ -341,7 +341,7 @@ Tasks:
 Exit criteria:
 
 - A new engineer can identify what is running and how it is deployed.
-- If Kubernetes is selected, diff/discovery proves planned changes are scoped to `finguide-*` resources only.
+- If Kubernetes is selected, diff/discovery proves planned changes are scoped to `finguide-*` resources only and resource quotas preserve headroom for future projects.
 - Docs build is strict and green.
 - No secret values are present in docs/issues.
 
@@ -364,7 +364,7 @@ Exit criteria:
 - Backup and restore are documented and verified.
 - H2 is no longer used for any production-like state.
 
-### Phase 2 — staging/prod split
+### Phase 2 — dev/demo split
 
 Goal: reduce release risk before real users/data.
 
@@ -422,16 +422,16 @@ Exit criteria:
 
 ### 6.1 Single VM vs Kubernetes
 
-Recommendation: **single hardened VM is the default near-term path; Kubernetes on `winemap.world` is acceptable only as an explicit isolated deployment profile**.
+Recommendation: **`finguide.les13.tech` is the default target for the production-like demo; runtime may be hardened VM or Kubernetes, but Kubernetes must be isolated and resource-capped**.
 
 Rationale:
 
 - Current app has low service count and the existing systemd/static deploy works.
 - The urgent risks are data durability, secrets, backups and observability, not orchestration.
 - Kubernetes adds ingress/storage/secret/runner complexity, so it must not bypass Phase 0–3 guardrails.
-- `winemap.world` already runs MicroK8s with enough capacity, so it can be a cost-effective target if isolation, quotas, backups and no-touch rules for existing workloads are enforced.
+- `finguide.les13.tech` is the new FinGuide server and may later host other projects, so quotas, backups and no-touch rules for non-FinGuide resources are mandatory.
 
-Use the hardened VM path when speed and simplicity matter most. Use the winemap Kubernetes profile when the team accepts shared-cluster risk and wants containerized dev/prod parity now. Revisit the decision when:
+Use the hardened VM path when speed and simplicity matter most. Use the `finguide.les13.tech` Kubernetes profile when the team wants containerized demo/dev parity and accepts the added ingress/storage/secret complexity. Revisit the decision when:
 
 - multiple independent backend services appear;
 - horizontal scaling is needed;
@@ -447,7 +447,7 @@ Options:
 2. Managed PostgreSQL.
 3. Separate self-managed DB VM.
 
-Recommendation for first production step: **managed PostgreSQL if budget allows; otherwise environment-local PostgreSQL with off-host backups**. For the current VM path this means same-VM PostgreSQL; for the winemap Kubernetes profile this means per-environment PostgreSQL StatefulSets/PVCs or a managed DB if chosen later.
+Recommendation for first production step: **managed PostgreSQL if budget allows; otherwise environment-local PostgreSQL with off-host backups**. For the hardened VM path this means same-VM PostgreSQL with off-host backups; for the `finguide.les13.tech` Kubernetes profile this means per-environment PostgreSQL StatefulSets/PVCs or a managed DB if chosen later.
 
 Trade-off:
 
@@ -475,7 +475,7 @@ Recommendation: **option 2 now, option 3 later if release cadence becomes formal
 | Token/secret exposure | high | short-lived tokens, rotation runbook, secret scanning, no inline secrets |
 | Self-hosted runner compromise | high | minimal runner permissions, service user isolation, no broad secrets on runner |
 | Alert fatigue | medium | start with few high-signal alerts only |
-| Overengineering slows product work | medium | phased delivery; Kubernetes only through the isolated winemap profile after discovery/preflight |
+| Overengineering slows product work | medium | phased delivery; Kubernetes only through the isolated `finguide.les13.tech` profile after discovery/preflight |
 | Manual server drift | medium | inventory first, then lightweight IaC/runbooks |
 | HTTP public endpoints with auth | medium/high | add TLS before production data |
 
@@ -486,7 +486,7 @@ The Ops work can be considered complete for the first production-ready milestone
 - [ ] Production-like backend runs on PostgreSQL with Flyway migrations.
 - [ ] Daily encrypted off-host DB backup exists.
 - [ ] Restore drill is documented and has succeeded at least once.
-- [ ] Staging/pre-prod and prod configs are separated. In the winemap profile this maps to `finguide-dev` and `finguide-prod`.
+- [ ] Demo and dev/pre-prod configs are separated. In the `finguide.les13.tech` profile this maps to `finguide-demo` and `finguide-dev`.
 - [ ] Prod deploy has explicit promotion or approval.
 - [ ] Backend/frontend/Keycloak health checks are monitored.
 - [ ] At least one synthetic journey validates app + API integration.
@@ -514,7 +514,7 @@ This RFC should be tracked as one Ops epic with smaller implementation issues:
 4. **Staging/prod split**
    - separate config, Keycloak client, deploy workflows;
    - staging smoke before prod promotion;
-   - for winemap Kubernetes, map staging/pre-prod to `finguide-dev` namespace and prod to `finguide-prod`.
+   - for `finguide.les13.tech` Kubernetes, map public demo to `finguide-demo` namespace and pre-prod to `finguide-dev`.
 5. **Observability baseline**
    - metrics/logs/dashboard;
    - synthetic check;
@@ -529,12 +529,12 @@ This RFC should be tracked as one Ops epic with smaller implementation issues:
 
 ## 10. Open questions
 
-1. Should first production DB be managed PostgreSQL, self-hosted on the current VM, or per-environment PostgreSQL inside winemap Kubernetes?
-2. Should staging/pre-prod live on the current VM, a separate small VM, or `finguide-dev` namespace on winemap?
+1. Should first demo DB be managed PostgreSQL, self-hosted on `finguide.les13.tech`, or per-environment PostgreSQL inside Kubernetes?
+2. Should dev/pre-prod live on `finguide.les13.tech` as `finguide-dev`, on a separate small VM, or wait until the demo baseline is stable?
 3. What alert channel should be canonical: Telegram, email, GitHub issue, or another incident tool?
 4. What is the initial acceptable RPO/RTO once real user data exists?
 5. Should prod deploy require manual approval immediately, or only after PostgreSQL is introduced?
 
 ## 11. Recommended next action
 
-Create and prioritize the Ops epic in the GitHub Project, then implement Phase 0 before more production-facing changes. Phase 0 is intentionally documentation-heavy because it reduces operational ambiguity immediately and creates the runway for PostgreSQL/backups/staging without disrupting current product work. If the team chooses the winemap Kubernetes profile, Phase 0 must include read-only cluster discovery and a conflict matrix before any namespace or Helm changes.
+Create and prioritize the Ops epic in the GitHub Project, then implement Phase 0 before more production-facing changes. Phase 0 is intentionally documentation-heavy because it reduces operational ambiguity immediately and creates the runway for PostgreSQL/backups/staging without disrupting current product work. If the team chooses the `finguide.les13.tech` Kubernetes profile, Phase 0 must include read-only host/cluster discovery, a conflict matrix and a resource budget before any namespace or Helm changes.
