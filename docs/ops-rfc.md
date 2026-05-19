@@ -1,107 +1,113 @@
 # RFC: Ops-периметр FinGuide
 
-- **Статус:** Proposed
+- **Статус:** предложено
 - **Дата:** 2026-05-18
-- **Scope:** demo → production-ready периметр для FinGuide backend, frontend, Keycloak, данных, observability и релизного процесса.
-- **Owner:** Ops / platform track
+- **Область:** путь от текущего демо-стенда к production-ready эксплуатации FinGuide: backend, frontend, Keycloak, данные, наблюдаемость, CI/CD и релизный процесс.
+- **Владелец:** Ops / platform track
 - **Связанные страницы:** [Operations и CI/CD](operations.md), [RFC Kubernetes demo/dev на finguide.les13.tech](winemap-k8s-dev-prod-rfc.md), [Текущее состояние](status.md), [Roadmap](roadmap.md)
 
-## 1. Executive summary
+## 1. Краткое резюме
 
-FinGuide уже имеет рабочий публичный demo-стенд: frontend под `/fg/`, Spring Boot backend под `/finguide-api`, Keycloak realm и self-hosted GitHub Actions deploy на один сервер. Это хорошо для быстрой продуктовой итерации, но текущий Ops-периметр всё ещё остаётся demo-периметром: embedded H2, ручная серверная конфигурация, ограниченные smoke checks, нет формализованных backup/restore процедур, нет наблюдаемости уровня инцидентов, нет отдельного staging окружения и нет описанной политики секретов.
+У FinGuide уже есть рабочий публичный демо-стенд: frontend под `/fg/`, Spring Boot backend под `/finguide-api`, Keycloak realm и автоматический deploy через self-hosted GitHub Actions runner. Это хорошо для быстрой продуктовой итерации, но текущий Ops-периметр остаётся демонстрационным: embedded H2, частично ручная серверная конфигурация, ограниченные smoke-проверки, нет формализованных backup/restore процедур, нет наблюдаемости уровня инцидентов, нет отдельного dev/pre-prod окружения и нет полной политики секретов.
 
-Этот RFC предлагает эволюционный план без big-bang миграции. Идея: сохранить скорость разработки, но добавить минимальный production-grade слой вокруг уже работающего стенда. Новый целевой сервер для production-like demo — `finguide.les13.tech`; позже на нём же появится dev/pre-prod, но FinGuide не должен занимать все ресурсы, потому что сервер будет shared для других проектов. В первую очередь фиксируем инфраструктурную базу: инвентаризацию, секреты, резервное копирование, health/readiness, логи и runbooks. Затем переводим stateful-часть на PostgreSQL + Flyway, вводим staging/prod разделение, усиливаем CI/CD gate и только после этого добавляем полноценные SLO/alerts, blue-green/canary-подходы и IaC.
+Новый целевой сервер для production-like demo — `finguide.les13.tech`. На нём размещается публичный демо-стенд, близкий к production по эксплуатационной дисциплине: HTTPS/TLS, PostgreSQL + Flyway, backup/restore, секреты, наблюдаемость и rollback. Позже на этом же сервере должен появиться dev/pre-prod стенд. Сервер не должен считаться выделенным только под FinGuide: там будут и другие проекты, поэтому FinGuide обязан жить в ограниченном resource budget.
 
-Этот документ — umbrella RFC для Ops-направления. Конкретный вариант размещения FinGuide на новом сервере `finguide.les13.tech` описан в отдельном [RFC Kubernetes demo/dev на finguide.les13.tech](winemap-k8s-dev-prod-rfc.md). Kubernetes RFC не отменяет этот Ops RFC, а является одним из deployment profiles: он должен выполнять те же требования по PostgreSQL/Flyway, backup/restore, secrets, dev/demo split, observability, TLS и rollback.
+Этот RFC предлагает эволюционный план без big-bang миграции. Сначала фиксируем инфраструктурную базу: инвентаризацию, секреты, резервное копирование, health/readiness, логи и runbooks. Затем переводим stateful-часть на PostgreSQL + Flyway, разделяем demo и dev/pre-prod, усиливаем CI/CD gate и только после этого добавляем полноценные SLO/alerts, blue-green/canary-подходы и IaC.
 
-## 2. Current state
+Отдельный [Kubernetes RFC для finguide.les13.tech](winemap-k8s-dev-prod-rfc.md) описывает конкретный профиль размещения на новом сервере. Он не отменяет этот документ, а реализует тот же Ops baseline через Kubernetes namespaces/Helm.
 
-### 2.1 Public endpoints
+## 2. Текущее состояние
 
-- Frontend: legacy demo `http://66.42.121.18/fg/`; target demo `https://finguide.les13.tech/`
-- Backend API: legacy `http://66.42.121.18/finguide-api/api/v1`; target `https://finguide.les13.tech/api/v1` or `https://api.finguide.les13.tech/api/v1`
-- Backend health: legacy `http://66.42.121.18/finguide-api/actuator/health`; target `/actuator/health` behind the new HTTPS route
-- Swagger UI: legacy `http://66.42.121.18/finguide-api/swagger-ui.html`; target under the new API host/path
-- Springdoc OpenAPI JSON: legacy `http://66.42.121.18/finguide-api/v3/api-docs`; target under the new API host/path
-- Keycloak realm: legacy `http://66.42.121.18/auth/realms/finguide`; target issuer must use HTTPS and exact redirect URIs for demo/dev
-- GitHub Pages docs: `https://svoronkov-les13.github.io/finguide-be/`
+### 2.1 Публичные адреса
 
-### 2.2 Runtime and deploy
+- Frontend legacy demo: `http://66.42.121.18/fg/`.
+- Целевой frontend demo: `https://finguide.les13.tech/`.
+- Backend API legacy: `http://66.42.121.18/finguide-api/api/v1`.
+- Целевой Backend API: `https://finguide.les13.tech/api/v1` или `https://api.finguide.les13.tech/api/v1`.
+- Backend health legacy: `http://66.42.121.18/finguide-api/actuator/health`.
+- Swagger UI legacy: `http://66.42.121.18/finguide-api/swagger-ui.html`.
+- Springdoc OpenAPI JSON legacy: `http://66.42.121.18/finguide-api/v3/api-docs`.
+- Keycloak realm legacy: `http://66.42.121.18/auth/realms/finguide`.
+- Документация: `https://svoronkov-les13.github.io/finguide-be/`.
+
+Целевые публичные endpoints должны работать по HTTPS. Keycloak issuer и redirect URI должны быть точными для каждого окружения.
+
+### 2.2 Runtime и deploy
 
 - Backend: Java 21, Spring Boot 3.3, Spring Security OAuth2 Resource Server, Spring Data JDBC.
-- Persistence: embedded H2 demo state, initialized from `schema.sql` and `data.sql`.
-- Backend deployment: currently self-hosted GitHub Actions runner on legacy `66.42.121.18`, systemd service `finguide-api.service`, runtime jar `/opt/finguide-api/finguide-be.jar`. Target deployment moves the public demo to `finguide.les13.tech`, preferably with container/Helm or an equally documented hardened VM profile.
-- Frontend deployment: currently self-hosted GitHub Actions runner on legacy server, static assets under `/var/www/mtproxy-info/fg`. Target frontend publishes on `https://finguide.les13.tech/`.
-- Docs deployment: GitHub Pages through `mkdocs build --strict`.
-- Deploy gate: backend `mvn -B clean package`; frontend `bun install --frozen-lockfile` + `bun run build:fg`; docs `mkdocs build --strict`.
+- Текущее хранение данных: embedded H2, инициализация через `schema.sql` и `data.sql`.
+- Текущий backend deploy: self-hosted GitHub Actions runner на legacy сервере, systemd service `finguide-api.service`, runtime jar `/opt/finguide-api/finguide-be.jar`.
+- Текущий frontend deploy: self-hosted GitHub Actions runner на legacy сервере, статические файлы в `/var/www/mtproxy-info/fg`.
+- Целевой deploy: перенос публичного demo на `finguide.les13.tech`, предпочтительно через container/Helm или через равноценно документированный hardened VM profile.
+- Deploy документации: GitHub Pages через `mkdocs build --strict`.
 
-### 2.3 Current strengths
+### 2.3 Что уже хорошо
 
-- Deploy from `main` is automated for backend, frontend and docs.
-- Backend deploy includes jar backup and public/local health smoke.
-- OpenAPI coverage guard exists and prevents accidental contract drift growth.
-- Frontend has build/type gates and real API integration for core screens.
-- Documentation already captures current runtime, roadmap and architecture.
+- Deploy из `main` автоматизирован для backend, frontend и документации.
+- Backend deploy включает backup jar-файла и public/local health smoke.
+- Есть OpenAPI coverage guard, который предотвращает незаметный рост contract drift.
+- Frontend имеет build/type gates и интеграцию с real API для ключевых экранов.
+- Документация уже фиксирует runtime, roadmap и архитектуру.
 
-### 2.4 Current gaps
+### 2.4 Основные пробелы
 
-1. **Persistence gap:** H2 is useful for demo, but not acceptable as durable production state.
-2. **Backup/restore gap:** no documented RPO/RTO, backup schedule, restore drill, or backup encryption policy.
-3. **Environment gap:** no staging environment separated from demo/prod.
-4. **Secrets gap:** no single documented owner model for GitHub secrets, service credentials, Keycloak secrets and rotation.
-5. **Observability gap:** deploy checks only health; there are no formal alerts, dashboards, SLOs, error budgets or synthetic user journeys.
-6. **Security gap:** public endpoints are HTTP, Keycloak realm is demo-grade, and server hardening is not fully captured as code/runbook.
-7. **Change management gap:** `main` auto-deploys directly; this is fast but risky once real user data appears.
-8. **Infrastructure drift gap:** server state is partly manual; repeatability after rebuild is not guaranteed.
+1. **Хранение данных:** H2 подходит для demo, но не подходит для durable production-like state.
+2. **Backup/restore:** нет описанных RPO/RTO, расписания backup, restore drill и политики шифрования backup.
+3. **Окружения:** нет dev/pre-prod окружения, отделённого от публичного demo.
+4. **Секреты:** нет единой модели владения GitHub secrets, service credentials, Keycloak secrets и их ротацией.
+5. **Наблюдаемость:** deploy проверяет только health; нет формальных alerts, dashboards, SLO, error budget и synthetic journeys.
+6. **Безопасность:** legacy endpoints работают по HTTP, Keycloak realm demo-grade, server hardening не зафиксирован как код/runbook.
+7. **Change management:** `main` auto-deploy напрямую; это быстро, но рискованно после появления реальных пользовательских данных.
+8. **Infrastructure drift:** часть серверного состояния ручная; повторяемость после rebuild не гарантирована.
 
-## 3. Goals
+## 3. Цели
 
-### 3.1 Primary goals
+### 3.1 Основные цели
 
-- Define a practical Ops roadmap from demo to production-ready operation.
-- Preserve current development velocity while reducing the probability of data loss and broken deployments.
-- Introduce durable persistence with migrations, backups and restore verification.
-- Make deploy and rollback behavior explicit and rehearsable.
-- Add observability that answers: is the product up, is auth working, are users blocked, and did the last release degrade anything?
-- Document operational ownership clearly enough that another engineer can operate the system without tribal knowledge.
+- Определить практичный Ops roadmap от demo к production-ready эксплуатации.
+- Сохранить скорость разработки и снизить риск потери данных или сломанных релизов.
+- Ввести durable persistence через migrations, backups и restore verification.
+- Сделать deploy и rollback явными, документированными и проверяемыми.
+- Добавить наблюдаемость, которая отвечает на вопросы: продукт доступен, auth работает, пользователи не заблокированы, последний релиз ничего не ухудшил?
+- Описать operational ownership так, чтобы другой инженер мог эксплуатировать систему без tribal knowledge.
 
-### 3.2 Non-goals for this RFC
+### 3.2 Что не входит в этот RFC
 
-- Rewriting the application architecture into microservices.
-- Mandating Kubernetes as the only production path. Kubernetes is allowed only as an explicitly approved deployment profile that satisfies this Ops baseline.
-- Building enterprise-grade multi-region HA before there is production load.
-- Replacing the current CI/CD system if self-hosted Actions remains adequate.
-- Solving product analytics/BI; this RFC covers service observability and reliability.
+- Переписывание приложения в microservices.
+- Назначение Kubernetes единственным production path. Kubernetes допустим только как явно выбранный deployment profile, который выполняет этот Ops baseline.
+- Enterprise-grade multi-region HA до появления production-нагрузки.
+- Замена текущего CI/CD, если self-hosted Actions остаётся достаточным.
+- Product analytics/BI; этот RFC про service observability и reliability.
 
-## 4. Proposed target architecture
+## 4. Целевая архитектура
 
-### 4.1 Environments
+### 4.1 Окружения
 
-Adopt three logical environments, even if the first implementation still uses one physical server:
+Нужно зафиксировать три логических окружения, даже если первая реализация использует один физический сервер:
 
-| Environment | Purpose | Data | Deploy trigger | External users |
+| Окружение | Назначение | Данные | Триггер deploy | Внешние пользователи |
 | --- | --- | --- | --- | --- |
-| `dev` | local engineer workflow | disposable | manual local run | no |
-| `staging` | release candidate validation | seeded/synthetic | merge to staging branch or manual workflow | internal only |
-| `prod` | user-facing service | durable real data | tagged release or approved main deploy | yes |
+| `local-dev` | локальная работа инженера | disposable | ручной локальный запуск | нет |
+| `dev` / `pre-prod` | проверка релиз-кандидата | seeded/synthetic | merge в staging branch или ручной workflow | только внутренние |
+| `demo` / будущий `prod` | публичный production-like стенд | durable или близкие к durable данные | tagged release или approved deploy | да |
 
-Minimum acceptable first step: publish the public production-like `demo` on `finguide.les13.tech` with its own DB/schema, Keycloak client and config. The same server may later host `dev`/pre-prod as a separate environment, but it must have separate data and credentials.
+Первый обязательный шаг: опубликовать публичный production-like `demo` на `finguide.les13.tech` со своей DB/schema, отдельным Keycloak client и отдельной конфигурацией. Позже тот же сервер может принять `dev`/pre-prod как отдельное окружение, но с отдельными данными и credentials.
 
-Naming note: in the `finguide.les13.tech` Kubernetes RFC, `finguide-demo` maps to the public production-like demo and `finguide-dev` maps to staging/pre-prod. Local engineer `dev` remains outside the cluster.
+В Kubernetes RFC для `finguide.les13.tech` namespace `finguide-demo` соответствует публичному production-like demo, а `finguide-dev` — dev/pre-prod. Локальный инженерный `local-dev` остаётся вне сервера.
 
 ### 4.2 Runtime topology
 
-Recommended near-term topology:
+Рекомендуемая ближайшая topology:
 
 ```text
 Internet
   |
   v
 nginx / reverse proxy
-  |-- /fg/                 -> static frontend assets
-  |-- /finguide-api/       -> Spring Boot backend :3093
-  |-- /auth/               -> Keycloak
-  |-- /docs/ or GitHub Pages external docs
+  |-- / или /fg/                 -> static frontend assets
+  |-- /api/ или /finguide-api/   -> Spring Boot backend
+  |-- /auth/                     -> Keycloak, если auth размещён на этом же сервере
+  |-- /docs/ или GitHub Pages    -> документация
 
 Spring Boot backend
   |-- PostgreSQL primary database
@@ -115,77 +121,77 @@ Backup job
   |-- restore verification job
 ```
 
-Default recommendation for the current demo path is a hardened VM first: systemd/static frontend, PostgreSQL, nginx, backups and observability. Kubernetes is not required to reach the first production-ready milestone.
+Базовая рекомендация для первого production-ready milestone — hardened VM или Kubernetes без избыточной сложности: PostgreSQL, nginx/reverse proxy, TLS, backups, observability и понятный rollback. Kubernetes не должен обходить требования Phase 0–3: discovery, quotas, backups, secrets и smoke checks обязательны.
 
-If the team chooses Kubernetes on `finguide.les13.tech`, the profile must be additive and isolated: only `finguide-*` namespaces/resources, separate demo/dev data services, conservative ResourceQuota/LimitRange, and the same Ops gates from this RFC. The server must retain headroom for future non-FinGuide projects.
+Если команда выбирает Kubernetes на `finguide.les13.tech`, профиль должен быть additive и isolated: только `finguide-*` namespaces/resources, отдельные demo/dev data services, conservative ResourceQuota/LimitRange и те же Ops gates из этого RFC. На сервере должен остаться headroom для будущих не-FinGuide проектов.
 
-### 4.3 Persistence
+### 4.3 Хранение данных
 
-Move from embedded H2 to PostgreSQL using Flyway migrations.
+Нужно перейти с embedded H2 на PostgreSQL через Flyway migrations.
 
-Required properties:
+Обязательные свойства:
 
-- Application schema is created only through versioned migrations.
-- H2 may remain for tests and local/demo mode, but production profile must not use in-memory state.
-- Every deploy runs migration validation before switching runtime to the new jar.
-- Rollback policy distinguishes code rollback from schema rollback:
-  - backward-compatible migrations preferred;
-  - destructive migrations require explicit expand/migrate/contract plan;
-  - backup snapshot before risky migration.
+- Application schema создаётся только через versioned migrations.
+- H2 может остаться для tests и local/demo mode, но production-like profile не должен использовать in-memory state.
+- Каждый deploy запускает migration validation до переключения runtime на новый artifact.
+- Rollback policy различает code rollback и schema rollback:
+  - предпочтительны backward-compatible migrations;
+  - destructive migrations требуют явного expand/migrate/contract plan;
+  - перед рискованной migration нужен backup snapshot.
 
-Acceptance criteria:
+Критерии приёмки:
 
-- `SPRING_PROFILES_ACTIVE=prod` uses PostgreSQL.
-- `mvn -B test` covers migration compatibility and repository behavior.
-- A fresh DB can be created from migrations only.
-- A prod-like dump can be restored into staging and backend starts successfully.
+- `SPRING_PROFILES_ACTIVE=prod` или эквивалентный production-like profile использует PostgreSQL.
+- `mvn -B test` покрывает migration compatibility и repository behavior.
+- Fresh DB создаётся только из migrations.
+- Prod-like dump можно восстановить в dev/pre-prod, после чего backend стартует успешно.
 
-### 4.4 Secrets and configuration
+### 4.4 Секреты и конфигурация
 
-Configuration should be explicit by environment.
+Конфигурация должна быть явной по окружениям.
 
-Required secret classes:
+Классы секретов:
 
-- GitHub Actions secrets: deploy-related values, if any.
-- Backend runtime secrets: DB URL/user/password, OIDC issuer/client settings where needed.
+- GitHub Actions secrets: deploy-related values, если они нужны.
+- Backend runtime secrets: DB URL/user/password, OIDC issuer/client settings.
 - Keycloak admin/bootstrap secrets.
 - Backup encryption credentials.
-- External integration secrets later: email, notifications, storage.
+- Будущие external integration secrets: email, notifications, storage.
 
-Rules:
+Правила:
 
-1. No secrets in repository, docs, shell history or issue comments.
-2. Rotation procedure exists for every secret class.
-3. Runtime secrets are readable only by the service user and deploy mechanism.
-4. GitHub PATs used manually are short-lived or rotated immediately after use.
-5. Incident note is created whenever a secret is exposed.
+1. Не хранить secrets в repository, docs, shell history или issue comments.
+2. Для каждого класса secrets должна быть процедура rotation.
+3. Runtime secrets доступны только service user и deploy mechanism.
+4. GitHub PAT для ручных действий должен быть short-lived или rotated сразу после использования.
+5. При раскрытии secret нужно создавать incident note.
 
-Minimum implementation:
+Минимальная реализация:
 
-- systemd `EnvironmentFile=/etc/finguide-api/finguide-api.env` with `0600` permissions;
-- documented list of required environment variables without values;
-- GitHub Actions uses repository/environment secrets rather than inline tokens;
-- a `docs/runbooks/secrets-rotation.md` page.
+- systemd `EnvironmentFile=/etc/finguide-api/finguide-api.env` с permissions `0600`;
+- документированный список required environment variables без значений;
+- GitHub Actions использует repository/environment secrets, а не inline tokens;
+- runbook `docs/runbooks/secrets-rotation.md`.
 
 ### 4.5 CI/CD release flow
 
-Current auto-deploy from `main` is acceptable for demo. For production data, move to a two-stage flow:
+Текущий auto-deploy из `main` допустим для demo. Для production-like данных нужен двухступенчатый flow:
 
 1. Pull request gate:
    - backend: unit/integration tests, OpenAPI coverage, migration validation;
    - frontend: typecheck, tests, build;
    - docs: strict mkdocs build.
-2. Merge to `main`:
-   - deploy to staging automatically;
-   - run smoke and synthetic checks.
-3. Promote to prod:
-   - manual approval or tagged release;
+2. Merge в `main`:
+   - deploy в dev/pre-prod автоматически;
+   - smoke и synthetic checks.
+3. Promotion в demo/prod:
+   - manual approval или tagged release;
    - backup preflight;
    - deploy;
    - post-deploy smoke;
    - rollback decision window.
 
-Recommended workflow names:
+Рекомендуемые workflow names:
 
 - `backend-ci.yml`
 - `backend-deploy-staging.yml`
@@ -197,52 +203,52 @@ Recommended workflow names:
 
 ### 4.6 Rollback
 
-Rollback must be boring.
+Rollback должен быть скучным: понятным, быстрым и проверенным.
 
 Backend rollback:
 
-- Keep last N jar artifacts under `/opt/finguide-api/releases/`.
-- `/opt/finguide-api/current.jar` is a symlink to the active release.
-- Deploy creates new release file, updates symlink atomically and restarts service.
-- Rollback switches symlink to previous known-good release and restarts service.
+- Хранить последние N jar artifacts в `/opt/finguide-api/releases/`.
+- `/opt/finguide-api/current.jar` — symlink на активный release.
+- Deploy создаёт новый release file, атомарно переключает symlink и перезапускает service.
+- Rollback переключает symlink на previous known-good release и перезапускает service.
 
 Frontend rollback:
 
-- Keep timestamped static asset directories.
-- `/var/www/mtproxy-info/fg` points to current release or is replaced from previous backup.
-- Rollback preserves asset integrity and does not mix old/new bundles.
+- Хранить timestamped directories со статическими assets.
+- `/var/www/mtproxy-info/fg` указывает на current release или восстанавливается из previous backup.
+- Rollback сохраняет целостность assets и не смешивает старые/новые bundles.
 
 Database rollback:
 
-- Prefer forward fixes for compatible migrations.
-- For destructive migrations, require backup snapshot and explicit restore plan.
-- Any restore in prod requires human approval and incident record.
+- Для compatible migrations предпочтительны forward fixes.
+- Для destructive migrations обязателен backup snapshot и явный restore plan.
+- Любой restore в demo/prod требует human approval и incident record.
 
-### 4.7 Observability
+### 4.7 Наблюдаемость
 
-Minimum signals:
+Минимальные сигналы:
 
-- **Availability:** HTTP uptime for `/fg/`, backend `/actuator/health`, Keycloak realm discovery.
-- **Correctness:** synthetic journey: load app, obtain demo plan/current plan, call cashflow endpoint, verify response shape.
-- **Latency:** p50/p95/p99 for backend requests by route family.
-- **Errors:** 5xx rate, auth failures, failed migrations, failed deploys.
-- **Resources:** CPU, memory, disk, DB size, DB connections, service restarts.
-- **Security:** failed SSH attempts, expired certs, suspicious Keycloak admin events.
+- **Доступность:** HTTP uptime для frontend, backend `/actuator/health`, Keycloak realm discovery.
+- **Корректность:** synthetic journey: загрузить app, получить demo/current plan, вызвать cashflow endpoint, проверить форму ответа.
+- **Задержки:** p50/p95/p99 для backend requests по route family.
+- **Ошибки:** 5xx rate, auth failures, failed migrations, failed deploys.
+- **Ресурсы:** CPU, memory, disk, DB size, DB connections, service restarts.
+- **Безопасность:** failed SSH attempts, expired certs, suspicious Keycloak admin events.
 
-Suggested stack for current scale:
+Suggested stack для текущего масштаба:
 
 - Spring Boot Actuator metrics.
-- Prometheus or Grafana Agent/Alloy scraping local services.
-- Loki for structured logs if already available; otherwise journald + logrotate as phase 1.
-- Grafana dashboard with service health, latency, errors and deploy markers.
-- Alerting to Telegram/email for high-signal conditions only.
+- Prometheus или Grafana Agent/Alloy для scraping local services.
+- Loki для structured logs, если он уже доступен; иначе journald + logrotate как phase 1.
+- Grafana dashboard с service health, latency, errors и deploy markers.
+- Alerting в Telegram/email только для high-signal conditions.
 
-Initial alert rules:
+Начальные alert rules:
 
 | Alert | Threshold | Severity |
 | --- | --- | --- |
 | BackendDown | `/actuator/health` fails for 2 minutes | page |
-| FrontendDown | `/fg/` fails for 2 minutes | page |
+| FrontendDown | frontend route fails for 2 minutes | page |
 | KeycloakDown | realm discovery fails for 2 minutes | page |
 | High5xxRate | 5xx > 2% for 10 minutes | page |
 | DiskWillFill | disk > 85% | warn |
@@ -250,24 +256,24 @@ Initial alert rules:
 | CertificateExpiring | TLS cert expires in <14d | warn |
 | DeployFailed | GitHub Actions deploy failure | page |
 
-### 4.8 Backups and restore
+### 4.8 Backup и restore
 
-Backups are not real until restore is tested.
+Backup не считается рабочим, пока restore не проверен.
 
-Policy proposal:
+Предложение по policy:
 
-- RPO: 24h initially, 1h later if real paid/customer data appears.
-- RTO: 4h initially, 1h later.
-- PostgreSQL full logical backup daily via `pg_dump`.
+- RPO: сначала 24h, позже 1h при появлении real paid/customer data.
+- RTO: сначала 4h, позже 1h.
+- PostgreSQL full logical backup daily через `pg_dump`.
 - Retention: 7 daily, 4 weekly, 6 monthly.
-- Encryption: age/gpg or storage-provider encryption with restricted credentials.
-- Storage: off-host object storage or another controlled host; local-only backup is not enough.
-- Restore drill: monthly into staging or disposable DB.
+- Encryption: age/gpg или storage-provider encryption с ограниченными credentials.
+- Storage: off-host object storage или другой controlled host; local-only backup недостаточен.
+- Restore drill: monthly в dev/pre-prod или disposable DB.
 
-Backup job must emit:
+Backup job должен писать:
 
 - start/end timestamp;
-- DB name and schema version;
+- DB name и schema version;
 - compressed size;
 - checksum;
 - storage target;
@@ -278,229 +284,229 @@ Backup job must emit:
 Server baseline:
 
 - SSH key-only login; password login disabled.
-- Root login disabled or restricted; operational user with sudo where needed.
-- UFW or equivalent firewall allows only SSH, HTTP/HTTPS and required internal ports.
+- Root login disabled или restricted; operational user с sudo где нужно.
+- UFW или equivalent firewall разрешает только SSH, HTTP/HTTPS и нужные internal ports.
 - Internal app ports bound to localhost where possible.
-- Automatic security updates or documented patch cadence.
-- `fail2ban` or equivalent SSH brute-force protection.
-- Regular package inventory and reboot policy for kernel updates.
+- Automatic security updates или documented patch cadence.
+- `fail2ban` или equivalent SSH brute-force protection.
+- Regular package inventory и reboot policy для kernel updates.
 
 Application baseline:
 
-- HTTPS for public endpoints before production data.
-- Secure cookies and correct proxy headers.
-- Keycloak clients configured with exact redirect URIs, not broad wildcards.
+- HTTPS для public endpoints до появления production data.
+- Secure cookies и корректные proxy headers.
+- Keycloak clients configured with exact redirect URIs, без broad wildcards.
 - CORS restricted to known frontend origins.
-- Actuator exposes only safe endpoints publicly; detailed metrics protected or internal.
+- Actuator exposes only safe endpoints publicly; detailed metrics protected или internal.
 - Anonymous demo data cannot mutate shared seed state.
 
 Repository baseline:
 
-- Branch protection for `main` once prod data exists.
+- Branch protection for `main` once prod/demo data matters.
 - Required PR checks before merge.
 - Secret scanning enabled.
-- CODEOWNERS or explicit reviewer convention for Ops files.
+- CODEOWNERS или explicit reviewer convention для Ops files.
 
 ### 4.10 Runbooks
 
-Create runbooks under `docs/runbooks/`:
+Создать runbooks в `docs/runbooks/`:
 
 1. `deploy-backend.md` — normal deploy, smoke, rollback.
 2. `deploy-frontend.md` — normal deploy, smoke, rollback.
-3. `database-backup-restore.md` — backup inspection and restore drill.
+3. `database-backup-restore.md` — backup inspection и restore drill.
 4. `keycloak-ops.md` — realm/client config, user issue triage, token/debug commands.
 5. `incident-response.md` — severity, communication, timeline, follow-up.
 6. `secrets-rotation.md` — rotate GitHub PAT, GitHub Actions secrets, DB password, Keycloak admin/client secrets.
 7. `server-hardening.md` — SSH/firewall/packages/service users.
 
-Each runbook should have:
+Каждый runbook должен содержать:
 
-- when to use it;
+- когда его использовать;
 - prerequisites;
 - exact commands;
 - expected output;
 - rollback/abort path;
 - verification checklist.
 
-## 5. Phased delivery plan
+## 5. Поэтапный план
 
-### Phase 0 — inventory and guardrails
+### Phase 0 — inventory и guardrails
 
-Goal: make current demo operation explicit and safer before changing runtime architecture.
+Цель: сделать текущую demo-эксплуатацию явной и безопаснее до изменения runtime architecture.
 
-Tasks:
+Задачи:
 
-- Document all services, ports, paths, systemd units, deploy directories and current GitHub Pages/CI flows.
-- For the `finguide.les13.tech` profile, run read-only host/cluster discovery and document resources, ingress/ports, storage classes and conflict matrix.
-- Add runbook skeletons for deploy, rollback and incident response.
-- Add a secrets inventory with names only, no values.
-- Add branch protection proposal for `main`.
-- Add a pre-prod checklist to docs.
-- Confirm GitHub Pages docs navigation includes Ops RFC and runbooks.
+- Задокументировать services, ports, paths, systemd units, deploy directories и текущие GitHub Pages/CI flows.
+- Для профиля `finguide.les13.tech` выполнить read-only host/cluster discovery и зафиксировать resources, ingress/ports, storage classes и conflict matrix.
+- Добавить skeleton runbooks для deploy, rollback и incident response.
+- Добавить secrets inventory только с именами, без значений.
+- Добавить branch protection proposal для `main`.
+- Добавить pre-prod checklist в docs.
+- Проверить, что GitHub Pages docs navigation включает Ops RFC и runbooks.
 
-Exit criteria:
+Критерии выхода:
 
-- A new engineer can identify what is running and how it is deployed.
-- If Kubernetes is selected, diff/discovery proves planned changes are scoped to `finguide-*` resources only and resource quotas preserve headroom for future projects.
-- Docs build is strict and green.
-- No secret values are present in docs/issues.
+- Новый инженер понимает, что запущено и как оно deployится.
+- Если выбран Kubernetes, diff/discovery доказывает, что planned changes scoped только к `finguide-*` resources, а resource quotas оставляют headroom для будущих проектов.
+- Strict docs build зелёный.
+- В docs/issues нет secret values.
 
-### Phase 1 — production persistence foundation
+### Phase 1 — foundation для production persistence
 
-Goal: make data durable and migration-driven.
+Цель: сделать данные durable и migration-driven.
 
-Tasks:
+Задачи:
 
-- Add PostgreSQL profile and connection config.
-- Introduce Flyway migrations from current schema.
-- Keep H2 for tests/demo if useful.
-- Add migration validation in CI.
-- Create DB backup job.
-- Perform first restore drill into staging/disposable DB.
+- Добавить PostgreSQL profile и connection config.
+- Ввести Flyway migrations из текущей schema.
+- Оставить H2 для tests/demo, если это полезно.
+- Добавить migration validation в CI.
+- Создать DB backup job.
+- Выполнить первый restore drill в dev/pre-prod или disposable DB.
 
-Exit criteria:
+Критерии выхода:
 
-- Backend can run against PostgreSQL from empty DB.
-- Backup and restore are documented and verified.
-- H2 is no longer used for any production-like state.
+- Backend стартует на PostgreSQL из empty DB.
+- Backup и restore documented and verified.
+- H2 больше не используется для production-like state.
 
 ### Phase 2 — dev/demo split
 
-Goal: reduce release risk before real users/data.
+Цель: снизить release risk до появления real users/data.
 
-Tasks:
+Задачи:
 
-- Create staging backend service/profile.
-- Create staging frontend base path or host.
-- Create separate Keycloak client/realm settings for staging.
-- Split deploy workflows into staging and prod.
-- Add promotion step from staging to prod.
+- Создать dev/pre-prod backend service/profile.
+- Создать dev/pre-prod frontend base path или host.
+- Создать отдельный Keycloak client/realm settings для dev/pre-prod.
+- Разделить deploy workflows на dev/pre-prod и demo/prod.
+- Добавить promotion step из dev/pre-prod в demo/prod.
 
-Exit criteria:
+Критерии выхода:
 
-- Merging to `main` validates in staging first.
-- Production deploy requires explicit promotion.
-- Staging smoke covers frontend, backend and auth discovery.
+- Merge в `main` сначала валидируется в dev/pre-prod.
+- Demo/prod deploy требует explicit promotion.
+- Dev/pre-prod smoke покрывает frontend, backend и auth discovery.
 
-### Phase 3 — observability and alerting
+### Phase 3 — наблюдаемость и alerting
 
-Goal: detect user-impacting failures before users report them.
+Цель: находить user-impacting failures раньше пользователей.
 
-Tasks:
+Задачи:
 
-- Add metrics endpoint/config.
-- Add dashboards for backend, frontend availability, DB and host resources.
-- Add synthetic journey check.
-- Add high-signal alerts.
-- Add deploy markers to dashboards if feasible.
+- Добавить metrics endpoint/config.
+- Добавить dashboards для backend, frontend availability, DB и host resources.
+- Добавить synthetic journey check.
+- Добавить high-signal alerts.
+- Добавить deploy markers на dashboards, если feasible.
 
-Exit criteria:
+Критерии выхода:
 
-- A failed backend, frontend, Keycloak or backup triggers an alert.
-- Dashboard answers current status in under 60 seconds.
-- Incidents can be reconstructed from logs and deploy history.
+- Падение backend, frontend, Keycloak или backup triggers an alert.
+- Dashboard отвечает на вопрос о текущем статусе меньше чем за 60 секунд.
+- Incidents можно восстановить по logs и deploy history.
 
-### Phase 4 — hardening and repeatability
+### Phase 4 — hardening и repeatability
 
-Goal: reduce manual drift and improve recovery confidence.
+Цель: снизить manual drift и повысить recovery confidence.
 
-Tasks:
+Задачи:
 
-- Codify server setup with Ansible/Terraform/OpenTofu or a minimal reproducible shell+docs baseline.
-- Enforce firewall and service user conventions.
-- Add TLS and certificate expiry monitoring.
-- Add dependency/security update cadence.
-- Rehearse full VM rebuild or app redeploy from clean host.
+- Codify server setup через Ansible/Terraform/OpenTofu или minimal reproducible shell+docs baseline.
+- Enforce firewall и service user conventions.
+- Добавить TLS и certificate expiry monitoring.
+- Добавить dependency/security update cadence.
+- Отрепетировать full VM rebuild или app redeploy с clean host.
 
-Exit criteria:
+Критерии выхода:
 
-- Server can be rebuilt from docs/code with bounded manual steps.
-- TLS is enabled for public production endpoints.
-- Recovery process is tested at least once.
+- Server можно rebuild из docs/code с ограниченным набором manual steps.
+- TLS enabled для public production endpoints.
+- Recovery process tested at least once.
 
-## 6. Decision points
+## 6. Решения
 
 ### 6.1 Single VM vs Kubernetes
 
-Recommendation: **`finguide.les13.tech` is the default target for the production-like demo; runtime may be hardened VM or Kubernetes, but Kubernetes must be isolated and resource-capped**.
+Рекомендация: **`finguide.les13.tech` — default target для production-like demo; runtime может быть hardened VM или Kubernetes, но Kubernetes должен быть isolated и resource-capped**.
 
-Rationale:
+Обоснование:
 
-- Current app has low service count and the existing systemd/static deploy works.
-- The urgent risks are data durability, secrets, backups and observability, not orchestration.
-- Kubernetes adds ingress/storage/secret/runner complexity, so it must not bypass Phase 0–3 guardrails.
-- `finguide.les13.tech` is the new FinGuide server and may later host other projects, so quotas, backups and no-touch rules for non-FinGuide resources are mandatory.
+- У приложения пока мало service components, и существующий systemd/static deploy работает.
+- Срочные риски — data durability, secrets, backups и наблюдаемость, а не orchestration.
+- Kubernetes добавляет ingress/storage/secret/runner complexity, поэтому не должен bypass Phase 0–3 guardrails.
+- `finguide.les13.tech` — новый FinGuide server, где позже будут другие проекты; поэтому quotas, backups и no-touch rules для не-FinGuide resources обязательны.
 
-Use the hardened VM path when speed and simplicity matter most. Use the `finguide.les13.tech` Kubernetes profile when the team wants containerized demo/dev parity and accepts the added ingress/storage/secret complexity. Revisit the decision when:
+Использовать hardened VM path, когда важнее speed and simplicity. Использовать Kubernetes profile на `finguide.les13.tech`, когда нужна containerized demo/dev parity и команда принимает дополнительную сложность ingress/storage/secrets. Вернуться к решению, когда:
 
-- multiple independent backend services appear;
-- horizontal scaling is needed;
-- infrastructure ownership is clear;
-- deployment/rollback needs exceed what systemd release directories can provide;
-- a dedicated cluster or managed DB becomes available.
+- появятся несколько independent backend services;
+- потребуется horizontal scaling;
+- станет понятным infrastructure ownership;
+- deployment/rollback needs превысят возможности systemd release directories;
+- появится dedicated cluster или managed DB.
 
-### 6.2 PostgreSQL location
+### 6.2 Где размещать PostgreSQL
 
-Options:
+Варианты:
 
-1. PostgreSQL on same VM.
+1. PostgreSQL на том же VM.
 2. Managed PostgreSQL.
-3. Separate self-managed DB VM.
+3. Отдельный self-managed DB VM.
 
-Recommendation for first production step: **managed PostgreSQL if budget allows; otherwise environment-local PostgreSQL with off-host backups**. For the hardened VM path this means same-VM PostgreSQL with off-host backups; for the `finguide.les13.tech` Kubernetes profile this means per-environment PostgreSQL StatefulSets/PVCs or a managed DB if chosen later.
+Рекомендация для первого production-like шага: **managed PostgreSQL, если позволяет budget; иначе environment-local PostgreSQL с off-host backups**. Для hardened VM path это same-VM PostgreSQL с off-host backups; для Kubernetes profile на `finguide.les13.tech` — per-environment PostgreSQL StatefulSets/PVCs или managed DB, если он будет выбран позже.
 
-Trade-off:
+Компромиссы:
 
-- Same VM or same-node Kubernetes PostgreSQL is cheap and simple, but host loss affects app and DB simultaneously.
-- Managed DB reduces backup/patch burden and improves durability, but adds cost and provider coupling.
-- Separate DB VM is flexible but increases ops burden.
-- Kubernetes PVCs are not backups; prod dumps must leave the node.
+- Same VM или same-node Kubernetes PostgreSQL дешевле и проще, но потеря host влияет сразу на app и DB.
+- Managed DB снижает backup/patch burden и повышает durability, но добавляет cost и provider coupling.
+- Separate DB VM гибче, но повышает ops burden.
+- Kubernetes PVCs — это не backups; demo/prod dumps должны уходить с node.
 
 ### 6.3 Deployment promotion model
 
-Options:
+Варианты:
 
-1. Keep auto-deploy from `main` to prod.
-2. Auto-deploy `main` to staging, manual promotion to prod.
+1. Оставить auto-deploy из `main` в prod/demo.
+2. Auto-deploy `main` в staging/dev, manual promotion в prod/demo.
 3. Tag-only prod releases.
 
-Recommendation: **option 2 now, option 3 later if release cadence becomes formal**.
+Рекомендация: **вариант 2 сейчас, вариант 3 позже, если release cadence станет формальным**.
 
-## 7. Risks and mitigations
+## 7. Риски и mitigations
 
-| Risk | Impact | Mitigation |
+| Риск | Влияние | Снижение риска |
 | --- | --- | --- |
-| Migration breaks prod data | high | staging restore drill, backward-compatible migrations, pre-deploy backup |
+| Migration breaks prod data | high | staging/dev restore drill, backward-compatible migrations, pre-deploy backup |
 | Backup exists but restore fails | high | monthly restore drill and checksum validation |
 | Token/secret exposure | high | short-lived tokens, rotation runbook, secret scanning, no inline secrets |
 | Self-hosted runner compromise | high | minimal runner permissions, service user isolation, no broad secrets on runner |
 | Alert fatigue | medium | start with few high-signal alerts only |
-| Overengineering slows product work | medium | phased delivery; Kubernetes only through the isolated `finguide.les13.tech` profile after discovery/preflight |
+| Overengineering slows product work | medium | phased delivery; Kubernetes only through isolated `finguide.les13.tech` profile after discovery/preflight |
 | Manual server drift | medium | inventory first, then lightweight IaC/runbooks |
 | HTTP public endpoints with auth | medium/high | add TLS before production data |
 
-## 8. Acceptance checklist for the Ops epic
+## 8. Acceptance checklist для Ops epic
 
-The Ops work can be considered complete for the first production-ready milestone when:
+Ops work можно считать завершённым для первого production-ready milestone, когда:
 
 - [ ] Production-like backend runs on PostgreSQL with Flyway migrations.
 - [ ] Daily encrypted off-host DB backup exists.
-- [ ] Restore drill is documented and has succeeded at least once.
-- [ ] Demo and dev/pre-prod configs are separated. In the `finguide.les13.tech` profile this maps to `finguide-demo` and `finguide-dev`.
-- [ ] Prod deploy has explicit promotion or approval.
-- [ ] Backend/frontend/Keycloak health checks are monitored.
+- [ ] Restore drill documented and succeeded at least once.
+- [ ] Demo and dev/pre-prod configs separated. В профиле `finguide.les13.tech` это `finguide-demo` и `finguide-dev`.
+- [ ] Prod/demo deploy has explicit promotion or approval.
+- [ ] Backend/frontend/Keycloak health checks monitored.
 - [ ] At least one synthetic journey validates app + API integration.
-- [ ] TLS is enabled for public production endpoints.
+- [ ] TLS enabled for public production endpoints.
 - [ ] Secrets inventory and rotation runbook exist.
 - [ ] Backend and frontend rollback runbooks exist and have been tested once.
-- [ ] `main` branch protection and required checks are enabled or explicitly deferred.
+- [ ] `main` branch protection and required checks enabled or explicitly deferred.
 - [ ] Incident response template exists.
 
-## 9. Proposed GitHub issue breakdown
+## 9. Предлагаемая декомпозиция GitHub issues
 
-This RFC should be tracked as one Ops epic with smaller implementation issues:
+Этот RFC нужно вести как один Ops epic с меньшими implementation issues:
 
-1. **Ops inventory and runbook skeletons**
+1. **Ops inventory и skeleton runbooks**
    - document services/ports/paths/systemd units;
    - add deploy/rollback/incident runbooks.
 2. **PostgreSQL + Flyway production profile**
@@ -509,12 +515,12 @@ This RFC should be tracked as one Ops epic with smaller implementation issues:
    - validate from empty DB.
 3. **Backup and restore drill**
    - encrypted off-host backups;
-   - restore into staging/disposable DB;
+   - restore into staging/dev or disposable DB;
    - alert on missing backups.
-4. **Staging/prod split**
+4. **Dev/demo split**
    - separate config, Keycloak client, deploy workflows;
-   - staging smoke before prod promotion;
-   - for `finguide.les13.tech` Kubernetes, map public demo to `finguide-demo` namespace and pre-prod to `finguide-dev`.
+   - dev/pre-prod smoke before demo/prod promotion;
+   - для Kubernetes на `finguide.les13.tech`: public demo → namespace `finguide-demo`, pre-prod → namespace `finguide-dev`.
 5. **Observability baseline**
    - metrics/logs/dashboard;
    - synthetic check;
@@ -524,17 +530,17 @@ This RFC should be tracked as one Ops epic with smaller implementation issues:
    - SSH/firewall/package baseline;
    - cert expiry monitoring.
 7. **Repeatable infrastructure baseline**
-   - Ansible/OpenTofu or minimal reproducible scripts;
+   - Ansible/OpenTofu или minimal reproducible scripts;
    - rebuild rehearsal.
 
-## 10. Open questions
+## 10. Открытые вопросы
 
-1. Should first demo DB be managed PostgreSQL, self-hosted on `finguide.les13.tech`, or per-environment PostgreSQL inside Kubernetes?
-2. Should dev/pre-prod live on `finguide.les13.tech` as `finguide-dev`, on a separate small VM, or wait until the demo baseline is stable?
-3. What alert channel should be canonical: Telegram, email, GitHub issue, or another incident tool?
-4. What is the initial acceptable RPO/RTO once real user data exists?
-5. Should prod deploy require manual approval immediately, or only after PostgreSQL is introduced?
+1. Где размещать первую demo DB: managed PostgreSQL, self-hosted on `finguide.les13.tech`, или per-environment PostgreSQL inside Kubernetes?
+2. Когда поднимать dev/pre-prod на `finguide.les13.tech`: сразу как `finguide-dev`, на отдельной маленькой VM или после стабилизации demo baseline?
+3. Какой alert channel сделать canonical: Telegram, email, GitHub issue или другой incident tool?
+4. Какие initial RPO/RTO приемлемы после появления real user data?
+5. Нужен ли manual approval для demo/prod deploy сразу или только после введения PostgreSQL?
 
-## 11. Recommended next action
+## 11. Рекомендуемый следующий шаг
 
-Create and prioritize the Ops epic in the GitHub Project, then implement Phase 0 before more production-facing changes. Phase 0 is intentionally documentation-heavy because it reduces operational ambiguity immediately and creates the runway for PostgreSQL/backups/staging without disrupting current product work. If the team chooses the `finguide.les13.tech` Kubernetes profile, Phase 0 must include read-only host/cluster discovery, a conflict matrix and a resource budget before any namespace or Helm changes.
+Создать и приоритизировать Ops epic в GitHub Project, затем выполнить Phase 0 до новых production-facing изменений. Phase 0 намеренно documentation-heavy: она сразу снижает operational ambiguity и создаёт runway для PostgreSQL, backups и dev/pre-prod без остановки продуктовой разработки. Если команда выбирает Kubernetes profile на `finguide.les13.tech`, Phase 0 должен включать read-only host/cluster discovery, conflict matrix и resource budget до любых namespace или Helm changes.
