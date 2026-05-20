@@ -138,12 +138,13 @@ totalGoalExpenses[year] = totalMonthlyGoalExpenses[year] + totalYearlyGoalExpens
 ```txt
 freeCashflow[year] = totalIncome[year] - normalizedExpenses[year]
 # если используются signed Numbers values: freeCashflow = totalIncome + totalExpenses
-pool += freeCashflow[year]
-for goal in goals sorted by targetYear, priority, id:
-  targetCost = currentCost grown by goal.growthPct until targetYear
-  allocated = min(pool, targetCost - previouslyAllocatedToGoal)
-  projectedSavedAmount += allocated
-  pool -= allocated
+for month in projectionMonths:
+  pool += freeCashflow[year] / 12
+  for goal in goals sorted by targetYear, targetMonth, priority, id:
+    targetCost = currentCost grown by goal.growthPct until targetYear
+    allocated = min(pool, targetCost - previouslyAllocatedToGoal)
+    projectedSavedAmount += allocated
+    pool -= allocated
 ```
 
 Поэтому:
@@ -280,15 +281,15 @@ netMonthlyBalance = monthlyIncome - monthlyExpenses
 netYearlyBalance = netMonthlyBalance * 12
 ```
 
-Финансовые цели учитываются как прогнозный денежный outflow текущего года:
+Финансовые цели учитываются как прогнозный денежный outflow текущего года в yearly cashflow, но dashboard-рекомендация для ежемесячного взноса показывает свободный денежный поток до целей:
 
 ```txt
-monthlyGoalContribution = currentYearGoalExpenses / 12
-netMonthlyBalance = monthlyIncome - monthlyExpenses - monthlyGoalContribution
+monthlyGoalContribution = max(monthlyIncome - monthlyExpenses, 0)
+netMonthlyBalance = monthlyIncome - monthlyExpenses
 availableForPension = max(0, netMonthlyBalance)
 ```
 
-Backend отдаёт `projected*` поля по целям отдельно от фактических `currentCost` / `savedAmount`, но само финансирование целей уменьшает `netSavings` и капитал.
+Backend отдаёт `projected*` поля по целям отдельно от фактических `currentCost` / `savedAmount`; `projectedReachable` учитывает deadline с точностью до `targetYear + targetMonth`. Само финансирование целей в yearly analytics уменьшает `netSavings` и капитал.
 
 ### Contribution ledger
 

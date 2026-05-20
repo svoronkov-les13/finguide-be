@@ -2676,6 +2676,7 @@
           "savedAmount",
           "currency",
           "targetYear",
+          "targetMonth",
           "type",
           "growthType",
           "growthPct",
@@ -2712,6 +2713,13 @@
           "targetYear": {
             "type": "integer",
             "minimum": 2024
+          },
+          "targetMonth": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12,
+            "default": 12,
+            "description": "Target month within targetYear (1-12). If omitted in requests, the backend defaults it to December (12)."
           },
           "type": {
             "type": "string",

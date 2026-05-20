@@ -153,9 +153,9 @@ If-Match: "<etag>"
 
 ### Цель (`Goal`)
 
-`id`, `name`, `icon`, `currentCost`, `savedAmount`, `currency`, `targetYear`, `type: one_time|recurring`, `growthType`, `growthPct`, `growthSchedule[]`, `priority`. `targetYear` должен быть не меньше `2024`.
+`id`, `name`, `icon`, `currentCost`, `savedAmount`, `currency`, `targetYear`, `targetMonth`, `type: one_time|recurring`, `growthType`, `growthPct`, `growthSchedule[]`, `priority`. `targetYear` должен быть не меньше `2024`; `targetMonth` — `1..12`, при отсутствии в request backend использует декабрь (`12`).
 
-Логика waterfall-распределения: ближайшая или приоритетная цель получает свободные накопления первой; порядок сохраняется через `/goals/reorder`.
+Логика waterfall-распределения: ближайшая цель получает свободные накопления первой; порядок сортировки `targetYear`, `targetMonth`, `priority`, `id`, а `/goals/reorder` управляет priority внутри одинакового срока.
 
 Для Excel-модели `Goal` также должен поддерживать плановые расходы на цели: `plannedAmount`, `frequency`, `startDate/endDate` или `startYear/endYear`. Это покрывает лист `Цели`: ежемесячные и ежегодные расходы на цели как отдельный денежный поток.
 

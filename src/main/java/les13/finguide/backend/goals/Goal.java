@@ -13,6 +13,7 @@ public record Goal(
         BigDecimal savedAmount,
         String currency,
         int targetYear,
+        int targetMonth,
         Type type,
         GrowthType growthType,
         BigDecimal growthPct,

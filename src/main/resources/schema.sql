@@ -116,6 +116,7 @@ create table goals (
   saved_amount numeric(19, 2) not null,
   currency varchar(3) not null,
   target_year integer not null,
+  target_month integer not null default 12,
   type varchar(32) not null,
   growth_type varchar(32) not null,
   growth_pct numeric(9, 4) not null,
