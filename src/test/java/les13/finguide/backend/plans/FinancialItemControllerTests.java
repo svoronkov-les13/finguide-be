@@ -126,6 +126,7 @@ class FinancialItemControllerTests {
                                   "savedAmount": 100000,
                                   "currency": "RUB",
                                   "targetYear": 2030,
+                                  "targetMonth": 6,
                                   "type": "one_time",
                                   "growthType": "manual",
                                   "growthPct": 6,
@@ -135,6 +136,7 @@ class FinancialItemControllerTests {
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.name").value("Обучение"))
+                .andExpect(jsonPath("$.data.targetMonth").value(6))
                 .andExpect(jsonPath("$.data.savedAmount").value(0))
                 .andReturn().getResponse().getContentAsString();
         String goalId = objectMapper.readTree(goalBody).at("/data/id").asText();
@@ -142,8 +144,9 @@ class FinancialItemControllerTests {
         mockMvc.perform(patch("/api/v1/plans/{planId}/goals/{id}", planId, goalId)
                         .with(userJwt())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"savedAmount\":200000,\"priority\":1}"))
+                        .content("{\"savedAmount\":200000,\"targetMonth\":3,\"priority\":1}"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.targetMonth").value(3))
                 .andExpect(jsonPath("$.data.savedAmount").value(0));
 
         JsonNode goals = objectMapper.readTree(mockMvc.perform(get("/api/v1/plans/{planId}/goals", planId).with(userJwt()))
@@ -168,6 +171,29 @@ class FinancialItemControllerTests {
     }
 
     @Test
+    void defaultsGoalTargetMonthToDecember() throws Exception {
+        String planId = currentPlanId();
+
+        mockMvc.perform(post("/api/v1/plans/{planId}/goals", planId)
+                        .with(userJwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "Декабрьская цель",
+                                  "currentCost": 100000,
+                                  "currency": "RUB",
+                                  "targetYear": 2028,
+                                  "type": "one_time",
+                                  "growthType": "none",
+                                  "growthPct": 0
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.targetYear").value(2028))
+                .andExpect(jsonPath("$.data.targetMonth").value(12));
+    }
+
+    @Test
     void validatesRequestBodies() throws Exception {
         String planId = currentPlanId();
 
@@ -184,6 +210,24 @@ class FinancialItemControllerTests {
                                   "growthPct": 0,
                                   "budgetClass": "needs",
                                   "startDate": "2026-01-01"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
+
+        mockMvc.perform(post("/api/v1/plans/{planId}/goals", planId)
+                        .with(userJwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "Bad month",
+                                  "currentCost": 100000,
+                                  "currency": "RUB",
+                                  "targetYear": 2028,
+                                  "targetMonth": 13,
+                                  "type": "one_time",
+                                  "growthType": "none",
+                                  "growthPct": 0
                                 }
                                 """))
                 .andExpect(status().isBadRequest())

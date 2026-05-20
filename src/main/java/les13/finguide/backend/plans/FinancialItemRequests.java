@@ -55,6 +55,8 @@ final class FinancialItemRequests {
             String currency,
             @Schema(minimum = "2024", description = "Target year, aligned with the public OpenAPI contract minimum.")
             Integer targetYear,
+            @Schema(minimum = "1", maximum = "12", description = "Target month. Defaults to December when omitted.")
+            Integer targetMonth,
             String type,
             String growthType,
             BigDecimal growthPct,

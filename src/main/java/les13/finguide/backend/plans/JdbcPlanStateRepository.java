@@ -191,7 +191,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                 "select * from goals where plan_id = ? order by priority, name",
                 rs -> {
                     jdbcTemplate.update(
-                            "insert into goals (id, plan_id, name, icon, current_cost, saved_amount, currency, target_year, type, growth_type, growth_pct, index_label, priority, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            "insert into goals (id, plan_id, name, icon, current_cost, saved_amount, currency, target_year, target_month, type, growth_type, growth_pct, index_label, priority, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                             UUID.randomUUID(),
                             planId,
                             rs.getString("name"),
@@ -200,6 +200,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                             java.math.BigDecimal.ZERO,
                             rs.getString("currency"),
                             rs.getInt("target_year"),
+                            rs.getInt("target_month"),
                             rs.getString("type"),
                             rs.getString("growth_type"),
                             rs.getBigDecimal("growth_pct"),
@@ -517,7 +518,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     public Goal createGoal(Goal goal) {
         OffsetDateTime now = offset(goal.updatedAt());
         jdbcTemplate.update(
-                "insert into goals (id, plan_id, name, icon, current_cost, saved_amount, currency, target_year, type, growth_type, growth_pct, index_label, priority, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "insert into goals (id, plan_id, name, icon, current_cost, saved_amount, currency, target_year, target_month, type, growth_type, growth_pct, index_label, priority, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 goal.id(),
                 goal.planId(),
                 goal.name(),
@@ -526,6 +527,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                 goal.savedAmount(),
                 goal.currency(),
                 goal.targetYear(),
+                goal.targetMonth(),
                 dbValue(goal.type()),
                 dbValue(goal.growthType()),
                 goal.growthPct(),
@@ -542,13 +544,14 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     public Goal updateGoal(Goal goal) {
         OffsetDateTime now = offset(goal.updatedAt());
         jdbcTemplate.update(
-                "update goals set name = ?, icon = ?, current_cost = ?, saved_amount = ?, currency = ?, target_year = ?, type = ?, growth_type = ?, growth_pct = ?, index_label = ?, priority = ?, updated_at = ? where plan_id = ? and id = ?",
+                "update goals set name = ?, icon = ?, current_cost = ?, saved_amount = ?, currency = ?, target_year = ?, target_month = ?, type = ?, growth_type = ?, growth_pct = ?, index_label = ?, priority = ?, updated_at = ? where plan_id = ? and id = ?",
                 goal.name(),
                 goal.icon(),
                 goal.currentCost(),
                 goal.savedAmount(),
                 goal.currency(),
                 goal.targetYear(),
+                goal.targetMonth(),
                 dbValue(goal.type()),
                 dbValue(goal.growthType()),
                 goal.growthPct(),
@@ -654,7 +657,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     @Override
     public void recalculateGoalSavedAmount(UUID planId, UUID goalId) {
         List<GoalSavingsTarget> goals = jdbcTemplate.query(
-                "select id, current_cost from goals where plan_id = ? order by target_year, priority, id",
+                "select id, current_cost from goals where plan_id = ? order by target_year, target_month, priority, id",
                 (rs, rowNum) -> new GoalSavingsTarget(rs.getObject("id", UUID.class), rs.getBigDecimal("current_cost")),
                 planId
         );
@@ -1276,6 +1279,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                 rs.getBigDecimal("saved_amount"),
                 rs.getString("currency"),
                 rs.getInt("target_year"),
+                rs.getInt("target_month"),
                 enumValue(Goal.Type.class, rs.getString("type")),
                 enumValue(Goal.GrowthType.class, rs.getString("growth_type")),
                 rs.getBigDecimal("growth_pct"),

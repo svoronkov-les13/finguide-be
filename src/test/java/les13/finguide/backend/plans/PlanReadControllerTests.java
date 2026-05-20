@@ -1,5 +1,7 @@
 package les13.finguide.backend.plans;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -7,6 +9,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
@@ -21,6 +24,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class PlanReadControllerTests {
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Test
     void returnsApiRootWithoutAuthentication() throws Exception {
@@ -54,7 +60,7 @@ class PlanReadControllerTests {
         mockMvc.perform(get("/api/v1/plans/{planId}/dashboard", planId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.totalMonthlyIncome").value(345000))
-                .andExpect(jsonPath("$.data.monthlyGoalContribution", greaterThan(0)))
+                .andExpect(jsonPath("$.data.monthlyGoalContribution").value(196000))
                 .andExpect(jsonPath("$.data.netMonthlyBalance").value(196000))
                 .andExpect(jsonPath("$.data.netYearlyBalance").value(2532000))
                 .andExpect(jsonPath("$.data.yearlyProjection", hasSize(4)));
@@ -94,8 +100,54 @@ class PlanReadControllerTests {
                 .andExpect(jsonPath("$.data.goals[0].projectedSavedAmount").value(1605000.0))
                 .andExpect(jsonPath("$.data.goals[0].projectedProgressPct").value(100.0))
                 .andExpect(jsonPath("$.data.goals[0].projectedReachable").value(true))
+                .andExpect(jsonPath("$.data.goals[0].targetMonth").value(12))
                 .andExpect(jsonPath("$.data.goals[0].projectedCompletionYear").value(2026))
                 .andExpect(jsonPath("$.data.goals[1].projectedSavedAmount", greaterThan(0.0)));
+    }
+
+    @Test
+    void goalReachabilityUsesTargetMonthDeadline() throws Exception {
+        String subject = "goal-month-deadline-owner";
+        String planId = currentPlanId(subject);
+
+        String createdBody = mockMvc.perform(post("/api/v1/plans/{planId}/goals", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Goal Month Deadline Owner")
+                                .claim("preferred_username", subject)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "June Target",
+                                  "currentCost": 1300000,
+                                  "currency": "RUB",
+                                  "targetYear": 2026,
+                                  "targetMonth": 6,
+                                  "type": "one_time",
+                                  "growthType": "none",
+                                  "growthPct": 0,
+                                  "priority": 1
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String goalId = objectMapper.readTree(createdBody).at("/data/id").asText();
+
+        String body = mockMvc.perform(get("/api/v1/plans/current")
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Goal Month Deadline Owner")
+                                .claim("preferred_username", subject))))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        JsonNode juneGoal = java.util.stream.StreamSupport.stream(objectMapper.readTree(body).at("/data/goals").spliterator(), false)
+                .filter(goal -> goalId.equals(goal.get("id").asText()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(juneGoal.get("targetMonth").asInt()).isEqualTo(6);
+        assertThat(juneGoal.get("projectedTargetCost").decimalValue()).isEqualByComparingTo("1300000.00");
+        assertThat(juneGoal.get("projectedReachable").asBoolean()).isFalse();
     }
 
     @Test
@@ -396,6 +448,6 @@ class PlanReadControllerTests {
                                 .claim("preferred_username", subject))))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
-        return new com.fasterxml.jackson.databind.ObjectMapper().readTree(body).at("/data/id").asText();
+        return objectMapper.readTree(body).at("/data/id").asText();
     }
 }

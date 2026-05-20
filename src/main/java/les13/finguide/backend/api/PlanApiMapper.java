@@ -125,6 +125,7 @@ public class PlanApiMapper {
         result.put("savedAmount", goal.savedAmount());
         result.put("currency", goal.currency());
         result.put("targetYear", goal.targetYear());
+        result.put("targetMonth", goal.targetMonth());
         result.put("type", apiValue(goal.type()));
         result.put("growthType", apiValue(goal.growthType()));
         result.put("growthPct", goal.growthPct());

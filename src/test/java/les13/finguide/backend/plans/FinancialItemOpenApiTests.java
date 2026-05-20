@@ -66,6 +66,10 @@ class FinancialItemOpenApiTests {
                 .isFalse();
         assertThat(api.at("/components/schemas/GoalRequest/properties/targetYear/minimum").asInt())
                 .isEqualTo(2024);
+        assertThat(api.at("/components/schemas/GoalRequest/properties/targetMonth/minimum").asInt())
+                .isEqualTo(1);
+        assertThat(api.at("/components/schemas/GoalRequest/properties/targetMonth/maximum").asInt())
+                .isEqualTo(12);
         assertThat(api.at("/components/schemas/GoalRequest/description").asText())
                 .contains("omitted fields keep current values");
         assertThat(api.at("/paths/~1api~1v1~1plans~1{planId}~1contributions/post/requestBody/content/application~1json/schema/$ref").asText())

@@ -207,6 +207,7 @@ public class FinancialItemService {
                 ZERO,
                 currency(request.currency()),
                 targetYear(required(request.targetYear(), "targetYear")),
+                targetMonth(request.targetMonth()),
                 enumValue(Goal.Type.class, request.type(), "type"),
                 enumValue(Goal.GrowthType.class, request.growthType(), "growthType"),
                 percent(defaultBigDecimal(request.growthPct(), ZERO), "growthPct"),
@@ -235,6 +236,7 @@ public class FinancialItemService {
                 current.savedAmount(),
                 request.currency() == null ? current.currency() : currency(request.currency()),
                 request.targetYear() == null ? current.targetYear() : targetYear(request.targetYear()),
+                request.targetMonth() == null ? current.targetMonth() : targetMonth(request.targetMonth()),
                 enumValueOrCurrent(Goal.Type.class, request.type(), current.type(), "type"),
                 enumValueOrCurrent(Goal.GrowthType.class, request.growthType(), current.growthType(), "growthType"),
                 percent(valueOrCurrent(request.growthPct(), current.growthPct()), "growthPct"),
@@ -332,6 +334,16 @@ public class FinancialItemService {
     private static int targetYear(Integer value) {
         if (value == null || value < MIN_TARGET_YEAR) {
             throw badRequest("targetYear must be >= " + MIN_TARGET_YEAR);
+        }
+        return value;
+    }
+
+    private static int targetMonth(Integer value) {
+        if (value == null) {
+            return 12;
+        }
+        if (value < 1 || value > 12) {
+            throw badRequest("targetMonth must be between 1 and 12");
         }
         return value;
     }
