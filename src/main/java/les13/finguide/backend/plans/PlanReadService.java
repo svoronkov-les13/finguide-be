@@ -135,6 +135,11 @@ public class PlanReadService {
         return cashflow(planId, 12);
     }
 
+    public List<Map<String, Object>> monthlyCashflow(UUID planId) {
+        PlanState state = plan(planId);
+        return monthlyCashflow(state, 12, actualGoalExpensesByYear(state, 12), monthlyTrackerSavingsByMonth(state, 12));
+    }
+
     private List<CashFlowProjectionPoint> cashflow(UUID planId, int horizon) {
         PlanState state = plan(planId);
         return cashflow(state, horizon, actualGoalExpensesByYear(state, horizon), monthlyTrackerSavingsByMonth(state, horizon));
@@ -357,6 +362,51 @@ public class PlanReadService {
                     capitalStart,
                     capital
             ));
+        }
+        return result;
+    }
+
+    private static List<Map<String, Object>> monthlyCashflow(PlanState state, int horizon, Map<Integer, BigDecimal> actualGoalExpensesByYear, Map<java.time.YearMonth, BigDecimal> monthlyTrackerSavingsByMonth) {
+        int startYear = Math.max(Year.now().getValue(), state.modelAssumptions().startYear());
+        BigDecimal capital = state.modelAssumptions().initialCapital();
+        Map<java.time.YearMonth, BigDecimal> plannedGoalExpensesByMonth = plannedGoalExpensesByMonth(state, horizon);
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (int offset = 0; offset < horizon; offset++) {
+            int year = startYear + offset;
+            BigDecimal monthlyIncome = grow(monthlyIncome(state), averageIncomeGrowth(state), offset);
+            BigDecimal monthlyExpenses = grow(monthlyExpenses(state), averageExpenseGrowth(state), offset);
+            BigDecimal plannedMonthlySavings = monthlyIncome.subtract(monthlyExpenses);
+            BigDecimal yearlyIncome = grow(yearlyOneTimeIncome(state), averageIncomeGrowth(state), offset);
+            BigDecimal yearlyExpenses = grow(yearlyOneTimeExpenses(state), averageExpenseGrowth(state), offset);
+            BigDecimal investmentReturn = state.modelAssumptions().investmentReturnPct();
+            BigDecimal capitalStartOfYear = capital;
+            for (int month = 1; month <= 12; month++) {
+                java.time.YearMonth yearMonth = java.time.YearMonth.of(year, month);
+                BigDecimal income = monthlyIncome.add(month == 12 ? yearlyIncome : BigDecimal.ZERO);
+                BigDecimal expenses = monthlyExpenses.add(month == 12 ? yearlyExpenses : BigDecimal.ZERO);
+                BigDecimal savings = monthlyTrackerSavingsByMonth.getOrDefault(yearMonth, plannedMonthlySavings);
+                BigDecimal goalExpenses = plannedGoalExpensesByMonth.getOrDefault(yearMonth, BigDecimal.ZERO)
+                        .add(month == 1 ? actualGoalExpensesByYear.getOrDefault(year, BigDecimal.ZERO) : BigDecimal.ZERO);
+                BigDecimal netSavings = savings.add(month == 12 ? yearlyIncome.subtract(yearlyExpenses) : BigDecimal.ZERO).subtract(goalExpenses);
+                BigDecimal returnAmount = month == 12
+                        ? capitalStartOfYear.max(BigDecimal.ZERO).multiply(investmentReturn).divide(HUNDRED, 2, RoundingMode.HALF_UP)
+                        : BigDecimal.ZERO;
+                BigDecimal capitalStart = capital;
+                capital = capital.add(netSavings).add(returnAmount);
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("month", yearMonth.toString());
+                row.put("year", year);
+                row.put("monthNumber", month);
+                row.put("age", state.modelAssumptions().birthYear() == null ? null : year - state.modelAssumptions().birthYear());
+                row.put("income", income);
+                row.put("expenses", expenses);
+                row.put("goalExpenses", goalExpenses);
+                row.put("netSavings", netSavings);
+                row.put("investmentReturnPct", investmentReturn);
+                row.put("capitalStartOfMonth", capitalStart);
+                row.put("capitalEndOfMonth", capital);
+                result.add(row);
+            }
         }
         return result;
     }
