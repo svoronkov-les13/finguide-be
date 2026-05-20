@@ -151,6 +151,37 @@ class PlanReadControllerTests {
     }
 
     @Test
+    void monthlyTrackerFactsReplacePlannedMonthlySavingsInCapitalProjection() throws Exception {
+        String subject = "monthly-tracker-capital-owner";
+        String planId = currentPlanId(subject);
+
+        mockMvc.perform(post("/api/v1/plans/{planId}/calendar/monthly-tracker", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Monthly Tracker Capital Owner")
+                                .claim("preferred_username", subject)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "month": "2026-01",
+                                  "status": "partial",
+                                  "amount": 5000,
+                                  "note": "less than plan"
+                                }
+                                """))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/plans/{planId}/analytics/cashflow", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Monthly Tracker Capital Owner")
+                                .claim("preferred_username", subject))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].netSavings").value(2341000.0))
+                .andExpect(jsonPath("$.data[0].capitalEndOfYear").value(4991000.0));
+    }
+
+    @Test
     void actualGoalContributionsReduceCurrentYearCapital() throws Exception {
         String subject = "actual-goal-outflow-owner";
         String planId = currentPlanId(subject);
