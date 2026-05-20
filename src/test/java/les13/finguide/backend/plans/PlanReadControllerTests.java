@@ -171,6 +171,18 @@ class PlanReadControllerTests {
                                 """))
                 .andExpect(status().isNoContent());
 
+        mockMvc.perform(get("/api/v1/plans/{planId}/analytics/cashflow/monthly", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Monthly Tracker Capital Owner")
+                                .claim("preferred_username", subject))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].month").value("2026-01"))
+                .andExpect(jsonPath("$.data[0].netSavings").value(5000))
+                .andExpect(jsonPath("$.data[0].capitalEndOfMonth").value(2505000.0))
+                .andExpect(jsonPath("$.data[11].month").value("2026-12"))
+                .andExpect(jsonPath("$.data[11].capitalEndOfMonth").value(4991000.0));
+
         mockMvc.perform(get("/api/v1/plans/{planId}/analytics/cashflow", planId)
                         .with(jwt().jwt(token -> token.subject(subject)
                                 .claim("email", subject + "@example.com")
