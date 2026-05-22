@@ -237,7 +237,7 @@ create table scenarios (
 - 3 expenses;
 - 3 goals with `saved_amount = 0` because goal progress is derived from contributions.
 
-`contributions.goal_id` references `goals(id)`. The repository deletes contributions explicitly before deleting a goal, so goal removal does not produce FK errors or orphan ledger rows.
+`contributions.goal_id` references `goals(id)`. The repository deletes contributions explicitly before deleting a goal, so goal removal does not produce FK errors or orphan ledger rows. The table is now a legacy compatibility ledger; current UI writes factual goal outflows through `operation_journal_entries` (`type=goal`, `status=actual`), so clients must not write the same fact into both tables.
 
 `scenarios` хранит пользовательские scenarios как adjustment deltas. Поле `snapshot_json` зарезервировано для будущих snapshot-сценариев; built-in `base`/`optimistic`/`pessimistic` генерируются кодом и не пишутся в таблицу.
 
@@ -261,4 +261,4 @@ create table scenarios (
    - regression tests на все write endpoints.
 3. Добавить `is_current` или отдельный указатель current plan, если понадобится несколько планов на пользователя.
 4. Добавить `version int not null default 0` для редактируемых сущностей и `ETag`/`If-Match`.
-5. Расширить схему под roadmap: import/export jobs, notifications и будущие snapshot scenarios. Pension settings mutations, contributions ledger, budget settings, monthly tracker, operation journal и adjustment-based scenarios уже реализованы поверх текущей persisted схемы.
+5. Расширить схему под roadmap: import/export jobs, notifications и будущие snapshot scenarios. Pension settings mutations, legacy contributions ledger, budget settings, monthly tracker, operation journal и adjustment-based scenarios уже реализованы поверх текущей persisted схемы.

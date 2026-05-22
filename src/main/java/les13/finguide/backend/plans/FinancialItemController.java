@@ -150,11 +150,13 @@ public class FinancialItemController {
         return ApiEnvelope.of(service.reorderGoals(planId, request).stream().map(mapper::goal).toList());
     }
 
+    @Deprecated(since = "0.1", forRemoval = false)
     @GetMapping("/contributions")
     public ApiEnvelope<Object> contributions(@PathVariable UUID planId) {
         return ApiEnvelope.of(contributionService.contributions(planId).stream().map(mapper::contribution).toList());
     }
 
+    @Deprecated(since = "0.1", forRemoval = false)
     @PostMapping("/contributions")
     public ResponseEntity<ApiEnvelope<Map<String, Object>>> createContribution(
             @PathVariable UUID planId,
@@ -164,11 +166,13 @@ public class FinancialItemController {
                 .body(ApiEnvelope.of(mapper.contribution(contributionService.createContribution(planId, request))));
     }
 
+    @Deprecated(since = "0.1", forRemoval = false)
     @GetMapping("/contributions/{id}")
     public ApiEnvelope<Map<String, Object>> contribution(@PathVariable UUID planId, @PathVariable UUID id) {
         return ApiEnvelope.of(mapper.contribution(contributionService.contribution(planId, id)));
     }
 
+    @Deprecated(since = "0.1", forRemoval = false)
     @PatchMapping("/contributions/{id}")
     public ApiEnvelope<Map<String, Object>> updateContribution(
             @PathVariable UUID planId,
@@ -178,6 +182,7 @@ public class FinancialItemController {
         return ApiEnvelope.of(mapper.contribution(contributionService.updateContribution(planId, id, request)));
     }
 
+    @Deprecated(since = "0.1", forRemoval = false)
     @DeleteMapping("/contributions/{id}")
     public ResponseEntity<Void> deleteContribution(@PathVariable UUID planId, @PathVariable UUID id) {
         contributionService.deleteContribution(planId, id);

@@ -31,7 +31,7 @@
 - Swagger UI реального бэкенда: `http://66.42.121.18/finguide-api/swagger-ui.html`.
 - Legacy mock Swagger остаётся только для переходного сравнения: `http://66.42.121.18/finguide-mock/`.
 
-Текущая real-реализация на H2 уже покрывает чтение плана/дашборда/health/cashflow, persisted scenario CRUD/compare, persisted analytics assumptions/current balance/yearly projection/pension settings/pension projection, CRUD для `IncomeSource`, `ExpenseItem`, `Goal`, включая `goals/reorder`, persisted `Contribution` ledger, persisted `BudgetSettings`, monthly tracker и operation journal. Остальные группы методов из карты ниже пока ведутся отдельными задачами.
+Текущая real-реализация на H2 уже покрывает чтение плана/дашборда/health/cashflow, persisted scenario CRUD/compare, persisted analytics assumptions/current balance/yearly projection/pension settings/pension projection, CRUD для `IncomeSource`, `ExpenseItem`, `Goal`, включая `goals/reorder`, legacy persisted `Contribution` ledger, persisted `BudgetSettings`, monthly tracker и operation journal. Остальные группы методов из карты ниже пока ведутся отдельными задачами.
 
 OpenAPI guardrail [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) включён в тестовый набор: checked-in `openapi/openapi.json` сейчас содержит 58 операций, real Springdoc покрывает 49 реализованных операций, а известный gap в 9 операций явно зафиксирован. Новые endpoints должны одновременно добавляться в real Springdoc и уменьшать этот gap; случайное исчезновение уже реализованной операции из `/v3/api-docs` ломает тесты.
 
@@ -48,7 +48,7 @@ OpenAPI guardrail [#16](https://github.com/svoronkov-les13/finguide-be/issues/16
 
 ### Пагинация
 
-Целевой contract для методов API со списками, которые могут вырасти неограниченно (`contributions`, `notifications`, `monthly-tracker`, `export jobs`), использует курсорную пагинацию:
+Целевой contract для методов API со списками, которые могут вырасти неограниченно (`notifications`, `monthly-tracker`, `export jobs`; legacy `contributions` при сохранении совместимости), использует курсорную пагинацию:
 
 ```txt
 GET /plans/{planId}/contributions?cursor=<opaque>&limit=50
@@ -80,7 +80,7 @@ Idempotency-Key: <client-generated UUIDv4>
 
 Применимо к:
 
-- `POST /plans/{planId}/contributions`;
+- legacy `POST /plans/{planId}/contributions`;
 - `POST /plans/{planId}/incomes`, `POST /plans/{planId}/expenses`, `POST /plans/{planId}/goals`;
 - `POST /import`, `POST /export`;
 - `POST /scenarios` и `POST /scenarios/compare` сейчас реализованы; idempotency storage остаётся целевым follow-up.
@@ -159,11 +159,13 @@ If-Match: "<etag>"
 
 Для Excel-модели `Goal` также должен поддерживать плановые расходы на цели: `plannedAmount`, `frequency`, `startDate/endDate` или `startYear/endYear`. Это покрывает лист `Цели`: ежемесячные и ежегодные расходы на цели как отдельный денежный поток.
 
-### Взнос (`Contribution`)
+### Взнос (`Contribution`, legacy)
 
 `id`, `goalId`, `amount`, `currency`, `date`, `note`.
 
-В real backend `Goal.savedAmount` — производное значение: после create/update/delete взноса бэкенд пересчитывает его как `sum(Contribution.amount)` по цели. Поле `savedAmount` в goal create/patch не является источником истины.
+`Contribution` ledger оставлен как legacy compatibility API и помечен deprecated в backend/controller/OpenAPI. Текущий UI пишет фактические goal outflows через operation journal (`/plans/{planId}/tracker/entries` с `type=goal`, `status=actual`). Не нужно писать один и тот же факт одновременно в `contributions` и operation journal: analytics учитывает оба источника для совместимости, и это даст double-counting.
+
+В legacy path `Goal.savedAmount` — производное значение: после create/update/delete взноса бэкенд пересчитывает его как `sum(Contribution.amount)` по цели. Поле `savedAmount` в goal create/patch не является источником истины.
 
 ### Пенсионные настройки (`PensionSettings`)
 
@@ -209,11 +211,11 @@ Keycloak владеет входом, регистрацией, refresh/logout, 
 - `GET/POST /plans/{planId}/expenses`, `GET/PATCH/DELETE /plans/{planId}/expenses/{id}` — реализовано в real backend.
 - `GET/POST /plans/{planId}/goals`, `GET/PATCH/DELETE /plans/{planId}/goals/{id}` — реализовано в real backend.
 - `POST /plans/{planId}/goals/reorder` — реализовано в real backend; тело `{ "goalIds": ["..."] }` должно содержать все текущие id целей ровно по одному разу.
-- `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}` — реализовано в real backend; read требует доступ к плану, write требует writable plan access, общий anonymous seed read-only. `Goal.savedAmount` пересчитывается из суммы взносов по цели. Удаление цели удаляет связанные с ней взносы, чтобы не оставлять orphan ledger records. Текущая H2-реализация возвращает полный список без pagination/idempotency; это осознанно отложено до следующего production-storage этапа.
+- `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}` — legacy/deprecated compatibility endpoints; read требует доступ к плану, write требует writable plan access, общий anonymous seed read-only. `Goal.savedAmount` пересчитывается из суммы взносов по цели. Удаление цели удаляет связанные с ней взносы, чтобы не оставлять orphan ledger records. Текущий canonical source для фактических goal outflows — operation journal; не смешивать оба write-path для одного факта из-за риска double-counting. Текущая H2-реализация возвращает полный список без pagination/idempotency.
 - `GET/PATCH /plans/{planId}/pension` — реализовано в real backend; `PATCH` делает full replace persisted `PensionSettings` и требует writable plan access, поэтому общий anonymous seed read-only.
 - `GET/PATCH /plans/{planId}/budget`, `POST /plans/{planId}/budget/envelopes/autogenerate` — реализовано в real backend.
 - `GET/POST /plans/{planId}/calendar/monthly-tracker` — реализовано в real backend; хранит статус месяца (`completed|partial|missed`).
-- `GET/POST /plans/{planId}/tracker/entries`, `PATCH/DELETE /plans/{planId}/tracker/entries/{entryId}` — реализовано в real backend; хранит журнал операций страницы `/tracking` (`date`, `title`, `amount`, `type`, `status`) и требует writable plan access для mutations.
+- `GET/POST /plans/{planId}/tracker/entries`, `PATCH/DELETE /plans/{planId}/tracker/entries/{entryId}` — реализовано в real backend; хранит журнал операций страницы `/tracking` (`date`, `title`, `amount`, `type`, `status`) и требует writable plan access для mutations. Для фактических расходов на цели это текущий canonical write-path (`type=goal`, `status=actual`).
 
 ### Аналитика и производные данные
 

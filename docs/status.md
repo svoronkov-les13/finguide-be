@@ -30,10 +30,10 @@
 - `GET /plans/{planId}/analytics/projection?years=...`;
 - `GET /plans/{planId}/pension` и `PATCH /plans/{planId}/pension`;
 - `GET /plans/{planId}/pension/projection`;
-- `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}`;
+- legacy/deprecated `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}`;
 - `GET/PATCH /plans/{planId}/budget`, `POST /plans/{planId}/budget/envelopes/autogenerate`;
 - `GET/POST /plans/{planId}/calendar/monthly-tracker`;
-- `GET/POST /plans/{planId}/tracker/entries`, `PATCH/DELETE /plans/{planId}/tracker/entries/{entryId}` — persisted journal операций страницы `/tracking`;
+- `GET/POST /plans/{planId}/tracker/entries`, `PATCH/DELETE /plans/{planId}/tracker/entries/{entryId}` — persisted journal операций страницы `/tracking`, canonical write-path для фактических goal outflows;
 - `GET/POST /scenarios`, `GET/PATCH/DELETE /scenarios/{scenarioId}`, `POST /scenarios/compare` — persisted пользовательские сценарии и сравнение;
 - CRUD доходов, расходов и целей;
 - `POST /plans/{planId}/goals/reorder`;
@@ -90,7 +90,7 @@ Frontend deploy также переведён на self-hosted runner на эт�
 - Done: запрет мутации общего anonymous demo seed plan — [#26](https://github.com/svoronkov-les13/finguide-be/issues/26);
 - Done: analytics/pension из persisted state — [#4](https://github.com/svoronkov-les13/finguide-be/issues/4);
 - Done: pension settings — [#11](https://github.com/svoronkov-les13/finguide-be/issues/11);
-- Done: contributions ledger — [#10](https://github.com/svoronkov-les13/finguide-be/issues/10);
+- Done: legacy/deprecated contributions ledger — [#10](https://github.com/svoronkov-les13/finguide-be/issues/10);
 - Done: budget/monthly tracker — [#12](https://github.com/svoronkov-les13/finguide-be/issues/12);
 - Done: scenarios CRUD/compare — [#13](https://github.com/svoronkov-les13/finguide-be/issues/13);
 - Now: frontend design foundation по FinPlan — design tokens, app shell/sidebar/topbar, shared UI primitives, dashboard desktop target;

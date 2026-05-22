@@ -564,6 +564,11 @@ public class PlanReadService {
         return byMonth;
     }
 
+    /**
+     * Legacy compatibility path for the historical contributions ledger.
+     * Current UI writes factual goal outflows through operation journal entries.
+     */
+    @Deprecated(since = "0.1", forRemoval = false)
     private static Map<Integer, BigDecimal> actualContributionExpensesByYear(PlanState state, int horizon) {
         int startYear = Math.max(Year.now().getValue(), state.modelAssumptions().startYear());
         int endYear = startYear + horizon - 1;

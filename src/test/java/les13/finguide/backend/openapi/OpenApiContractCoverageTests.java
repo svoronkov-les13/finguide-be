@@ -43,9 +43,7 @@ class OpenApiContractCoverageTests {
     @Test
     void springdocCoverageMatchesKnownContractGap() throws Exception {
         Set<String> contractOperations = operationsFrom(objectMapper.readTree(Path.of("openapi/openapi.json").toFile()), true);
-        Set<String> springdocOperations = operationsFrom(objectMapper.readTree(mockMvc.perform(get("/v3/api-docs"))
-                        .andExpect(status().isOk())
-                        .andReturn().getResponse().getContentAsString()), false);
+        Set<String> springdocOperations = operationsFrom(readSpringdoc(), false);
 
         Set<String> missing = new TreeSet<>(contractOperations);
         missing.removeAll(springdocOperations);
@@ -53,6 +51,38 @@ class OpenApiContractCoverageTests {
         assertThat(contractOperations).hasSize(58);
         assertThat(springdocOperations).containsAll(contractOperationsWithoutKnownGap(contractOperations));
         assertThat(missing).containsExactlyElementsOf(new TreeSet<>(KNOWN_CONTRACT_OPERATIONS_NOT_IN_SPRINGDOC));
+    }
+
+    @Test
+    void contributionOperationsAreMarkedDeprecated() throws Exception {
+        JsonNode contract = objectMapper.readTree(Path.of("openapi/openapi.json").toFile());
+        JsonNode springdoc = readSpringdoc();
+
+        assertContributionOperationsDeprecated(contract);
+        assertContributionOperationsDeprecated(springdoc);
+    }
+
+    private JsonNode readSpringdoc() throws Exception {
+        return objectMapper.readTree(mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString());
+    }
+
+    private static void assertContributionOperationsDeprecated(JsonNode openApi) {
+        JsonNode collection = path(openApi, "/plans/{planId}/contributions");
+        JsonNode item = path(openApi, "/plans/{planId}/contributions/{id}");
+
+        assertThat(collection.path("get").path("deprecated").asBoolean()).isTrue();
+        assertThat(collection.path("post").path("deprecated").asBoolean()).isTrue();
+        assertThat(item.path("get").path("deprecated").asBoolean()).isTrue();
+        assertThat(item.path("patch").path("deprecated").asBoolean()).isTrue();
+        assertThat(item.path("delete").path("deprecated").asBoolean()).isTrue();
+    }
+
+    private static JsonNode path(JsonNode openApi, String path) {
+        JsonNode paths = openApi.path("paths");
+        JsonNode node = paths.path(path);
+        return node.isMissingNode() ? paths.path("/api/v1" + path) : node;
     }
 
     private static Set<String> contractOperationsWithoutKnownGap(Set<String> contractOperations) {
