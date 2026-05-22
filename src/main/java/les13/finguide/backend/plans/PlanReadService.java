@@ -47,7 +47,8 @@ public class PlanReadService {
     }
 
     public Map<UUID, GoalAllocation> goalAllocations(PlanState state) {
-        return goalAllocationPlan(state, projectionHorizon(state)).byGoal();
+        int horizon = projectionHorizon(state);
+        return goalAllocationPlan(state, horizon, actualGoalExpensesByYear(state, horizon), monthlyTrackerSavingsByMonth(state, horizon)).byGoal();
     }
 
     public PlanState plan(UUID planId) {
@@ -610,10 +611,14 @@ public class PlanReadService {
     }
 
     private static GoalAllocationPlan goalAllocationPlan(PlanState state, int horizon) {
-        return goalAllocationPlan(state, horizon, Map.of());
+        return goalAllocationPlan(state, horizon, Map.of(), Map.of());
     }
 
     private static GoalAllocationPlan goalAllocationPlan(PlanState state, int horizon, Map<Integer, BigDecimal> actualGoalExpensesByYear) {
+        return goalAllocationPlan(state, horizon, actualGoalExpensesByYear, Map.of());
+    }
+
+    private static GoalAllocationPlan goalAllocationPlan(PlanState state, int horizon, Map<Integer, BigDecimal> actualGoalExpensesByYear, Map<java.time.YearMonth, BigDecimal> monthlyTrackerSavingsByMonth) {
         int startYear = Math.max(Year.now().getValue(), state.modelAssumptions().startYear());
         List<Goal> goals = state.goals().stream()
                 .sorted(Comparator.comparingInt(Goal::targetYear).thenComparingInt(Goal::targetMonth).thenComparingInt(Goal::priority).thenComparing(Goal::id))
@@ -640,7 +645,9 @@ public class PlanReadService {
             int offset = (monthIndex - 1) / monthsPerYear;
             int month = ((monthIndex - 1) % monthsPerYear) + 1;
             int year = startYear + offset;
-            BigDecimal monthlyFreeCashflow = freeCashflow(state, offset).divide(BigDecimal.valueOf(monthsPerYear), 2, RoundingMode.HALF_UP);
+            java.time.YearMonth yearMonth = java.time.YearMonth.of(year, month);
+            BigDecimal plannedMonthlyFreeCashflow = freeCashflow(state, offset).divide(BigDecimal.valueOf(monthsPerYear), 2, RoundingMode.HALF_UP);
+            BigDecimal monthlyFreeCashflow = monthlyTrackerSavingsByMonth.getOrDefault(yearMonth, plannedMonthlyFreeCashflow);
             BigDecimal actualGoalExpenses = month == 1 ? actualGoalExpensesByYear.getOrDefault(year, BigDecimal.ZERO) : BigDecimal.ZERO;
             pool = pool.add(monthlyFreeCashflow.subtract(actualGoalExpenses));
             BigDecimal monthlyAllocation = BigDecimal.ZERO;

@@ -197,6 +197,68 @@ class PlanReadControllerTests {
     }
 
     @Test
+    void goalReachabilityUsesMonthlyTrackerFacts() throws Exception {
+        String subject = "goal-reachability-tracker-owner";
+        String planId = currentPlanId(subject);
+
+        for (int month = 1; month <= 12; month++) {
+            mockMvc.perform(post("/api/v1/plans/{planId}/calendar/monthly-tracker", planId)
+                            .with(jwt().jwt(token -> token.subject(subject)
+                                    .claim("email", subject + "@example.com")
+                                    .claim("name", "Goal Reachability Tracker Owner")
+                                    .claim("preferred_username", subject)))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                      "month": "2026-%02d",
+                                      "status": "missed",
+                                      "amount": 0,
+                                      "note": "no savings"
+                                    }
+                                    """.formatted(month)))
+                    .andExpect(status().isNoContent());
+        }
+
+        String createdBody = mockMvc.perform(post("/api/v1/plans/{planId}/goals", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Goal Reachability Tracker Owner")
+                                .claim("preferred_username", subject)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "Tracker-sensitive target",
+                                  "currentCost": 2000000,
+                                  "currency": "RUB",
+                                  "targetYear": 2026,
+                                  "targetMonth": 12,
+                                  "type": "one_time",
+                                  "growthType": "none",
+                                  "growthPct": 0,
+                                  "priority": 1
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String goalId = objectMapper.readTree(createdBody).at("/data/id").asText();
+
+        String body = mockMvc.perform(get("/api/v1/plans/current")
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Goal Reachability Tracker Owner")
+                                .claim("preferred_username", subject))))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        JsonNode goal = java.util.stream.StreamSupport.stream(objectMapper.readTree(body).at("/data/goals").spliterator(), false)
+                .filter(node -> goalId.equals(node.get("id").asText()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(goal.get("projectedReachable").asBoolean()).isFalse();
+        assertThat(goal.get("projectedCompletionYear").asInt()).isGreaterThan(2026);
+    }
+
+    @Test
     void actualGoalContributionsReduceCurrentYearCapital() throws Exception {
         String subject = "actual-goal-outflow-owner";
         String planId = currentPlanId(subject);
