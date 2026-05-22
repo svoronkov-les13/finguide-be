@@ -289,7 +289,7 @@ netMonthlyBalance = monthlyIncome - monthlyExpenses
 availableForPension = max(0, netMonthlyBalance)
 ```
 
-Backend отдаёт `projected*` поля по целям отдельно от фактических `currentCost` / `savedAmount`; `projectedReachable` учитывает deadline с точностью до `targetYear + targetMonth`. Само финансирование целей в yearly analytics уменьшает `netSavings` и капитал.
+Backend отдаёт `projected*` поля по целям отдельно от фактических `currentCost` / `savedAmount`; `projectedReachable` считается по линии накоплений (`capitalEndOfYear`) на `targetYear`: цель недостижима только если капитал к целевому году уходит в минус. Само финансирование целей в yearly analytics уменьшает `netSavings` и капитал.
 
 ### Contribution ledger (legacy)
 
