@@ -325,11 +325,11 @@ public class PlanReadService {
         List<CashFlowProjectionPoint> result = new ArrayList<>();
         for (int offset = 0; offset < horizon; offset++) {
             int year = startYear + offset;
-            BigDecimal monthlyIncome = grow(monthlyIncome(state), averageIncomeGrowth(state), offset);
-            BigDecimal yearlyIncome = grow(yearlyOneTimeIncome(state), averageIncomeGrowth(state), offset);
+            BigDecimal monthlyIncome = monthlyIncome(state, offset);
+            BigDecimal yearlyIncome = yearlyOneTimeIncome(state, offset);
             BigDecimal totalIncome = monthlyIncome.multiply(TWELVE).add(yearlyIncome);
-            BigDecimal monthlyExpenses = grow(monthlyExpenses(state), averageExpenseGrowth(state), offset);
-            BigDecimal yearlyExpenses = grow(yearlyOneTimeExpenses(state), averageExpenseGrowth(state), offset);
+            BigDecimal monthlyExpenses = monthlyExpenses(state, offset);
+            BigDecimal yearlyExpenses = yearlyOneTimeExpenses(state, offset);
             BigDecimal totalExpenses = monthlyExpenses.multiply(TWELVE).add(yearlyExpenses);
             BigDecimal plannedMonthlySavings = monthlyIncome.subtract(monthlyExpenses);
             BigDecimal monthlySavings = BigDecimal.ZERO;
@@ -373,11 +373,11 @@ public class PlanReadService {
         List<Map<String, Object>> result = new ArrayList<>();
         for (int offset = 0; offset < horizon; offset++) {
             int year = startYear + offset;
-            BigDecimal monthlyIncome = grow(monthlyIncome(state), averageIncomeGrowth(state), offset);
-            BigDecimal monthlyExpenses = grow(monthlyExpenses(state), averageExpenseGrowth(state), offset);
+            BigDecimal monthlyIncome = monthlyIncome(state, offset);
+            BigDecimal monthlyExpenses = monthlyExpenses(state, offset);
             BigDecimal plannedMonthlySavings = monthlyIncome.subtract(monthlyExpenses);
-            BigDecimal yearlyIncome = grow(yearlyOneTimeIncome(state), averageIncomeGrowth(state), offset);
-            BigDecimal yearlyExpenses = grow(yearlyOneTimeExpenses(state), averageExpenseGrowth(state), offset);
+            BigDecimal yearlyIncome = yearlyOneTimeIncome(state, offset);
+            BigDecimal yearlyExpenses = yearlyOneTimeExpenses(state, offset);
             BigDecimal investmentReturn = state.modelAssumptions().investmentReturnPct();
             BigDecimal capitalStartOfYear = capital;
             for (int month = 1; month <= 12; month++) {
@@ -462,9 +462,13 @@ public class PlanReadService {
     }
 
     private static BigDecimal monthlyIncome(PlanState state) {
+        return monthlyIncome(state, 0);
+    }
+
+    private static BigDecimal monthlyIncome(PlanState state, int offset) {
         return state.incomes().stream()
                 .filter(item -> item.frequency() == IncomeSource.Frequency.MONTHLY)
-                .map(IncomeSource::amount)
+                .map(item -> grow(item.amount(), item.growthPct(), offset))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
@@ -473,16 +477,24 @@ public class PlanReadService {
     }
 
     private static BigDecimal yearlyOneTimeIncome(PlanState state) {
+        return yearlyOneTimeIncome(state, 0);
+    }
+
+    private static BigDecimal yearlyOneTimeIncome(PlanState state, int offset) {
         return state.incomes().stream()
                 .filter(item -> item.frequency() == IncomeSource.Frequency.YEARLY || item.frequency() == IncomeSource.Frequency.ONE_TIME)
-                .map(IncomeSource::amount)
+                .map(item -> grow(item.amount(), item.growthPct(), offset))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private static BigDecimal monthlyExpenses(PlanState state) {
+        return monthlyExpenses(state, 0);
+    }
+
+    private static BigDecimal monthlyExpenses(PlanState state, int offset) {
         return state.expenses().stream()
                 .filter(item -> item.frequency() == ExpenseItem.Frequency.MONTHLY)
-                .map(ExpenseItem::amount)
+                .map(item -> grow(item.amount(), item.growthPct(), offset))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
@@ -491,18 +503,14 @@ public class PlanReadService {
     }
 
     private static BigDecimal yearlyOneTimeExpenses(PlanState state) {
+        return yearlyOneTimeExpenses(state, 0);
+    }
+
+    private static BigDecimal yearlyOneTimeExpenses(PlanState state, int offset) {
         return state.expenses().stream()
                 .filter(item -> item.frequency() == ExpenseItem.Frequency.YEARLY || item.frequency() == ExpenseItem.Frequency.ONE_TIME)
-                .map(ExpenseItem::amount)
+                .map(item -> grow(item.amount(), item.growthPct(), offset))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
-
-    private static BigDecimal averageIncomeGrowth(PlanState state) {
-        return average(state.incomes().stream().map(IncomeSource::growthPct).toList());
-    }
-
-    private static BigDecimal averageExpenseGrowth(PlanState state) {
-        return average(state.expenses().stream().map(ExpenseItem::growthPct).toList());
     }
 
     private static BigDecimal average(List<BigDecimal> values) {
@@ -679,11 +687,11 @@ public class PlanReadService {
     }
 
     private static BigDecimal freeCashflow(PlanState state, int offset) {
-        BigDecimal monthlyIncome = grow(monthlyIncome(state), averageIncomeGrowth(state), offset);
-        BigDecimal yearlyIncome = grow(yearlyOneTimeIncome(state), averageIncomeGrowth(state), offset);
+        BigDecimal monthlyIncome = monthlyIncome(state, offset);
+        BigDecimal yearlyIncome = yearlyOneTimeIncome(state, offset);
         BigDecimal totalIncome = monthlyIncome.multiply(TWELVE).add(yearlyIncome);
-        BigDecimal monthlyExpenses = grow(monthlyExpenses(state), averageExpenseGrowth(state), offset);
-        BigDecimal yearlyExpenses = grow(yearlyOneTimeExpenses(state), averageExpenseGrowth(state), offset);
+        BigDecimal monthlyExpenses = monthlyExpenses(state, offset);
+        BigDecimal yearlyExpenses = yearlyOneTimeExpenses(state, offset);
         BigDecimal totalExpenses = monthlyExpenses.multiply(TWELVE).add(yearlyExpenses);
         return totalIncome.subtract(totalExpenses).max(BigDecimal.ZERO);
     }
