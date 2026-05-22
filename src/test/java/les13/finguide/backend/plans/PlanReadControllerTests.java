@@ -109,7 +109,7 @@ class PlanReadControllerTests {
     }
 
     @Test
-    void goalReachabilityUsesTargetMonthDeadline() throws Exception {
+    void goalReachabilityAllowsPositiveCapitalBeforeTargetMonth() throws Exception {
         String subject = "goal-month-deadline-owner";
         String planId = currentPlanId(subject);
 
@@ -150,7 +150,7 @@ class PlanReadControllerTests {
                 .orElseThrow();
         assertThat(juneGoal.get("targetMonth").asInt()).isEqualTo(6);
         assertThat(juneGoal.get("projectedTargetCost").decimalValue()).isEqualByComparingTo("1300000.00");
-        assertThat(juneGoal.get("projectedReachable").asBoolean()).isFalse();
+        assertThat(juneGoal.get("projectedReachable").asBoolean()).isTrue();
     }
 
     @Test
@@ -197,7 +197,7 @@ class PlanReadControllerTests {
     }
 
     @Test
-    void goalReachabilityUsesMonthlyTrackerFacts() throws Exception {
+    void goalReachabilityUsesPositiveTargetYearCapital() throws Exception {
         String subject = "goal-reachability-tracker-owner";
         String planId = currentPlanId(subject);
 
@@ -242,6 +242,14 @@ class PlanReadControllerTests {
                 .andReturn().getResponse().getContentAsString();
         String goalId = objectMapper.readTree(createdBody).at("/data/id").asText();
 
+        mockMvc.perform(get("/api/v1/plans/{planId}/analytics/cashflow", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Goal Reachability Tracker Owner")
+                                .claim("preferred_username", subject))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].capitalEndOfYear", greaterThan(0.0)));
+
         String body = mockMvc.perform(get("/api/v1/plans/current")
                         .with(jwt().jwt(token -> token.subject(subject)
                                 .claim("email", subject + "@example.com")
@@ -254,8 +262,14 @@ class PlanReadControllerTests {
                 .filter(node -> goalId.equals(node.get("id").asText()))
                 .findFirst()
                 .orElseThrow();
-        assertThat(goal.get("projectedReachable").asBoolean()).isFalse();
+        assertThat(goal.get("projectedReachable").asBoolean()).isTrue();
         assertThat(goal.get("projectedCompletionYear").asInt()).isGreaterThan(2026);
+
+        JsonNode negativeCapitalGoal = java.util.stream.StreamSupport.stream(objectMapper.readTree(body).at("/data/goals").spliterator(), false)
+                .filter(node -> node.get("targetYear").asInt() == 2029)
+                .findFirst()
+                .orElseThrow();
+        assertThat(negativeCapitalGoal.get("projectedReachable").asBoolean()).isFalse();
     }
 
     @Test

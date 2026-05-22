@@ -48,7 +48,12 @@ public class PlanReadService {
 
     public Map<UUID, GoalAllocation> goalAllocations(PlanState state) {
         int horizon = projectionHorizon(state);
-        return goalAllocationPlan(state, horizon, actualGoalExpensesByYear(state, horizon), monthlyTrackerSavingsByMonth(state, horizon)).byGoal();
+        Map<Integer, BigDecimal> actualGoalExpensesByYear = actualGoalExpensesByYear(state, horizon);
+        Map<java.time.YearMonth, BigDecimal> monthlyTrackerSavingsByMonth = monthlyTrackerSavingsByMonth(state, horizon);
+        Map<Integer, BigDecimal> capitalEndByYear = new HashMap<>();
+        cashflow(state, horizon, actualGoalExpensesByYear, monthlyTrackerSavingsByMonth)
+                .forEach(point -> capitalEndByYear.put(point.year(), point.capitalEndOfYear()));
+        return goalAllocationPlan(state, horizon, actualGoalExpensesByYear, monthlyTrackerSavingsByMonth, capitalEndByYear).byGoal();
     }
 
     public PlanState plan(UUID planId) {
@@ -611,14 +616,18 @@ public class PlanReadService {
     }
 
     private static GoalAllocationPlan goalAllocationPlan(PlanState state, int horizon) {
-        return goalAllocationPlan(state, horizon, Map.of(), Map.of());
+        return goalAllocationPlan(state, horizon, Map.of(), Map.of(), Map.of());
     }
 
     private static GoalAllocationPlan goalAllocationPlan(PlanState state, int horizon, Map<Integer, BigDecimal> actualGoalExpensesByYear) {
-        return goalAllocationPlan(state, horizon, actualGoalExpensesByYear, Map.of());
+        return goalAllocationPlan(state, horizon, actualGoalExpensesByYear, Map.of(), Map.of());
     }
 
     private static GoalAllocationPlan goalAllocationPlan(PlanState state, int horizon, Map<Integer, BigDecimal> actualGoalExpensesByYear, Map<java.time.YearMonth, BigDecimal> monthlyTrackerSavingsByMonth) {
+        return goalAllocationPlan(state, horizon, actualGoalExpensesByYear, monthlyTrackerSavingsByMonth, Map.of());
+    }
+
+    private static GoalAllocationPlan goalAllocationPlan(PlanState state, int horizon, Map<Integer, BigDecimal> actualGoalExpensesByYear, Map<java.time.YearMonth, BigDecimal> monthlyTrackerSavingsByMonth, Map<Integer, BigDecimal> capitalEndByYear) {
         int startYear = Math.max(Year.now().getValue(), state.modelAssumptions().startYear());
         List<Goal> goals = state.goals().stream()
                 .sorted(Comparator.comparingInt(Goal::targetYear).thenComparingInt(Goal::targetMonth).thenComparingInt(Goal::priority).thenComparing(Goal::id))
@@ -682,11 +691,14 @@ public class PlanReadService {
             BigDecimal progressPct = targetCost.signum() == 0
                     ? HUNDRED
                     : savedAmount.multiply(HUNDRED).divide(targetCost, 1, RoundingMode.HALF_UP).min(HUNDRED);
+            boolean reachable = capitalEndByYear.containsKey(goal.targetYear())
+                    ? capitalEndByYear.get(goal.targetYear()).signum() >= 0
+                    : reachableByGoal.getOrDefault(goal.id(), false);
             byGoal.put(goal.id(), new GoalAllocation(
                     targetCost,
                     savedAmount,
                     progressPct,
-                    reachableByGoal.getOrDefault(goal.id(), false),
+                    reachable,
                     completionYears.get(goal.id())
             ));
         }
