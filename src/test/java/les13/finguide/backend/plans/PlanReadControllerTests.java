@@ -91,7 +91,10 @@ class PlanReadControllerTests {
                 .andExpect(jsonPath("$.data[0].netSavings").value(2532000))
                 .andExpect(jsonPath("$.data[0].totalGoalExpenses").value(0))
                 .andExpect(jsonPath("$.data[0].capitalEndOfYear").value(5182000.0))
-                .andExpect(jsonPath("$.data[1].netSavings").value(1192640.94))
+                .andExpect(jsonPath("$.data[1].monthlyIncome").value(370650.0))
+                .andExpect(jsonPath("$.data[1].yearlyIncome").value(198000.0))
+                .andExpect(jsonPath("$.data[1].monthlyExpenses").value(152820.0))
+                .andExpect(jsonPath("$.data[1].netSavings").value(1206960.0))
                 .andExpect(jsonPath("$.data[1].totalGoalExpenses").value(1605000.0));
 
         mockMvc.perform(get("/api/v1/plans/current"))
