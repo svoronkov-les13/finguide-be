@@ -295,6 +295,14 @@ class PlanReadControllerTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.startYear").value(2028))
                 .andExpect(jsonPath("$.data.sourceModel").value("test override"));
+
+        mockMvc.perform(get("/api/v1/plans/{planId}/analytics/cashflow", planId)
+                        .with(jwt().jwt(token -> token.subject("analytics-owner")
+                                .claim("email", "analytics-owner@example.com")
+                                .claim("name", "Analytics Owner")
+                                .claim("preferred_username", "analytics-owner"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].capitalStartOfYear").value(1000000.0));
     }
 
     @Test
