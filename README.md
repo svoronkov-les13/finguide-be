@@ -45,8 +45,8 @@ Real backend currently supports:
 - H2 seed data loaded from `schema.sql` + `data.sql`;
 - persisted analytics assumptions, current balance, yearly projection and pension projection endpoints;
 - persisted pension settings `GET/PATCH /plans/{planId}/pension` with writable-plan guardrails;
-- persisted contributions ledger `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}` with `Goal.savedAmount` derived from contribution sums;
-- persisted budget settings `GET/PATCH /plans/{planId}/budget`, envelope autogeneration, monthly tracker `GET/POST /plans/{planId}/calendar/monthly-tracker`, and operation journal `GET/POST/PATCH/DELETE /plans/{planId}/tracker/entries`;
+- legacy/deprecated persisted contributions ledger `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}` with `Goal.savedAmount` derived from contribution sums;
+- persisted budget settings `GET/PATCH /plans/{planId}/budget`, envelope autogeneration, monthly tracker `GET/POST /plans/{planId}/calendar/monthly-tracker`, and operation journal `GET/POST/PATCH/DELETE /plans/{planId}/tracker/entries` as the canonical write-path for factual goal outflows;
 - persisted user scenarios `GET/POST /scenarios`, `GET/PATCH/DELETE /scenarios/{scenarioId}`, and `POST /scenarios/compare` with built-in read-only scenarios.
 
 Completed guardrails and analytics milestones:
@@ -66,7 +66,7 @@ src/main/java/les13/finguide/backend/
   auth/              Keycloak JWT, current user, audience and plan access checks
   users/             local business profile mapped to Keycloak identity
   plans/             current plan, persisted H2 state, financial item CRUD
-  contributions/     contribution ledger domain model
+  contributions/     legacy contribution ledger domain model
   incomes/           income domain model
   expenses/          expense domain model
   goals/             goals and waterfall priority reorder

@@ -15,6 +15,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Legacy compatibility service for the historical contributions ledger.
+ * Current UI writes factual goal outflows through the operation journal.
+ */
 @Service
 @Transactional(readOnly = true)
 public class ContributionService {
@@ -28,17 +32,20 @@ public class ContributionService {
         this.accessService = accessService;
     }
 
+    @Deprecated(since = "0.1", forRemoval = false)
     public List<Contribution> contributions(UUID planId) {
         accessService.requirePlan(planId);
         return repository.findContributions(planId);
     }
 
+    @Deprecated(since = "0.1", forRemoval = false)
     public Contribution contribution(UUID planId, UUID contributionId) {
         accessService.requirePlan(planId);
         return repository.findContribution(planId, contributionId)
                 .orElseThrow(() -> notFound("Contribution was not found"));
     }
 
+    @Deprecated(since = "0.1", forRemoval = false)
     @Transactional
     public Contribution createContribution(UUID planId, ContributionRequests.ContributionRequest request) {
         accessService.requireWritablePlan(planId);
@@ -61,6 +68,7 @@ public class ContributionService {
         return created;
     }
 
+    @Deprecated(since = "0.1", forRemoval = false)
     @Transactional
     public Contribution updateContribution(UUID planId, UUID contributionId, ContributionRequests.ContributionRequest request) {
         accessService.requireWritablePlan(planId);
@@ -87,6 +95,7 @@ public class ContributionService {
         return updated;
     }
 
+    @Deprecated(since = "0.1", forRemoval = false)
     @Transactional
     public void deleteContribution(UUID planId, UUID contributionId) {
         accessService.requireWritablePlan(planId);

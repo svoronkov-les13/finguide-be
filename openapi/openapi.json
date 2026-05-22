@@ -965,7 +965,9 @@
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           }
-        }
+        },
+        "deprecated": true,
+        "description": "Legacy compatibility endpoint. Current UI writes factual goal outflows through /plans/{planId}/tracker/entries; avoid writing both ledgers for the same fact to prevent double-counting."
       },
       "post": {
         "tags": [
@@ -1007,7 +1009,9 @@
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           }
-        }
+        },
+        "deprecated": true,
+        "description": "Legacy compatibility endpoint. Current UI writes factual goal outflows through /plans/{planId}/tracker/entries; avoid writing both ledgers for the same fact to prevent double-counting."
       }
     },
     "/plans/{planId}/contributions/{id}": {
@@ -1059,7 +1063,9 @@
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           }
-        }
+        },
+        "deprecated": true,
+        "description": "Legacy compatibility endpoint. Current UI writes factual goal outflows through /plans/{planId}/tracker/entries; avoid writing both ledgers for the same fact to prevent double-counting."
       },
       "patch": {
         "tags": [
@@ -1101,7 +1107,9 @@
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           }
-        }
+        },
+        "deprecated": true,
+        "description": "Legacy compatibility endpoint. Current UI writes factual goal outflows through /plans/{planId}/tracker/entries; avoid writing both ledgers for the same fact to prevent double-counting."
       },
       "delete": {
         "tags": [
@@ -1118,7 +1126,9 @@
           "404": {
             "$ref": "#/components/responses/NotFound"
           }
-        }
+        },
+        "deprecated": true,
+        "description": "Legacy compatibility endpoint. Current UI writes factual goal outflows through /plans/{planId}/tracker/entries; avoid writing both ledgers for the same fact to prevent double-counting."
       }
     },
     "/plans/{planId}/goals/reorder": {

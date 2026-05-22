@@ -291,16 +291,16 @@ availableForPension = max(0, netMonthlyBalance)
 
 Backend отдаёт `projected*` поля по целям отдельно от фактических `currentCost` / `savedAmount`; `projectedReachable` учитывает deadline с точностью до `targetYear + targetMonth`. Само финансирование целей в yearly analytics уменьшает `netSavings` и капитал.
 
-### Contribution ledger
+### Contribution ledger (legacy)
 
-`goal-tracking` и export logic прототипа содержат `contributions` как фактические взносы:
+`goal-tracking` и export logic прототипа содержали `contributions` как фактические взносы:
 
 ```txt
 Contribution = { goalId, amount, date, note }
 goal.savedAmount = sum(contributions.amount where contribution.goalId == goal.id)
 ```
 
-Это соответствует backend issue #10: contribution ledger — источник фактического прогресса цели, а projected allocation — отдельный forecast-layer для достижимости целей.
+Backend сохраняет contribution ledger как legacy compatibility path, но текущий UI пишет фактические расходы на цели через operation journal (`/plans/{planId}/tracker/entries`, `type=goal`, `status=actual`). Analytics учитывает legacy contributions и operation journal, поэтому один и тот же факт нельзя писать в оба источника — это даст double-counting.
 
 ### Files / import / export
 
@@ -312,7 +312,7 @@ goal.savedAmount = sum(contributions.amount where contribution.goalId == goal.id
 - CSV export включает секции `Доходы`, `Расходы`, `Цели`, `Накопления (взносы)`, `Пенсия`, `Баланс`;
 - PDF export включает dashboard summary, цели, pension plan и графики.
 
-Контрактный вывод: будущий import/export должен сохранять раздельность фактических данных (`contributions`, `savedAmount`) и прогнозных расчётов (`projected*`, `availableForPension`, scenario summaries).
+Контрактный вывод: будущий import/export должен сохранять раздельность фактических данных (`operation_journal_entries`; legacy `contributions` только для совместимости, `savedAmount`) и прогнозных расчётов (`projected*`, `availableForPension`, scenario summaries).
 
 ## Контрактные выводы
 
