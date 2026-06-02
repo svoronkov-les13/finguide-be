@@ -30,8 +30,7 @@ class OpenApiContractCoverageTests {
             "POST /api/v1/export",
             "POST /api/v1/import",
             "POST /api/v1/notifications/read",
-            "PUT /api/v1/me/avatar",
-            "PUT /api/v1/plans/current"
+            "PUT /api/v1/me/avatar"
     );
 
     @Autowired

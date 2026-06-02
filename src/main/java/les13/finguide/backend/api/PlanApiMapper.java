@@ -17,6 +17,7 @@ import les13.finguide.backend.incomes.IncomeSource;
 import les13.finguide.backend.pension.PensionProjection;
 import les13.finguide.backend.pension.PensionSpendDownPoint;
 import les13.finguide.backend.pension.PensionSettings;
+import les13.finguide.backend.plans.PlanStateRepository;
 import les13.finguide.backend.plans.PlanState;
 import les13.finguide.backend.scenarios.Scenario;
 import les13.finguide.backend.scenarios.ScenarioComparison;
@@ -50,6 +51,16 @@ public class PlanApiMapper {
         result.put("budget", budget(state.budget()));
         result.put("modelAssumptions", assumptions(state.modelAssumptions()));
         result.put("updatedAt", state.updatedAt());
+        return result;
+    }
+
+    public Map<String, Object> planSummary(PlanStateRepository.PlanSummary summary) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("id", string(summary.id()));
+        result.put("name", summary.name());
+        result.put("current", summary.current());
+        result.put("createdAt", summary.createdAt());
+        result.put("updatedAt", summary.updatedAt());
         return result;
     }
 
