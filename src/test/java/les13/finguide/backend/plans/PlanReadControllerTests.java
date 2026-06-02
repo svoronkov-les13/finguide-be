@@ -60,7 +60,7 @@ class PlanReadControllerTests {
         mockMvc.perform(get("/api/v1/plans/{planId}/dashboard", planId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.totalMonthlyIncome").value(345000))
-                .andExpect(jsonPath("$.data.monthlyGoalContribution").value(196000))
+                .andExpect(jsonPath("$.data.monthlyGoalContribution").value(211000))
                 .andExpect(jsonPath("$.data.netMonthlyBalance").value(196000))
                 .andExpect(jsonPath("$.data.netYearlyBalance").value(2532000))
                 .andExpect(jsonPath("$.data.yearlyProjection", hasSize(4)));
@@ -79,6 +79,61 @@ class PlanReadControllerTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data", hasSize(3)))
                 .andExpect(jsonPath("$.data[0].id").value("base"));
+    }
+
+    @Test
+    void dashboardMonthlyGoalContributionAveragesAllIncomeAndExpenses() throws Exception {
+        String subject = "dashboard-annual-net-owner";
+        String planId = currentPlanId(subject);
+
+        mockMvc.perform(post("/api/v1/plans/{planId}/incomes", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Dashboard Annual Net Owner")
+                                .claim("preferred_username", subject)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "Разовый бонус",
+                                  "amount": 120000,
+                                  "currency": "RUB",
+                                  "frequency": "one_time",
+                                  "growthType": "none",
+                                  "growthPct": 0,
+                                  "startDate": "2026-01-01"
+                                }
+                                """))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/v1/plans/{planId}/expenses", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Dashboard Annual Net Owner")
+                                .claim("preferred_username", subject)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "Разовый ремонт",
+                                  "amount": 60000,
+                                  "currency": "RUB",
+                                  "frequency": "one_time",
+                                  "growthType": "none",
+                                  "growthPct": 0,
+                                  "growthLabel": "Без роста",
+                                  "budgetClass": "needs",
+                                  "startDate": "2026-01-01"
+                                }
+                                """))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/v1/plans/{planId}/dashboard", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Dashboard Annual Net Owner")
+                                .claim("preferred_username", subject))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.netYearlyBalance").value(2592000))
+                .andExpect(jsonPath("$.data.monthlyGoalContribution").value(216000));
     }
 
 
