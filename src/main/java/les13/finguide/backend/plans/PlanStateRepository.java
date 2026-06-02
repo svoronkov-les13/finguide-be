@@ -12,16 +12,28 @@ import les13.finguide.backend.analytics.ModelAssumptions;
 import les13.finguide.backend.pension.PensionSettings;
 import les13.finguide.backend.scenarios.Scenario;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface PlanStateRepository {
+    record PlanSummary(UUID id, String name, boolean current, Instant createdAt, Instant updatedAt) {
+    }
+
     Optional<PlanState> findCurrent();
 
     Optional<PlanState> findCurrentForOwner(UUID ownerUserId);
 
     PlanState findOrCreateCurrentForOwner(UUID ownerUserId);
+
+    List<PlanSummary> findPlansForOwner(UUID ownerUserId);
+
+    PlanState createBlankPlanForOwner(UUID ownerUserId, String name);
+
+    PlanState copyPlanForOwner(UUID ownerUserId, UUID sourcePlanId, String name);
+
+    boolean setCurrentPlanForOwner(UUID ownerUserId, UUID planId);
 
     Optional<PlanState> findById(UUID planId);
 

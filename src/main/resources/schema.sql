@@ -24,6 +24,7 @@ create table user_profiles (
   age integer,
   gender varchar(32),
   initial_balance numeric(19, 2) not null,
+  current_plan_id uuid,
   created_at timestamp with time zone not null,
   updated_at timestamp with time zone not null,
   constraint uq_user_profiles_keycloak_subject unique (keycloak_subject)
@@ -35,8 +36,7 @@ create table financial_plans (
   name varchar(255) not null,
   base_currency varchar(3) not null,
   created_at timestamp with time zone not null,
-  updated_at timestamp with time zone not null,
-  constraint uq_financial_plans_owner_user_id unique (owner_user_id)
+  updated_at timestamp with time zone not null
 );
 
 create table pension_settings (

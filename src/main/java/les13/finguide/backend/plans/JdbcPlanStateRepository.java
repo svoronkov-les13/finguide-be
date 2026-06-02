@@ -52,22 +52,99 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
 
     @Override
     public Optional<PlanState> findCurrentForOwner(UUID ownerUserId) {
-        try {
-            UUID planId = jdbcTemplate.queryForObject(
-                    "select id from financial_plans where owner_user_id = ?",
-                    UUID.class,
-                    ownerUserId
-            );
-            return planId == null ? Optional.empty() : findById(planId);
-        } catch (EmptyResultDataAccessException ignored) {
-            return Optional.empty();
+        Optional<UUID> selectedPlanId = queryOptional(
+                "select current_plan_id from user_profiles where id = ?",
+                (rs, rowNum) -> rs.getObject("current_plan_id", UUID.class),
+                ownerUserId
+        );
+        if (selectedPlanId.isPresent()) {
+            Optional<PlanState> selected = findById(selectedPlanId.get())
+                    .filter(state -> ownerUserId.equals(state.plan().ownerUserId()));
+            if (selected.isPresent()) {
+                return selected;
+            }
         }
+        return queryOptional(
+                "select id from financial_plans where owner_user_id = ? order by updated_at desc, created_at desc limit 1",
+                (rs, rowNum) -> rs.getObject("id", UUID.class),
+                ownerUserId
+        ).flatMap(this::findById);
     }
 
     @Override
     @Transactional
     public PlanState findOrCreateCurrentForOwner(UUID ownerUserId) {
         return findCurrentForOwner(ownerUserId).orElseGet(() -> createCurrentForOwner(ownerUserId));
+    }
+
+    @Override
+    public List<PlanSummary> findPlansForOwner(UUID ownerUserId) {
+        Optional<UUID> currentPlanId = queryOptional(
+                "select current_plan_id from user_profiles where id = ?",
+                (rs, rowNum) -> rs.getObject("current_plan_id", UUID.class),
+                ownerUserId
+        );
+        return jdbcTemplate.query(
+                "select id, name, created_at, updated_at from financial_plans where owner_user_id = ? order by updated_at desc, created_at desc",
+                (rs, rowNum) -> {
+                    UUID id = rs.getObject("id", UUID.class);
+                    return new PlanSummary(
+                            id,
+                            rs.getString("name"),
+                            currentPlanId.filter(current -> current.equals(id)).isPresent(),
+                            instant(rs, "created_at"),
+                            instant(rs, "updated_at")
+                    );
+                },
+                ownerUserId
+        );
+    }
+
+    @Override
+    @Transactional
+    public PlanState createBlankPlanForOwner(UUID ownerUserId, String name) {
+        UUID seedPlanId = findSeedDemoPlanId().orElseThrow(() -> new IllegalStateException("Seed demo plan was not found"));
+        UUID planId = createPlanRowFromSource(ownerUserId, seedPlanId, name);
+        clonePensionSettings(seedPlanId, planId);
+        cloneModelAssumptions(seedPlanId, planId);
+        cloneInflationRates(seedPlanId, planId);
+        cloneBudgetSettings(seedPlanId, planId);
+        setCurrentPlanForOwner(ownerUserId, planId);
+        return findById(planId).orElseThrow();
+    }
+
+    @Override
+    @Transactional
+    public PlanState copyPlanForOwner(UUID ownerUserId, UUID sourcePlanId, String name) {
+        PlanState source = findById(sourcePlanId)
+                .filter(state -> ownerUserId.equals(state.plan().ownerUserId()))
+                .orElseThrow(() -> new EmptyResultDataAccessException("Source plan was not found", 1));
+        UUID planId = createPlanRowFromSource(ownerUserId, source.plan().id(), name);
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        clonePensionSettings(source.plan().id(), planId);
+        cloneModelAssumptions(source.plan().id(), planId);
+        cloneInflationRates(source.plan().id(), planId);
+        cloneIncomes(source.plan().id(), planId, now);
+        cloneExpenses(source.plan().id(), planId, now);
+        cloneGoals(source.plan().id(), planId, now);
+        cloneBudget(source.plan().id(), planId, now);
+        cloneScenarios(source.plan().id(), planId, now);
+        setCurrentPlanForOwner(ownerUserId, planId);
+        return findById(planId).orElseThrow();
+    }
+
+    @Override
+    @Transactional
+    public boolean setCurrentPlanForOwner(UUID ownerUserId, UUID planId) {
+        int updated = jdbcTemplate.update(
+                "update user_profiles set current_plan_id = ?, updated_at = ? where id = ? and exists (select 1 from financial_plans where id = ? and owner_user_id = ?)",
+                planId,
+                OffsetDateTime.now(ZoneOffset.UTC),
+                ownerUserId,
+                planId,
+                ownerUserId
+        );
+        return updated > 0;
     }
 
     private PlanState createCurrentForOwner(UUID ownerUserId) {
@@ -94,10 +171,27 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
             cloneMonthlyTracker(seedPlanId, planId, now);
             cloneOperationJournal(seedPlanId, planId, now);
             cloneScenarios(seedPlanId, planId, now);
+            setCurrentPlanForOwner(ownerUserId, planId);
             return findById(planId).orElseThrow();
         } catch (DuplicateKeyException ignored) {
             return findCurrentForOwner(ownerUserId).orElseThrow();
         }
+    }
+
+    private UUID createPlanRowFromSource(UUID ownerUserId, UUID sourcePlanId, String name) {
+        UUID planId = UUID.randomUUID();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        jdbcTemplate.update(
+                "insert into financial_plans (id, owner_user_id, name, base_currency, created_at, updated_at) " +
+                        "select ?, ?, ?, base_currency, ?, ? from financial_plans where id = ?",
+                planId,
+                ownerUserId,
+                name,
+                now,
+                now,
+                sourcePlanId
+        );
+        return planId;
     }
 
     private Optional<UUID> findSeedDemoPlanId() {
@@ -215,13 +309,8 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     }
 
     private void cloneBudget(UUID seedPlanId, UUID planId, OffsetDateTime now) {
-        jdbcTemplate.update(
-                "insert into budget_settings (plan_id, method, created_at, updated_at) select ?, method, ?, ? from budget_settings where plan_id = ?",
-                planId,
-                now,
-                now,
-                seedPlanId
-        );
+        cloneBudgetSettings(seedPlanId, planId);
+        jdbcTemplate.update("update budget_settings set created_at = ?, updated_at = ? where plan_id = ?", now, now, planId);
         jdbcTemplate.update(
                 "insert into budget_envelopes (id, plan_id, name, limit_amount, icon, color, sort_order, created_at, updated_at) " +
                         "select random_uuid(), ?, name, limit_amount, icon, color, sort_order, ?, ? from budget_envelopes where plan_id = ?",
@@ -241,6 +330,17 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                 now,
                 now,
                 planId,
+                seedPlanId
+        );
+    }
+
+    private void cloneBudgetSettings(UUID seedPlanId, UUID planId) {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        jdbcTemplate.update(
+                "insert into budget_settings (plan_id, method, created_at, updated_at) select ?, method, ?, ? from budget_settings where plan_id = ?",
+                planId,
+                now,
+                now,
                 seedPlanId
         );
     }
