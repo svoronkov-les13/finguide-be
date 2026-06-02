@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
@@ -31,6 +32,9 @@ class PlanManagementControllerTests {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Test
     void createsBlankPlanAndMakesItCurrent() throws Exception {
@@ -68,6 +72,30 @@ class PlanManagementControllerTests {
             }
         }
         org.assertj.core.api.Assertions.assertThat(currentCount).isEqualTo(1);
+    }
+
+    @Test
+    void createsBlankPlanWhenDemoSeedIsAbsent() throws Exception {
+        RequestPostProcessor jwt = userJwt("plan-create-without-seed-owner");
+        currentPlan(jwt);
+        deleteSeedPlan();
+
+        String createdBody = mockMvc.perform(post("/api/v1/plans")
+                        .with(jwt)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"С нуля\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.name").value("С нуля"))
+                .andExpect(jsonPath("$.data.current").value(true))
+                .andReturn().getResponse().getContentAsString();
+        String createdPlanId = objectMapper.readTree(createdBody).at("/data/id").asText();
+
+        mockMvc.perform(get("/api/v1/plans/current").with(jwt))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(createdPlanId))
+                .andExpect(jsonPath("$.data.incomes", hasSize(0)))
+                .andExpect(jsonPath("$.data.expenses", hasSize(0)))
+                .andExpect(jsonPath("$.data.goals", hasSize(0)));
     }
 
     @Test
@@ -189,6 +217,24 @@ class PlanManagementControllerTests {
 
     private JsonNode readJson(org.springframework.test.web.servlet.MvcResult result) throws Exception {
         return objectMapper.readTree(result.getResponse().getContentAsString());
+    }
+
+    private void deleteSeedPlan() {
+        String seedPlanId = "22222222-2222-4222-8222-222222222222";
+        jdbcTemplate.update("delete from scenarios where plan_id = ?", seedPlanId);
+        jdbcTemplate.update("delete from operation_journal_entries where plan_id = ?", seedPlanId);
+        jdbcTemplate.update("delete from monthly_tracker_entries where plan_id = ?", seedPlanId);
+        jdbcTemplate.update("delete from budget_classifications where plan_id = ?", seedPlanId);
+        jdbcTemplate.update("delete from budget_envelopes where plan_id = ?", seedPlanId);
+        jdbcTemplate.update("delete from budget_settings where plan_id = ?", seedPlanId);
+        jdbcTemplate.update("delete from contributions where plan_id = ?", seedPlanId);
+        jdbcTemplate.update("delete from goals where plan_id = ?", seedPlanId);
+        jdbcTemplate.update("delete from expenses where plan_id = ?", seedPlanId);
+        jdbcTemplate.update("delete from incomes where plan_id = ?", seedPlanId);
+        jdbcTemplate.update("delete from inflation_rates where plan_id = ?", seedPlanId);
+        jdbcTemplate.update("delete from model_assumptions where plan_id = ?", seedPlanId);
+        jdbcTemplate.update("delete from pension_settings where plan_id = ?", seedPlanId);
+        jdbcTemplate.update("delete from financial_plans where id = ?", seedPlanId);
     }
 
     private static RequestPostProcessor userJwt(String subject) {

@@ -103,12 +103,8 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     @Override
     @Transactional
     public PlanState createBlankPlanForOwner(UUID ownerUserId, String name) {
-        UUID seedPlanId = findSeedDemoPlanId().orElseThrow(() -> new IllegalStateException("Seed demo plan was not found"));
-        UUID planId = createPlanRowFromSource(ownerUserId, seedPlanId, name);
-        clonePensionSettings(seedPlanId, planId);
-        cloneModelAssumptions(seedPlanId, planId);
-        cloneInflationRates(seedPlanId, planId);
-        cloneBudgetSettings(seedPlanId, planId);
+        UUID planId = createBlankPlanRow(ownerUserId, name);
+        insertDefaultPlanSettings(ownerUserId, planId);
         setCurrentPlanForOwner(ownerUserId, planId);
         return findById(planId).orElseThrow();
     }
@@ -192,6 +188,80 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                 sourcePlanId
         );
         return planId;
+    }
+
+    private UUID createBlankPlanRow(UUID ownerUserId, String name) {
+        UUID planId = UUID.randomUUID();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        jdbcTemplate.update(
+                "insert into financial_plans (id, owner_user_id, name, base_currency, created_at, updated_at) values (?, ?, ?, ?, ?, ?)",
+                planId,
+                ownerUserId,
+                name,
+                "RUB",
+                now,
+                now
+        );
+        return planId;
+    }
+
+    private void insertDefaultPlanSettings(UUID ownerUserId, UUID planId) {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        int startYear = now.getYear();
+        BigDecimal initialCapital = queryOptional(
+                "select initial_balance from user_profiles where id = ?",
+                (rs, rowNum) -> rs.getBigDecimal("initial_balance"),
+                ownerUserId
+        ).orElse(BigDecimal.ZERO);
+        jdbcTemplate.update(
+                "insert into pension_settings (plan_id, current_age, retirement_age, monthly_expenses, desired_monthly_expenses_current_prices, currency, expected_return_pct, inflation_pct, withdrawal_strategy, state_pension_enabled, state_pension_monthly) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                planId,
+                32,
+                60,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                "RUB",
+                BigDecimal.valueOf(6),
+                BigDecimal.valueOf(3),
+                "spend_down_30y",
+                false,
+                BigDecimal.ZERO
+        );
+        jdbcTemplate.update(
+                "insert into model_assumptions (plan_id, start_year, projection_end_year, horizon_years, birth_year, months_per_year, currency, initial_capital, investment_return_pct, source_model) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                planId,
+                startYear,
+                startYear + 52,
+                53,
+                null,
+                12,
+                "RUB",
+                initialCapital,
+                BigDecimal.valueOf(6),
+                "blank_plan_default"
+        );
+        jdbcTemplate.update(
+                "insert into inflation_rates (plan_id, rate_year, rate_pct) values (?, ?, ?), (?, ?, ?), (?, ?, ?), (?, ?, ?)",
+                planId,
+                startYear,
+                BigDecimal.valueOf(3),
+                planId,
+                startYear + 1,
+                BigDecimal.valueOf(3),
+                planId,
+                startYear + 2,
+                BigDecimal.valueOf(3),
+                planId,
+                startYear + 3,
+                BigDecimal.valueOf(3)
+        );
+        jdbcTemplate.update(
+                "insert into budget_settings (plan_id, method, created_at, updated_at) values (?, ?, ?, ?)",
+                planId,
+                "rule_50_30_20",
+                now,
+                now
+        );
     }
 
     private Optional<UUID> findSeedDemoPlanId() {
