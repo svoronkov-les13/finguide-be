@@ -543,7 +543,10 @@ public class PlanReadService {
     }
 
     private static BigDecimal recommendedMonthlyGoalContribution(PlanState state) {
-        return monthlyIncome(state).subtract(monthlyExpenses(state)).max(BigDecimal.ZERO).setScale(0, RoundingMode.HALF_UP);
+        return yearlyIncome(state)
+                .subtract(yearlyExpenses(state))
+                .max(BigDecimal.ZERO)
+                .divide(TWELVE, 0, RoundingMode.HALF_UP);
     }
 
     private static int projectionHorizon(PlanState state) {
