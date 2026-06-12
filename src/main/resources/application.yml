@@ -49,3 +49,8 @@ finguide:
   security:
     demo-mode: ${FINGUIDE_DEMO_MODE:true}
     required-audience: ${KEYCLOAK_AUDIENCE:finguide-api}
+  keycloak:
+    admin-realm: ${FINGUIDE_KEYCLOAK_ADMIN_REALM:master}
+    admin-client-id: ${FINGUIDE_KEYCLOAK_ADMIN_CLIENT_ID:admin-cli}
+    admin-username: ${FINGUIDE_KEYCLOAK_ADMIN_USERNAME:}
+    admin-password: ${FINGUIDE_KEYCLOAK_ADMIN_PASSWORD:}
