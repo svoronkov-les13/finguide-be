@@ -35,7 +35,7 @@
 ### 2.2 Runtime и deploy
 
 - Backend: Java 21, Spring Boot 3.3, Spring Security OAuth2 Resource Server, Spring Data JDBC.
-- Текущее хранение данных: embedded H2, инициализация через `schema.sql` и `data.sql`.
+- Текущее хранение данных: embedded H2/PostgreSQL profile; схема через Liquibase, demo seed через `data.sql`.
 - Текущий backend deploy: self-hosted GitHub Actions runner на legacy сервере, systemd service `finguide-api.service`, runtime jar `/opt/finguide-api/finguide-be.jar`.
 - Текущий frontend deploy: self-hosted GitHub Actions runner на legacy сервере, статические файлы в `/var/www/mtproxy-info/fg`.
 - Целевой deploy: перенос публичного demo на `finguide.les13.tech`, предпочтительно через container/Helm или через равноценно документированный hardened VM profile.

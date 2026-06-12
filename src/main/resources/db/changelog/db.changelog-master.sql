@@ -1,19 +1,6 @@
-drop table if exists operation_journal_entries;
-drop table if exists monthly_tracker_entries;
-drop table if exists scenarios;
-drop table if exists budget_classifications;
-drop table if exists budget_envelopes;
-drop table if exists budget_settings;
-drop table if exists contributions;
-drop table if exists goals;
-drop table if exists expenses;
-drop table if exists incomes;
-drop table if exists inflation_rates;
-drop table if exists model_assumptions;
-drop table if exists pension_settings;
-drop table if exists financial_plans;
-drop table if exists user_profiles;
+--liquibase formatted sql
 
+--changeset finguide:001-initial-schema
 create table user_profiles (
   id uuid primary key,
   keycloak_subject varchar(128) not null,
@@ -202,7 +189,23 @@ create table scenarios (
   inflation_adj_pct numeric(9, 4) not null,
   retirement_age_shift integer not null,
   goals_cost_adj_pct numeric(9, 4) not null,
-  snapshot_json clob,
+  snapshot_json text,
   created_at timestamp with time zone not null,
   updated_at timestamp with time zone not null
 );
+
+--rollback drop table if exists operation_journal_entries;
+--rollback drop table if exists monthly_tracker_entries;
+--rollback drop table if exists scenarios;
+--rollback drop table if exists budget_classifications;
+--rollback drop table if exists budget_envelopes;
+--rollback drop table if exists budget_settings;
+--rollback drop table if exists contributions;
+--rollback drop table if exists goals;
+--rollback drop table if exists expenses;
+--rollback drop table if exists incomes;
+--rollback drop table if exists inflation_rates;
+--rollback drop table if exists model_assumptions;
+--rollback drop table if exists pension_settings;
+--rollback drop table if exists financial_plans;
+--rollback drop table if exists user_profiles;
