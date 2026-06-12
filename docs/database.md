@@ -7,7 +7,7 @@
 ```yaml
 spring:
   datasource:
-    url: ${FINGUIDE_DATASOURCE_URL:jdbc:h2:mem:finguide;MODE=PostgreSQL;DATABASE_TO_UPPER=false}
+    url: ${FINGUIDE_DATASOURCE_URL:jdbc:h2:mem:${random.uuid};MODE=PostgreSQL;DATABASE_TO_UPPER=false}
     username: ${FINGUIDE_DATASOURCE_USERNAME:sa}
     driver-class-name: org.h2.Driver
   sql:

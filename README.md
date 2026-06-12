@@ -106,7 +106,7 @@ Default local mode:
 
 ```txt
 FINGUIDE_DEMO_MODE=true
-jdbc:h2:mem:finguide;MODE=PostgreSQL;DATABASE_TO_UPPER=false
+jdbc:h2:mem:${random.uuid};MODE=PostgreSQL;DATABASE_TO_UPPER=false
 spring.sql.init.mode=always
 spring.liquibase.change-log=classpath:/db/changelog/db.changelog-master.sql
 ```
