@@ -58,6 +58,27 @@ class JdbcPlanStateRepositoryTests {
         assertThat(planCount(ownerId)).isEqualTo(1);
     }
 
+    @Test
+    void createsEmptyCurrentPlanWhenSeedPlanIsMissing() {
+        UUID ownerId = UUID.fromString("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
+        insertProfile(ownerId, "empty-user");
+        deleteSeedPlan();
+
+        PlanState planState = repository.findOrCreateCurrentForOwner(ownerId);
+        PlanState repeated = repository.findOrCreateCurrentForOwner(ownerId);
+
+        assertThat(planState.plan().ownerUserId()).isEqualTo(ownerId);
+        assertThat(planState.plan().name()).isEqualTo("Мой план");
+        assertThat(planState.plan().baseCurrency()).isEqualTo("RUB");
+        assertThat(planState.incomes()).isEmpty();
+        assertThat(planState.expenses()).isEmpty();
+        assertThat(planState.goals()).isEmpty();
+        assertThat(planState.pension().monthlyExpenses()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(planState.modelAssumptions().initialCapital()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(repeated.plan().id()).isEqualTo(planState.plan().id());
+        assertThat(planCount(ownerId)).isEqualTo(1);
+    }
+
     private void insertProfile(UUID ownerId, String subject) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         jdbcTemplate.update(
@@ -70,6 +91,27 @@ class JdbcPlanStateRepositoryTests {
                 now,
                 now
         );
+    }
+
+    private void deleteSeedPlan() {
+        for (String table : java.util.List.of(
+                "operation_journal_entries",
+                "monthly_tracker_entries",
+                "scenarios",
+                "budget_classifications",
+                "budget_envelopes",
+                "budget_settings",
+                "contributions",
+                "goals",
+                "expenses",
+                "incomes",
+                "inflation_rates",
+                "model_assumptions",
+                "pension_settings"
+        )) {
+            jdbcTemplate.update("delete from " + table + " where plan_id = ?", SEED_PLAN_ID);
+        }
+        jdbcTemplate.update("delete from financial_plans where id = ?", SEED_PLAN_ID);
     }
 
     private java.util.List<UUID> ids(String table, UUID planId) {
