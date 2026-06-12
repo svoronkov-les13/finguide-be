@@ -2,7 +2,7 @@ name: Deploy FinGuide Backend
 
 on:
   push:
-    branches: [main]
+    branches: [legacy-stage]
   workflow_dispatch:
 
 concurrency:
