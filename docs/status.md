@@ -39,7 +39,7 @@
 - `POST /plans/{planId}/goals/reorder`;
 - Keycloak/OIDC boundary: JWT validation, audience check, lazy local profile mapping, user-owned current plan after first authenticated request, plan ownership checks;
 - frontend/auth bootstrap fixes: authenticated session no longer reuses anonymous demo cache/default profile;
-- H2 seed data from `schema.sql` + `data.sql`;
+- schema managed by Liquibase, with H2 demo seed data from `data.sql`;
 - OpenAPI coverage guard [#16](https://github.com/svoronkov-les13/finguide-be/issues/16): checked-in `openapi/openapi.json` содержит 58 операций, real Springdoc покрывает 49 уже реализованных операций, а известный gap в 9 операций зафиксирован тестом и не должен расти случайно.
 
 Текущая checked-in OpenAPI спецификация всё ещё шире real Springdoc, но расхождение теперь явно зафиксировано тестом `OpenApiContractCoverageTests`. Следующие задачи должны уменьшать список missing operations по мере реализации endpoints.
@@ -49,9 +49,10 @@
 По умолчанию используется:
 
 ```txt
-jdbc:h2:mem:finguide;MODE=PostgreSQL;DATABASE_TO_UPPER=false;DB_CLOSE_DELAY=-1
+jdbc:h2:mem:finguide;MODE=PostgreSQL;DATABASE_TO_UPPER=false
 FINGUIDE_DEMO_MODE=true
 spring.sql.init.mode=always
+spring.liquibase.change-log=classpath:/db/changelog/db.changelog-master.sql
 ```
 
 Anonymous requests читают seeded plan `22222222-2222-4222-8222-222222222222`. Authenticated users получают собственный cloned current plan. Общий anonymous seed read-only для финансовых мутаций, PATCH analytics assumptions и PATCH pension settings.

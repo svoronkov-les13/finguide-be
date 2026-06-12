@@ -42,7 +42,7 @@ Real backend currently supports:
 - lazy local profile mapping from JWT claims;
 - user-owned current plan creation after login;
 - plan ownership checks for authenticated users;
-- H2 seed data loaded from `schema.sql` + `data.sql`;
+- schema managed by Liquibase, with H2 demo seed data loaded from `data.sql`;
 - persisted analytics assumptions, current balance, yearly projection and pension projection endpoints;
 - persisted pension settings `GET/PATCH /plans/{planId}/pension` with writable-plan guardrails;
 - legacy/deprecated persisted contributions ledger `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}` with `Goal.savedAmount` derived from contribution sums;
@@ -77,7 +77,7 @@ src/main/java/les13/finguide/backend/
   importexport/      target import/export boundary
   notifications/     target notification boundary
 src/main/resources/
-  schema.sql         current H2 DDL
+  db/changelog/      Liquibase database migrations
   data.sql           demo seed data
 openapi/
   openapi.json       target backend/frontend contract
@@ -106,8 +106,9 @@ Default local mode:
 
 ```txt
 FINGUIDE_DEMO_MODE=true
-jdbc:h2:mem:finguide;MODE=PostgreSQL;DATABASE_TO_UPPER=false;DB_CLOSE_DELAY=-1
+jdbc:h2:mem:finguide;MODE=PostgreSQL;DATABASE_TO_UPPER=false
 spring.sql.init.mode=always
+spring.liquibase.change-log=classpath:/db/changelog/db.changelog-master.sql
 ```
 
 Anonymous requests read the seeded demo plan `22222222-2222-4222-8222-222222222222`. Authenticated users get a cloned user-owned current plan on first `GET /api/v1/plans/current`.
@@ -156,7 +157,7 @@ Important pages:
 
 - `docs/status.md` — actual implementation status;
 - `docs/roadmap.md` — completed and planned work;
-- `docs/database.md` — current H2 DDL and migration notes;
+- `docs/database.md` — Liquibase schema and migration notes;
 - `docs/contract.md` — backend/frontend API contract;
 - `docs/operations.md` — CI/CD, runner and deploy details;
 - `docs/model-analytics.md` — Excel model analysis;
