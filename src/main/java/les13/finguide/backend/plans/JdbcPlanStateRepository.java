@@ -957,10 +957,10 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     public List<OperationJournalEntry> findOperationJournalEntries(UUID planId, Integer year, Integer month) {
         StringBuilder sql = new StringBuilder("select * from operation_journal_entries where plan_id = ?");
         if (year != null) {
-            sql.append(" and year(entry_date) = ?");
+            sql.append(" and extract(year from entry_date) = ?");
         }
         if (month != null) {
-            sql.append(" and month(entry_date) = ?");
+            sql.append(" and extract(month from entry_date) = ?");
         }
         sql.append(" order by entry_date desc, created_at desc");
 
