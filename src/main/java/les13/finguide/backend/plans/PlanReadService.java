@@ -440,21 +440,15 @@ public class PlanReadService {
     }
 
     private static BigDecimal discount(BigDecimal value, BigDecimal inflationPct, int years) {
+        if (years <= 0) return value;
         BigDecimal multiplier = BigDecimal.ONE.add(inflationPct.divide(HUNDRED, 8, RoundingMode.HALF_UP));
-        BigDecimal denominator = BigDecimal.ONE;
-        for (int i = 0; i < years; i++) {
-            denominator = denominator.multiply(multiplier);
-        }
-        return value.divide(denominator, 2, RoundingMode.HALF_UP);
+        return value.divide(multiplier.pow(years), 2, RoundingMode.HALF_UP);
     }
 
     private static BigDecimal compound(BigDecimal value, BigDecimal ratePct, int years) {
-        BigDecimal result = value;
+        if (years <= 0) return value.setScale(2, RoundingMode.HALF_UP);
         BigDecimal multiplier = BigDecimal.ONE.add(ratePct.divide(HUNDRED, 8, RoundingMode.HALF_UP));
-        for (int i = 0; i < years; i++) {
-            result = result.multiply(multiplier);
-        }
-        return result.setScale(2, RoundingMode.HALF_UP);
+        return value.multiply(multiplier.pow(years)).setScale(2, RoundingMode.HALF_UP);
     }
 
     private static HealthScore.Status status(BigDecimal value, BigDecimal good, BigDecimal warning) {

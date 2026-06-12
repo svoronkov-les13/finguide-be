@@ -31,6 +31,7 @@ import java.time.ZoneOffset;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.LinkedHashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -449,56 +450,54 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     @Override
     public Optional<PlanState> findById(UUID planId) {
         try {
-            FinancialPlan plan = jdbcTemplate.queryForObject(
-                    "select * from financial_plans where id = ?",
-                    this::mapPlan,
+            List<YearRatePoint> inflationRates = loadInflationRates(planId);
+            PlanCore core = jdbcTemplate.queryForObject(
+                    "select" +
+                    "  fp.id as fp_id, fp.owner_user_id, fp.name as fp_name, fp.base_currency," +
+                    "  fp.created_at as fp_created_at, fp.updated_at as fp_updated_at," +
+                    "  up.id as up_id, up.keycloak_subject, up.email, up.name as up_name," +
+                    "  up.phone, up.avatar_url, up.age, up.gender, up.initial_balance," +
+                    "  up.created_at as up_created_at, up.updated_at as up_updated_at," +
+                    "  ps.current_age, ps.retirement_age, ps.monthly_expenses," +
+                    "  ps.desired_monthly_expenses_current_prices, ps.currency as ps_currency," +
+                    "  ps.expected_return_pct, ps.inflation_pct, ps.withdrawal_strategy," +
+                    "  ps.state_pension_enabled, ps.state_pension_monthly," +
+                    "  ma.start_year, ma.projection_end_year, ma.horizon_years, ma.birth_year," +
+                    "  ma.months_per_year, ma.currency as ma_currency, ma.initial_capital," +
+                    "  ma.investment_return_pct, ma.source_model" +
+                    " from financial_plans fp" +
+                    " join user_profiles up on fp.owner_user_id = up.id" +
+                    " join pension_settings ps on ps.plan_id = fp.id" +
+                    " join model_assumptions ma on ma.plan_id = fp.id" +
+                    " where fp.id = ?",
+                    (rs, rowNum) -> new PlanCore(
+                            mapPlanJoin(rs),
+                            mapProfileJoin(rs),
+                            mapPensionJoin(rs),
+                            mapAssumptionsJoin(rs, inflationRates)
+                    ),
                     planId
             );
-            if (plan == null) {
+            if (core == null) {
                 return Optional.empty();
             }
-            UserProfile profile = jdbcTemplate.queryForObject(
-                    "select up.* from user_profiles up join financial_plans fp on fp.owner_user_id = up.id where fp.id = ?",
-                    this::mapProfile,
-                    planId
-            );
-            PensionSettings pension = jdbcTemplate.queryForObject(
-                    "select * from pension_settings where plan_id = ?",
-                    this::mapPension,
-                    planId
-            );
-            ModelAssumptions assumptions = jdbcTemplate.queryForObject(
-                    "select * from model_assumptions where plan_id = ?",
-                    (rs, rowNum) -> mapAssumptions(rs, loadInflationRates(planId)),
-                    planId
-            );
             List<IncomeSource> incomes = jdbcTemplate.query(
                     "select * from incomes where plan_id = ? order by sort_order, name",
-                    this::mapIncome,
-                    planId
-            );
+                    this::mapIncome, planId);
             List<ExpenseItem> expenses = jdbcTemplate.query(
                     "select * from expenses where plan_id = ? order by sort_order, name",
-                    this::mapExpense,
-                    planId
-            );
+                    this::mapExpense, planId);
             List<Goal> goals = jdbcTemplate.query(
                     "select * from goals where plan_id = ? order by priority, name",
-                    this::mapGoal,
-                    planId
-            );
-            BudgetSettings budget = findBudget(planId);
+                    this::mapGoal, planId);
+            List<Contribution> contributions = jdbcTemplate.query(
+                    "select * from contributions where plan_id = ? order by contribution_date desc, created_at desc",
+                    this::mapContribution, planId);
+            BudgetSettings budget = findBudget(planId, expenses);
             return Optional.of(new PlanState(
-                    plan,
-                    profile,
-                    pension,
-                    incomes,
-                    expenses,
-                    goals,
-                    findContributions(planId),
-                    budget,
-                    assumptions,
-                    plan.updatedAt()
+                    core.plan(), core.profile(), core.pension(),
+                    incomes, expenses, goals, contributions,
+                    budget, core.assumptions(), core.plan().updatedAt()
             ));
         } catch (EmptyResultDataAccessException ignored) {
             return Optional.empty();
@@ -854,19 +853,18 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
 
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         BigDecimal overflow = generatedPool.max(BigDecimal.ZERO);
+        List<Object[]> batchArgs = new ArrayList<>();
         for (GoalSavingsTarget goal : goals) {
             BigDecimal available = overflow.add(manualByGoal.getOrDefault(goal.id(), BigDecimal.ZERO).max(BigDecimal.ZERO));
             BigDecimal target = goal.currentCost().max(BigDecimal.ZERO);
             BigDecimal saved = available.min(target).setScale(2, RoundingMode.HALF_UP);
             overflow = available.subtract(saved).max(BigDecimal.ZERO);
-            jdbcTemplate.update(
-                    "update goals set saved_amount = ?, updated_at = ? where plan_id = ? and id = ?",
-                    saved,
-                    now,
-                    planId,
-                    goal.id()
-            );
+            batchArgs.add(new Object[]{saved, now, planId, goal.id()});
         }
+        jdbcTemplate.batchUpdate(
+                "update goals set saved_amount = ?, updated_at = ? where plan_id = ? and id = ?",
+                batchArgs
+        );
         touchPlan(planId, now);
     }
 
@@ -884,6 +882,27 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                 planId
         );
         return new BudgetSettings(planId, method, findBudgetEnvelopes(planId), classifications);
+    }
+
+    private BudgetSettings findBudget(UUID planId, List<ExpenseItem> expenses) {
+        BudgetSettings.Method[] method = {BudgetSettings.Method.RULE_50_30_20};
+        Map<UUID, BudgetSettings.BudgetClass> classifications = new LinkedHashMap<>();
+        jdbcTemplate.query(
+                "select bs.method, bc.expense_id, bc.budget_class" +
+                " from budget_settings bs" +
+                " left join budget_classifications bc on bc.plan_id = bs.plan_id" +
+                " where bs.plan_id = ?" +
+                " order by bc.created_at, bc.expense_id",
+                (RowCallbackHandler) rs -> {
+                    method[0] = enumValue(BudgetSettings.Method.class, rs.getString("method"));
+                    UUID expenseId = rs.getObject("expense_id", UUID.class);
+                    if (expenseId != null) {
+                        classifications.put(expenseId, enumValue(BudgetSettings.BudgetClass.class, rs.getString("budget_class")));
+                    }
+                },
+                planId
+        );
+        return new BudgetSettings(planId, method[0], findBudgetEnvelopes(planId, expenses), classifications);
     }
 
     @Override
@@ -1088,6 +1107,18 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
         );
     }
 
+    private List<BudgetEnvelope> findBudgetEnvelopes(UUID planId, List<ExpenseItem> expenses) {
+        Map<String, BigDecimal> spentByName = new LinkedHashMap<>();
+        for (ExpenseItem e : expenses) {
+            spentByName.merge(e.name(), e.amount(), BigDecimal::add);
+        }
+        return jdbcTemplate.query(
+                "select * from budget_envelopes where plan_id = ? order by sort_order, name",
+                (rs, rowNum) -> mapBudgetEnvelope(rs, spentByName),
+                planId
+        );
+    }
+
     private Map<String, BigDecimal> expenseSpentByName(UUID planId) {
         Map<String, BigDecimal> result = new LinkedHashMap<>();
         jdbcTemplate.query(
@@ -1193,14 +1224,12 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                 planId
         );
         jdbcTemplate.update("delete from inflation_rates where plan_id = ?", planId);
-        for (YearRatePoint point : assumptions.inflationSchedule()) {
-            jdbcTemplate.update(
-                    "insert into inflation_rates (plan_id, rate_year, rate_pct) values (?, ?, ?)",
-                    planId,
-                    point.year(),
-                    point.ratePct()
-            );
-        }
+        jdbcTemplate.batchUpdate(
+                "insert into inflation_rates (plan_id, rate_year, rate_pct) values (?, ?, ?)",
+                assumptions.inflationSchedule().stream()
+                        .map(p -> new Object[]{planId, p.year(), p.ratePct()})
+                        .toList()
+        );
         touchPlan(planId, OffsetDateTime.now(ZoneOffset.UTC));
         return assumptions;
     }
@@ -1253,6 +1282,9 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     }
 
     private record GoalSavingsTarget(UUID id, BigDecimal currentCost) {
+    }
+
+    private record PlanCore(FinancialPlan plan, UserProfile profile, PensionSettings pension, ModelAssumptions assumptions) {
     }
 
     private FinancialPlan mapPlan(ResultSet rs, int rowNum) throws SQLException {
@@ -1387,6 +1419,64 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                 integer(rs, "birth_year"),
                 rs.getInt("months_per_year"),
                 rs.getString("currency"),
+                rs.getBigDecimal("initial_capital"),
+                rs.getBigDecimal("investment_return_pct"),
+                inflationRates,
+                rs.getString("source_model")
+        );
+    }
+
+    private FinancialPlan mapPlanJoin(ResultSet rs) throws SQLException {
+        return new FinancialPlan(
+                rs.getObject("fp_id", UUID.class),
+                rs.getObject("owner_user_id", UUID.class),
+                rs.getString("fp_name"),
+                rs.getString("base_currency"),
+                instant(rs, "fp_created_at"),
+                instant(rs, "fp_updated_at")
+        );
+    }
+
+    private UserProfile mapProfileJoin(ResultSet rs) throws SQLException {
+        return new UserProfile(
+                rs.getObject("up_id", UUID.class),
+                rs.getString("keycloak_subject"),
+                rs.getString("email"),
+                rs.getString("up_name"),
+                rs.getString("phone"),
+                rs.getString("avatar_url"),
+                integer(rs, "age"),
+                enumValue(UserProfile.Gender.class, rs.getString("gender")),
+                rs.getBigDecimal("initial_balance"),
+                instant(rs, "up_created_at"),
+                instant(rs, "up_updated_at")
+        );
+    }
+
+    private PensionSettings mapPensionJoin(ResultSet rs) throws SQLException {
+        return new PensionSettings(
+                rs.getObject("fp_id", UUID.class),
+                rs.getInt("current_age"),
+                rs.getInt("retirement_age"),
+                rs.getBigDecimal("monthly_expenses"),
+                rs.getBigDecimal("desired_monthly_expenses_current_prices"),
+                rs.getString("ps_currency"),
+                rs.getBigDecimal("expected_return_pct"),
+                rs.getBigDecimal("inflation_pct"),
+                enumValue(PensionSettings.WithdrawalStrategy.class, rs.getString("withdrawal_strategy")),
+                rs.getBoolean("state_pension_enabled"),
+                rs.getBigDecimal("state_pension_monthly")
+        );
+    }
+
+    private ModelAssumptions mapAssumptionsJoin(ResultSet rs, List<YearRatePoint> inflationRates) throws SQLException {
+        return new ModelAssumptions(
+                rs.getInt("start_year"),
+                integer(rs, "projection_end_year"),
+                integer(rs, "horizon_years"),
+                integer(rs, "birth_year"),
+                rs.getInt("months_per_year"),
+                rs.getString("ma_currency"),
                 rs.getBigDecimal("initial_capital"),
                 rs.getBigDecimal("investment_return_pct"),
                 inflationRates,
