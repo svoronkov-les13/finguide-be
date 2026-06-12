@@ -5,15 +5,16 @@ Backend for **FinGuide / «Финансовый капитал»**: contract-fir
 ## Links
 
 - Docs / GitHub Pages: https://svoronkov-les13.github.io/finguide-be/
-- Frontend demo: http://66.42.121.18/fg/
-- Real API base: http://66.42.121.18/finguide-api/api/v1
-- Swagger UI: http://66.42.121.18/finguide-api/swagger-ui.html
-- Real OpenAPI JSON: http://66.42.121.18/finguide-api/v3/api-docs
-- Keycloak realm: http://66.42.121.18/auth/realms/finguide
+- Frontend: https://finguide.les13.tech/fg/
+- Real API base: https://finguide.les13.tech/finguide-api/api/v1
+- Swagger UI: https://finguide.les13.tech/finguide-api/swagger-ui.html
+- Real OpenAPI JSON: https://finguide.les13.tech/finguide-api/v3/api-docs
+- Keycloak realm: https://finguide.les13.tech/auth/realms/finguide
+- Keycloak admin: https://finguide.les13.tech/auth/admin/master/console/
 - Roadmap issue: https://github.com/svoronkov-les13/finguide-be/issues/27
 - GitHub Project: https://github.com/orgs/svoronkov-les13/projects/5/views/1
 
-Legacy mock Swagger remains available only for transition checks: http://66.42.121.18/finguide-mock/
+Legacy mock artifacts remain in the repository only for transition checks; they are not part of the current public deployment contract.
 
 ## Stack
 
@@ -23,10 +24,10 @@ Legacy mock Swagger remains available only for transition checks: http://66.42.1
 - Spring Security OAuth2 Resource Server
 - Spring Data JDBC
 - Springdoc OpenAPI
-- Embedded H2 in PostgreSQL compatibility mode for the current demo phase
-- Keycloak 26 + PostgreSQL as a separate auth stack
-
-Target persistence direction: PostgreSQL + Flyway after the H2 demo phase.
+- Embedded H2 in PostgreSQL compatibility mode for local/demo development
+- PostgreSQL 16 in Kubernetes for the `prod` profile
+- Liquibase SQL migrations
+- Keycloak 26 + PostgreSQL in Kubernetes
 
 ## Current implementation
 
@@ -113,11 +114,25 @@ spring.liquibase.change-log=classpath:/db/changelog/db.changelog-master.sql
 
 Anonymous requests read the seeded demo plan `22222222-2222-4222-8222-222222222222`. Authenticated users get a cloned user-owned current plan on first `GET /api/v1/plans/current`.
 
+Production-like Kubernetes mode uses:
+
+```txt
+SPRING_PROFILES_ACTIVE=prod
+FINGUIDE_DEMO_MODE=false
+FINGUIDE_DATASOURCE_URL=jdbc:postgresql://finguide-api-postgres:5432/finguide
+FINGUIDE_DATASOURCE_USERNAME=finguide
+KEYCLOAK_ISSUER_URI=https://finguide.les13.tech/auth/realms/finguide
+KEYCLOAK_AUDIENCE=finguide-api
+server.servlet.context-path=/finguide-api
+```
+
+The context path is part of the application config. The current Kubernetes ingress forwards `/finguide-api` unchanged; it does not strip the prefix.
+
 To require Keycloak JWT validation:
 
 ```bash
 FINGUIDE_DEMO_MODE=false \
-KEYCLOAK_ISSUER_URI=http://66.42.121.18/auth/realms/finguide \
+KEYCLOAK_ISSUER_URI=https://finguide.les13.tech/auth/realms/finguide \
 KEYCLOAK_AUDIENCE=finguide-api \
 mvn spring-boot:run
 ```
@@ -151,7 +166,13 @@ mkdocs build --strict
 
 GitHub Pages deployment is handled by `.github/workflows/pages.yml` on pushes to `main` that touch `docs/**`, `mkdocs.yml`, `requirements-docs.txt` or the workflow itself.
 
-Backend production demo deployment is handled by `.github/workflows/deploy.yml` on every push to `main`: the self-hosted runner on `66.42.121.18` runs `mvn -B clean package`, installs `/opt/finguide-api/finguide-be.jar`, restarts `finguide-api.service`, then smoke-tests health.
+GitHub Pages deployment is intentionally kept in this repository. The published site is:
+
+```txt
+https://svoronkov-les13.github.io/finguide-be/
+```
+
+Backend runtime deployment is no longer a systemd/JAR install from this repository. The application image is published to GHCR by `.github/workflows/docker-ghcr.yaml`; Kubernetes rollout is owned by `finguide-ops` deploy workflows and overlays.
 
 Important pages:
 
@@ -165,17 +186,13 @@ Important pages:
 
 ## Keycloak
 
-Keycloak is deployed separately:
+Current public Keycloak runs in Kubernetes under `/auth`:
 
-```bash
-cd deploy/keycloak
-cp .env.example .env
-# edit .env with real secrets outside git/logs
-docker compose --env-file .env up -d
-./configure-realm.py
+```txt
+https://finguide.les13.tech/auth/realms/finguide
 ```
 
-See [`deploy/keycloak/README.md`](deploy/keycloak/README.md).
+The older `deploy/keycloak/` Docker Compose stack is retained as a local/legacy reference for theme and realm configuration, not as the current production-like deployment path. Live Kubernetes manifests and secrets are owned by `finguide-ops`.
 
 ## Legacy mock
 

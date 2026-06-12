@@ -26,12 +26,12 @@
 ## Базовые правила API
 
 - Базовый URL внутри сервиса: `/api/v1`.
-- Публичный URL реального бэкенда на текущем сервере: `http://66.42.121.18/finguide-api/api/v1`.
+- Публичный URL реального бэкенда на текущем сервере: `https://finguide.les13.tech/finguide-api/api/v1`.
 - `GET /api/v1` возвращает JSON-индекс сервиса со ссылками на Swagger/OpenAPI и основные endpoints.
-- Swagger UI реального бэкенда: `http://66.42.121.18/finguide-api/swagger-ui.html`.
-- Legacy mock Swagger остаётся только для переходного сравнения: `http://66.42.121.18/finguide-mock/`.
+- Swagger UI реального бэкенда: `https://finguide.les13.tech/finguide-api/swagger-ui.html`.
+- Legacy mock Swagger больше не входит в текущий публичный deployment contract; mock artifacts остаются только для локального/исторического сравнения.
 
-Текущая real-реализация на H2 уже покрывает чтение плана/дашборда/health/cashflow, persisted scenario CRUD/compare, persisted analytics assumptions/current balance/yearly projection/pension settings/pension projection, CRUD для `IncomeSource`, `ExpenseItem`, `Goal`, включая `goals/reorder`, legacy persisted `Contribution` ledger, persisted `BudgetSettings`, monthly tracker и operation journal. Остальные группы методов из карты ниже пока ведутся отдельными задачами.
+Текущая real-реализация покрывает чтение плана/дашборда/health/cashflow, persisted scenario CRUD/compare, persisted analytics assumptions/current balance/yearly projection/pension settings/pension projection, CRUD для `IncomeSource`, `ExpenseItem`, `Goal`, включая `goals/reorder`, legacy persisted `Contribution` ledger, persisted `BudgetSettings`, monthly tracker и operation journal. Локально это работает на H2 demo mode, production-like стенд — на PostgreSQL через `prod` profile.
 
 OpenAPI guardrail [#16](https://github.com/svoronkov-les13/finguide-be/issues/16) включён в тестовый набор: checked-in `openapi/openapi.json` сейчас содержит 58 операций, real Springdoc покрывает 49 реализованных операций, а известный gap в 9 операций явно зафиксирован. Новые endpoints должны одновременно добавляться в real Springdoc и уменьшать этот gap; случайное исчезновение уже реализованной операции из `/v3/api-docs` ломает тесты.
 

@@ -2,13 +2,13 @@
 
 Бэкенд стартует как модульный монолит. Каждый пакет — отдельный ограниченный контекст с узкой публичной моделью и сервисным интерфейсом. Так ядро финансового плана остаётся консистентным, а тяжёлые части можно вынести позже.
 
-Текущий стенд уже использует real Spring Boot сервисы с embedded H2; публичный Swagger UI real backend доступен по `http://66.42.121.18/finguide-api/swagger-ui.html`. Legacy mock server остаётся отдельным переходным модулем, но не является основным API.
+Текущий стенд использует real Spring Boot backend: локально можно работать с embedded H2, а production-like Kubernetes deployment подключает PostgreSQL. Публичный Swagger UI доступен по `https://finguide.les13.tech/finguide-api/swagger-ui.html`. Legacy mock server остаётся только переходным/историческим артефактом и не является основным API.
 
 ```txt
 les13.finguide.backend
   auth/              интеграция с Keycloak JWT, SecurityConfig, текущий пользователь
   users/             бизнес-профиль пользователя, связанный с Keycloak identity
-  plans/             агрегат финансового плана, H2/JDBC demo persistence, cloning seeded plan for authenticated users, read API, финансовый CRUD и политика доступа
+  plans/             агрегат финансового плана, JDBC persistence, cloning seeded plan for authenticated users, read API, финансовый CRUD и политика доступа
   incomes/           модель источников дохода, сохраняется через financial item CRUD
   expenses/          модель расходов и бюджетная классификация, сохраняется через financial item CRUD
   goals/             финансовые цели, waterfall-приоритет и reorder API

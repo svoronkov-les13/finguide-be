@@ -4,18 +4,19 @@
 
 ## Публичный стенд
 
-- Frontend: <http://66.42.121.18/fg/>
-- Real API base: <http://66.42.121.18/finguide-api/api/v1>
-- Swagger UI: <http://66.42.121.18/finguide-api/swagger-ui.html>
-- Real OpenAPI JSON: <http://66.42.121.18/finguide-api/v3/api-docs>
-- Keycloak realm: <http://66.42.121.18/auth/realms/finguide>
+- Frontend: <https://finguide.les13.tech/fg/>
+- Real API base: <https://finguide.les13.tech/finguide-api/api/v1>
+- Swagger UI: <https://finguide.les13.tech/finguide-api/swagger-ui.html>
+- Real OpenAPI JSON: <https://finguide.les13.tech/finguide-api/v3/api-docs>
+- Keycloak realm: <https://finguide.les13.tech/auth/realms/finguide>
 - GitHub Pages docs: <https://svoronkov-les13.github.io/finguide-be/>
-- Backend service: `finguide-api.service`
-- Backend jar: `/opt/finguide-api/finguide-be.jar`
+- Kubernetes namespace: `finguide`
+- Backend deployment/service: `finguide-api`
+- Backend database: `finguide-api-postgres`, database `finguide`, user `finguide`
 
 ## Backend
 
-Текущий backend — Java 21 + Spring Boot 3.3 + Spring Security OAuth2 Resource Server + Spring Data JDBC + embedded H2 demo persistence.
+Текущий backend — Java 21 + Spring Boot 3.3 + Spring Security OAuth2 Resource Server + Spring Data JDBC. Локально используется embedded H2 demo persistence; production-like стенд на `finguide.les13.tech` использует PostgreSQL в Kubernetes.
 
 Реализовано:
 
@@ -57,19 +58,27 @@ spring.liquibase.change-log=classpath:/db/changelog/db.changelog-master.sql
 
 Anonymous requests читают seeded plan `22222222-2222-4222-8222-222222222222`. Authenticated users получают собственный cloned current plan. Общий anonymous seed read-only для финансовых мутаций, PATCH analytics assumptions и PATCH pension settings.
 
+## Prod/PostgreSQL режим
+
+В Kubernetes backend запущен с:
+
+```txt
+SPRING_PROFILES_ACTIVE=prod
+FINGUIDE_DEMO_MODE=false
+FINGUIDE_DATASOURCE_URL=jdbc:postgresql://finguide-api-postgres:5432/finguide
+KEYCLOAK_ISSUER_URI=https://finguide.les13.tech/auth/realms/finguide
+server.servlet.context-path=/finguide-api
+```
+
+Ingress не срезает `/finguide-api`; prefix является context path самого Spring Boot приложения. Health probes и Swagger поэтому тоже находятся под `/finguide-api`.
+
 ## CI/CD
 
-Backend deploy автоматизирован через `.github/workflows/deploy.yml`:
-
-- trigger: push в `main` или ручной `workflow_dispatch`;
-- runner: self-hosted на `66.42.121.18`, labels `self-hosted`, `finguide-be`;
-- gate: `mvn -B clean package`;
-- deploy: установка jar в `/opt/finguide-api/finguide-be.jar` и restart `finguide-api.service`;
-- smoke: локальный `127.0.0.1:3093/actuator/health` и публичный `/finguide-api/actuator/health`.
+Backend image publishing автоматизирован через `.github/workflows/docker-ghcr.yaml`. Runtime rollout делает `finguide-ops`: deploy workflow рендерит Kubernetes overlay, подставляет image tag и ждёт rollout `finguide-api`, `finguide-web` и Keycloak.
 
 Docs deploy автоматизирован через `.github/workflows/pages.yml` и `mkdocs build --strict`.
 
-Frontend deploy также переведён на self-hosted runner на этом же сервере: push в `main` собирает `dist/` и выкладывает публичный стенд под `/fg/`.
+Frontend image publishing и Kubernetes rollout также идут через связку `finguide-web` + `finguide-ops`. Старый static deploy на legacy IP больше не является текущим production-like contract.
 
 ## Frontend
 
@@ -77,7 +86,7 @@ Frontend deploy также переведён на self-hosted runner на эт�
 
 Реализовано:
 
-- публичный deploy под `/fg/`;
+- публичный deploy под `/fg/` (`/` redirects to `/fg/`);
 - OIDC Authorization Code + PKCE через Keycloak;
 - разделение React Query cache для anonymous demo и authenticated user;
 - нейтральный loader во время auth/current-plan restore;

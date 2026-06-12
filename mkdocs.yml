@@ -67,5 +67,4 @@ nav:
       - Модули бэкенда: backend-modules.md
   - "Отчёт #18 Keycloak/OIDC": testing-report-issue-18.md
   - Спецификация OpenAPI: https://github.com/svoronkov-les13/finguide-be/blob/main/openapi/openapi.json
-  - Swagger UI legacy backend: http://66.42.121.18/finguide-api/swagger-ui.html
-  - Legacy mock Swagger: http://66.42.121.18/finguide-mock/
+  - Swagger UI: https://finguide.les13.tech/finguide-api/swagger-ui.html

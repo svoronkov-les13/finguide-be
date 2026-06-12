@@ -2,7 +2,7 @@
 
 ## Рекомендация
 
-Используем **Java 21 + Spring Boot 3 + Keycloak + PostgreSQL** как модульный монолит с подходом «сначала контракт». Текущий переходный стенд уже поднят как real Spring Boot backend с embedded H2, публичным Swagger UI и CRUD доходов/расходов/целей по адресу `http://66.42.121.18/finguide-api/swagger-ui.html`; legacy mock Swagger остаётся только для сравнения во время миграции.
+Используем **Java 21 + Spring Boot 3 + Keycloak + PostgreSQL** как модульный монолит с подходом «сначала контракт». Текущий production-like стенд поднят в Kubernetes на `https://finguide.les13.tech`: backend доступен под `/finguide-api`, Swagger UI — `https://finguide.les13.tech/finguide-api/swagger-ui.html`, Keycloak — под `/auth`.
 
 Микросервисы на первом этапе не нужны. Для цели в 100k зарегистрированных пользователей обычно проще и надёжнее горизонтально масштабировать API без состояния, PostgreSQL, Redis, асинхронные обработчики и модели чтения. Модули проектируем как ограниченные контексты, чтобы позже можно было вынести аналитику, импорт/экспорт или уведомления без разрыва ядра финансового плана.
 
@@ -18,21 +18,20 @@
   -> PostgreSQL / Redis / object storage
 ```
 
-Бэкенд **не хранит пароли** и не владеет формами входа. Keycloak отвечает за идентификацию, учётные данные, MFA и пользовательские сессии. В demo/H2 режиме `/api/v1/**` временно открыт без JWT, чтобы фронтенд мог перейти с mock-запросов на реальные сервисы до подключения Keycloak.
+Бэкенд **не хранит пароли** и не владеет формами входа. Keycloak отвечает за идентификацию, учётные данные, MFA и пользовательские сессии. В local demo/H2 режиме `/api/v1/**` может быть открыт без JWT; production-like Kubernetes стенд работает с `FINGUIDE_DEMO_MODE=false`.
 
+## Kubernetes deployment Keycloak
 
-## Docker Compose deployment Keycloak
+Текущий публичный Keycloak разворачивается из `finguide-ops` как Kubernetes Deployment + PostgreSQL:
 
-Для первого production/demo deployment Keycloak разворачивается через `docker compose` из `deploy/keycloak/`:
+- service `keycloak` слушает HTTP `8080` внутри cluster;
+- public path: `https://finguide.les13.tech/auth`;
+- realm: `finguide`;
+- admin console: `https://finguide.les13.tech/auth/admin/master/console/`;
+- admin username/password лежат в Kubernetes Secret `keycloak-secrets`, keys `admin-username` и `admin-password`;
+- Keycloak PostgreSQL живёт отдельно от FinGuide application PostgreSQL.
 
-- сервис `keycloak-postgres` — PostgreSQL 16 только для Keycloak, persistent volume `keycloak-postgres-data`;
-- сервис `keycloak` — Keycloak 26 на `127.0.0.1:3094` с public path `/auth`;
-- `.env.example` содержит только placeholders; реальные admin/DB secrets не коммитим и не пишем в логи;
-- healthcheck и `restart: unless-stopped` включены для обоих сервисов;
-- custom theme `finguide` оформляет login/account/password reset screens в стиле FinGuide;
-- backup/restore PostgreSQL описан в `deploy/keycloak/README.md`.
-
-PostgreSQL в этом stack обязателен. Embedded/dev-file DB Keycloak запрещён. Миграция финансовых данных FinGuide с H2 на PostgreSQL остаётся отдельной задачей, если только deployment design не потребует иначе.
+Старый `deploy/keycloak/` Docker Compose stack оставлен как reference для theme/realm конфигурации и локальной проверки. Он не является текущим production-like deployment path.
 
 ## Настройка Keycloak
 
@@ -40,6 +39,7 @@ PostgreSQL в этом stack обязателен. Embedded/dev-file DB Keycloak
 realm: finguide
 clients:
   finguide-web      публичный client, PKCE
+  finguide-api      backend audience для access token
   finguide-admin    confidential client для админских задач, если понадобится
 roles:
   user
