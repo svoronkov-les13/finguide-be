@@ -1,0 +1,12 @@
+spring:
+  datasource:
+    url: ${FINGUIDE_DATASOURCE_URL}
+    username: ${FINGUIDE_DATASOURCE_USERNAME}
+    password: ${FINGUIDE_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  h2:
+    console:
+      enabled: false
+  sql:
+    init:
+      mode: never
