@@ -1,42 +1,36 @@
 # Operations и CI/CD
 
-Эта страница фиксирует фактическую схему деплоя FinGuide backend на публичный demo-стенд.
+Эта страница фиксирует фактическую схему публикации backend image, GitHub Pages документации и runtime deployment на Kubernetes.
 
 ## Публичный backend
 
-- Public API base: <http://66.42.121.18/finguide-api/api/v1>
-- Health: <http://66.42.121.18/finguide-api/actuator/health>
-- Swagger UI: <http://66.42.121.18/finguide-api/swagger-ui.html>
-- OpenAPI JSON: <http://66.42.121.18/finguide-api/v3/api-docs>
-- Systemd service: `finguide-api.service`
-- Runtime jar: `/opt/finguide-api/finguide-be.jar`
-- Local health used by deploy smoke test: `http://127.0.0.1:3093/actuator/health`
+- Public API base: <https://finguide.les13.tech/finguide-api/api/v1>
+- Health: <https://finguide.les13.tech/finguide-api/actuator/health>
+- Swagger UI: <https://finguide.les13.tech/finguide-api/swagger-ui.html>
+- OpenAPI JSON: <https://finguide.les13.tech/finguide-api/v3/api-docs>
+- Kubernetes namespace: `finguide`
+- Deployment/service: `finguide-api`
+- Runtime image: `ghcr.io/svoronkov-les13/finguide-api:<tag>`
+- Runtime docs source of truth: `finguide-ops`
 
-## GitHub Actions deploy
+## GitHub Actions image publish
 
-Backend deploy автоматизирован через `.github/workflows/deploy.yml`.
+Backend container publishing is handled by `.github/workflows/docker-ghcr.yaml`.
 
 Триггеры:
 
 - push в `main`;
-- ручной `workflow_dispatch`.
+- ручной `workflow_dispatch` with `image_tag`.
 
-Runner:
+Job делает:
 
-- self-hosted GitHub Actions runner на сервере `66.42.121.18`;
-- labels: `self-hosted`, `finguide-be`;
-- рабочая директория runner на сервере: `/home/clawd/actions-runner-finguide-be`.
+- Docker build;
+- push to `ghcr.io/svoronkov-les13/finguide-api`;
+- tags: SHA, optional manual tag, `latest` on default branch.
 
-Job `deploy` делает:
+Runtime Kubernetes deploy is owned by `finguide-ops`, not by this repository. The ops workflow renders `k8s/overlays/les13` or `k8s/overlays/dev`, sets the backend image tag and waits for rollout.
 
-1. checkout репозитория;
-2. `mvn -B clean package` — сборка и все тесты;
-3. копирование собранного jar в `/opt/finguide-api/finguide-be.jar`;
-4. backup предыдущего jar рядом с timestamp suffix;
-5. `sudo systemctl restart finguide-api.service`;
-6. smoke test локального и публичного health endpoint.
-
-Если health не поднимается за 30 попыток, job печатает последние логи `finguide-api.service` и падает.
+Legacy `.github/workflows/deploy.yml` / systemd notes are historical. Do not use `/opt/finguide-api/finguide-be.jar` or `finguide-api.service` as the current production-like deployment path.
 
 ## GitHub Pages docs deploy
 
@@ -65,16 +59,24 @@ https://svoronkov-les13.github.io/finguide-be/
 Минимальный ручной smoke test:
 
 ```bash
-curl -fsS http://66.42.121.18/finguide-api/actuator/health
-systemctl is-active finguide-api.service
-stat -c '%y %s %n' /opt/finguide-api/finguide-be.jar
+curl -fsS https://finguide.les13.tech/finguide-api/actuator/health
+curl -fsS https://finguide.les13.tech/finguide-api/v3/api-docs >/dev/null
+curl -fsS https://finguide.les13.tech/auth/realms/finguide/.well-known/openid-configuration >/dev/null
 ```
 
 Ожидаемо:
 
 - health содержит `"status":"UP"`;
-- service status: `active`;
-- timestamp jar соответствует последнему deploy.
+- OpenAPI JSON отдаётся backend'ом под context path `/finguide-api`;
+- Keycloak discovery отвечает с issuer `https://finguide.les13.tech/auth/realms/finguide`.
+
+Kubernetes-level диагностика находится в `finguide-ops/docs/runbook.md`:
+
+```bash
+kubectl -n finguide get pods,ingress
+kubectl -n finguide logs deployment/finguide-api --tail=100
+kubectl -n finguide exec deploy/finguide-api-postgres -- psql -U finguide -d finguide -c '\dt public.*'
+```
 
 ## Правило работы с `main`
 

@@ -1,6 +1,6 @@
 # База данных
 
-Сейчас FinGuide backend использует Liquibase migrations для схемы. По умолчанию локальный/demo runtime работает на embedded H2 в PostgreSQL compatibility mode; prod profile подключает PostgreSQL.
+Сейчас FinGuide backend использует Liquibase migrations для схемы. По умолчанию локальный/demo runtime работает на embedded H2 в PostgreSQL compatibility mode; prod profile подключает PostgreSQL в Kubernetes.
 
 ## Runtime настройки
 
@@ -23,6 +23,23 @@ spring:
 - `src/main/resources/data.sql` — demo seed для локального/H2 режима.
 
 В prod profile `spring.sql.init.mode=never`, поэтому demo seed не загружается, а схема всё равно управляется Liquibase.
+
+Текущий Kubernetes target `les13`:
+
+```txt
+FINGUIDE_DATASOURCE_URL=jdbc:postgresql://finguide-api-postgres:5432/finguide
+FINGUIDE_DATASOURCE_USERNAME=finguide
+FINGUIDE_DEMO_MODE=false
+```
+
+Если live API логирует `ERROR: relation "user_profiles" does not exist`, значит приложение подключилось к PostgreSQL, но Liquibase schema не была применена или image/config запущены не с ожидаемым changelog. Проверка на сервере:
+
+```bash
+kubectl -n finguide exec deploy/finguide-api-postgres -- \
+  psql -U finguide -d finguide -c '\dt public.*'
+```
+
+После успешных migrations в `public` должны быть таблицы из `db.changelog-master.sql`.
 
 ## Источник DDL
 
