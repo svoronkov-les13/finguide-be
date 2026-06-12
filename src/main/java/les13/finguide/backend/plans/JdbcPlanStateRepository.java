@@ -25,6 +25,7 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.Year;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.math.BigDecimal;
@@ -103,12 +104,17 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     @Override
     @Transactional
     public PlanState createBlankPlanForOwner(UUID ownerUserId, String name) {
-        UUID seedPlanId = findSeedDemoPlanId().orElseThrow(() -> new IllegalStateException("Seed demo plan was not found"));
-        UUID planId = createPlanRowFromSource(ownerUserId, seedPlanId, name);
-        clonePensionSettings(seedPlanId, planId);
-        cloneModelAssumptions(seedPlanId, planId);
-        cloneInflationRates(seedPlanId, planId);
-        cloneBudgetSettings(seedPlanId, planId);
+        Optional<UUID> seedPlanId = findSeedDemoPlanId();
+        if (seedPlanId.isEmpty()) {
+            UUID planId = createEmptyPlanForOwner(ownerUserId, name);
+            setCurrentPlanForOwner(ownerUserId, planId);
+            return findById(planId).orElseThrow();
+        }
+        UUID planId = createPlanRowFromSource(ownerUserId, seedPlanId.get(), name);
+        clonePensionSettings(seedPlanId.get(), planId);
+        cloneModelAssumptions(seedPlanId.get(), planId);
+        cloneInflationRates(seedPlanId.get(), planId);
+        cloneBudgetSettings(seedPlanId.get(), planId);
         setCurrentPlanForOwner(ownerUserId, planId);
         return findById(planId).orElseThrow();
     }
@@ -148,7 +154,12 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     }
 
     private PlanState createCurrentForOwner(UUID ownerUserId) {
-        UUID seedPlanId = findSeedDemoPlanId().orElseThrow(() -> new IllegalStateException("Seed demo plan was not found"));
+        Optional<UUID> seedPlanId = findSeedDemoPlanId();
+        if (seedPlanId.isEmpty()) {
+            UUID planId = createEmptyPlanForOwner(ownerUserId, "Мой план");
+            setCurrentPlanForOwner(ownerUserId, planId);
+            return findById(planId).orElseThrow();
+        }
         UUID planId = UUID.randomUUID();
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         try {
@@ -159,23 +170,81 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                     ownerUserId,
                     now,
                     now,
-                    seedPlanId
+                    seedPlanId.get()
             );
-            clonePensionSettings(seedPlanId, planId);
-            cloneModelAssumptions(seedPlanId, planId);
-            cloneInflationRates(seedPlanId, planId);
-            cloneIncomes(seedPlanId, planId, now);
-            cloneExpenses(seedPlanId, planId, now);
-            cloneGoals(seedPlanId, planId, now);
-            cloneBudget(seedPlanId, planId, now);
-            cloneMonthlyTracker(seedPlanId, planId, now);
-            cloneOperationJournal(seedPlanId, planId, now);
-            cloneScenarios(seedPlanId, planId, now);
+            clonePensionSettings(seedPlanId.get(), planId);
+            cloneModelAssumptions(seedPlanId.get(), planId);
+            cloneInflationRates(seedPlanId.get(), planId);
+            cloneIncomes(seedPlanId.get(), planId, now);
+            cloneExpenses(seedPlanId.get(), planId, now);
+            cloneGoals(seedPlanId.get(), planId, now);
+            cloneBudget(seedPlanId.get(), planId, now);
+            cloneMonthlyTracker(seedPlanId.get(), planId, now);
+            cloneOperationJournal(seedPlanId.get(), planId, now);
+            cloneScenarios(seedPlanId.get(), planId, now);
             setCurrentPlanForOwner(ownerUserId, planId);
             return findById(planId).orElseThrow();
         } catch (DuplicateKeyException ignored) {
             return findCurrentForOwner(ownerUserId).orElseThrow();
         }
+    }
+
+    private UUID createEmptyPlanForOwner(UUID ownerUserId, String name) {
+        UUID planId = UUID.randomUUID();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        jdbcTemplate.update(
+                "insert into financial_plans (id, owner_user_id, name, base_currency, created_at, updated_at) values (?, ?, ?, ?, ?, ?)",
+                planId,
+                ownerUserId,
+                name,
+                "RUB",
+                now,
+                now
+        );
+        insertDefaultPensionSettings(planId);
+        insertDefaultModelAssumptions(planId, ownerUserId);
+        return planId;
+    }
+
+    private void insertDefaultPensionSettings(UUID planId) {
+        jdbcTemplate.update(
+                "insert into pension_settings (plan_id, current_age, retirement_age, monthly_expenses, desired_monthly_expenses_current_prices, currency, expected_return_pct, inflation_pct, withdrawal_strategy, state_pension_enabled, state_pension_monthly) " +
+                        "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                planId,
+                30,
+                60,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                "RUB",
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                dbValue(PensionSettings.WithdrawalStrategy.PRESERVE_CAPITAL),
+                false,
+                BigDecimal.ZERO
+        );
+    }
+
+    private void insertDefaultModelAssumptions(UUID planId, UUID ownerUserId) {
+        jdbcTemplate.update(
+                "insert into model_assumptions (plan_id, start_year, projection_end_year, horizon_years, birth_year, months_per_year, currency, initial_capital, investment_return_pct, source_model) " +
+                        "values (?, ?, null, ?, null, ?, ?, ?, ?, ?)",
+                planId,
+                Year.now(ZoneOffset.UTC).getValue(),
+                30,
+                12,
+                "RUB",
+                initialCapitalForOwner(ownerUserId),
+                BigDecimal.ZERO,
+                "empty-plan-fallback"
+        );
+    }
+
+    private BigDecimal initialCapitalForOwner(UUID ownerUserId) {
+        return queryOptional(
+                "select initial_balance from user_profiles where id = ?",
+                (rs, rowNum) -> rs.getBigDecimal("initial_balance"),
+                ownerUserId
+        ).orElse(BigDecimal.ZERO);
     }
 
     private UUID createPlanRowFromSource(UUID ownerUserId, UUID sourcePlanId, String name) {
