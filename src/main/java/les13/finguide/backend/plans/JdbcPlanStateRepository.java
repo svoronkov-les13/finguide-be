@@ -746,15 +746,14 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     @Override
     public List<Goal> reorderGoals(UUID planId, List<UUID> goalIds) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        List<Object[]> batchArgs = new ArrayList<>();
         for (int index = 0; index < goalIds.size(); index++) {
-            jdbcTemplate.update(
-                    "update goals set priority = ?, updated_at = ? where plan_id = ? and id = ?",
-                    index + 1,
-                    now,
-                    planId,
-                    goalIds.get(index)
-            );
+            batchArgs.add(new Object[]{index + 1, now, planId, goalIds.get(index)});
         }
+        jdbcTemplate.batchUpdate(
+                "update goals set priority = ?, updated_at = ? where plan_id = ? and id = ?",
+                batchArgs
+        );
         touchPlan(planId, now);
         return findGoals(planId);
     }
@@ -1070,32 +1069,24 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     private void insertBudget(UUID planId, BudgetSettings.Method method, List<BudgetEnvelope> envelopes, Map<UUID, BudgetSettings.BudgetClass> classifications, OffsetDateTime now) {
         ensureBudgetSettings(planId, method, now);
         insertBudgetEnvelopes(planId, envelopes, now);
-        classifications.forEach((expenseId, budgetClass) -> jdbcTemplate.update(
+        jdbcTemplate.batchUpdate(
                 "insert into budget_classifications (plan_id, expense_id, budget_class, created_at, updated_at) values (?, ?, ?, ?, ?)",
-                planId,
-                expenseId,
-                dbValue(budgetClass),
-                now,
-                now
-        ));
+                classifications.entrySet().stream()
+                        .map(e -> new Object[]{planId, e.getKey(), dbValue(e.getValue()), now, now})
+                        .toList()
+        );
     }
 
     private void insertBudgetEnvelopes(UUID planId, List<BudgetEnvelope> envelopes, OffsetDateTime now) {
+        List<Object[]> batchArgs = new ArrayList<>();
         for (int index = 0; index < envelopes.size(); index++) {
-            BudgetEnvelope envelope = envelopes.get(index);
-            jdbcTemplate.update(
-                    "insert into budget_envelopes (id, plan_id, name, limit_amount, icon, color, sort_order, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    envelope.id(),
-                    planId,
-                    envelope.name(),
-                    envelope.limit(),
-                    envelope.icon(),
-                    envelope.color(),
-                    index + 1,
-                    now,
-                    now
-            );
+            BudgetEnvelope e = envelopes.get(index);
+            batchArgs.add(new Object[]{e.id(), planId, e.name(), e.limit(), e.icon(), e.color(), index + 1, now, now});
         }
+        jdbcTemplate.batchUpdate(
+                "insert into budget_envelopes (id, plan_id, name, limit_amount, icon, color, sort_order, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                batchArgs
+        );
     }
 
     private List<BudgetEnvelope> findBudgetEnvelopes(UUID planId) {

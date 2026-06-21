@@ -209,3 +209,22 @@ create table scenarios (
 --rollback drop table if exists pension_settings;
 --rollback drop table if exists financial_plans;
 --rollback drop table if exists user_profiles;
+
+--changeset finguide:002-performance-indexes
+create index idx_financial_plans_owner on financial_plans(owner_user_id, updated_at desc);
+create index idx_incomes_plan on incomes(plan_id, sort_order);
+create index idx_expenses_plan on expenses(plan_id, sort_order);
+create index idx_goals_plan on goals(plan_id, priority);
+create index idx_contributions_plan on contributions(plan_id, contribution_date desc);
+create index idx_contributions_plan_goal on contributions(plan_id, goal_id);
+create index idx_operation_journal_plan on operation_journal_entries(plan_id, entry_type, status);
+create index idx_scenarios_plan on scenarios(plan_id, created_at);
+
+--rollback drop index if exists idx_scenarios_plan;
+--rollback drop index if exists idx_operation_journal_plan;
+--rollback drop index if exists idx_contributions_plan_goal;
+--rollback drop index if exists idx_contributions_plan;
+--rollback drop index if exists idx_goals_plan;
+--rollback drop index if exists idx_expenses_plan;
+--rollback drop index if exists idx_incomes_plan;
+--rollback drop index if exists idx_financial_plans_owner;
