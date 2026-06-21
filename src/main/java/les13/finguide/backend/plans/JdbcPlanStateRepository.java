@@ -383,7 +383,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
         jdbcTemplate.update("update budget_settings set created_at = ?, updated_at = ? where plan_id = ?", now, now, planId);
         jdbcTemplate.update(
                 "insert into budget_envelopes (id, plan_id, name, limit_amount, icon, color, sort_order, created_at, updated_at) " +
-                        "select random_uuid(), ?, name, limit_amount, icon, color, sort_order, ?, ? from budget_envelopes where plan_id = ?",
+                        "select gen_random_uuid(), ?, name, limit_amount, icon, color, sort_order, ?, ? from budget_envelopes where plan_id = ?",
                 planId,
                 now,
                 now,
@@ -428,7 +428,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     private void cloneOperationJournal(UUID seedPlanId, UUID planId, OffsetDateTime now) {
         jdbcTemplate.update(
                 "insert into operation_journal_entries (id, plan_id, entry_date, title, amount, entry_type, status, created_at, updated_at) " +
-                        "select random_uuid(), ?, entry_date, title, amount, entry_type, status, ?, ? from operation_journal_entries where plan_id = ?",
+                        "select gen_random_uuid(), ?, entry_date, title, amount, entry_type, status, ?, ? from operation_journal_entries where plan_id = ?",
                 planId,
                 now,
                 now,
@@ -439,7 +439,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     private void cloneScenarios(UUID seedPlanId, UUID planId, OffsetDateTime now) {
         jdbcTemplate.update(
                 "insert into scenarios (id, plan_id, name, emoji, description, is_base, income_adj_pct, expense_adj_pct, return_adj_pct, inflation_adj_pct, retirement_age_shift, goals_cost_adj_pct, snapshot_json, created_at, updated_at) " +
-                        "select random_uuid(), ?, name, emoji, description, is_base, income_adj_pct, expense_adj_pct, return_adj_pct, inflation_adj_pct, retirement_age_shift, goals_cost_adj_pct, snapshot_json, ?, ? from scenarios where plan_id = ?",
+                        "select gen_random_uuid(), ?, name, emoji, description, is_base, income_adj_pct, expense_adj_pct, return_adj_pct, inflation_adj_pct, retirement_age_shift, goals_cost_adj_pct, snapshot_json, ?, ? from scenarios where plan_id = ?",
                 planId,
                 now,
                 now,
