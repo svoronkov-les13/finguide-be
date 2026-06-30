@@ -107,8 +107,7 @@ create table goals (
   type varchar(32) not null,
   growth_type varchar(32) not null,
   growth_pct numeric(9, 4) not null,
-
-  _label varchar(255),
+  index_label varchar(255),
   priority integer not null,
   created_at timestamp with time zone not null,
   updated_at timestamp with time zone not null
