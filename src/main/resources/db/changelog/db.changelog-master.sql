@@ -230,8 +230,8 @@ create index idx_scenarios_plan on scenarios(plan_id, created_at);
 --rollback drop index if exists idx_financial_plans_owner;
 
 --changeset finguide:003-cashflow-growth-schedules
-alter table incomes add column growth_schedule clob;
-alter table expenses add column growth_schedule clob;
+alter table incomes add column growth_schedule text;
+alter table expenses add column growth_schedule text;
 
 --rollback alter table expenses drop column growth_schedule;
 --rollback alter table incomes drop column growth_schedule;
