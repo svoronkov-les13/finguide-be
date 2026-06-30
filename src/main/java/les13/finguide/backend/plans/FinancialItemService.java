@@ -11,9 +11,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import les13.finguide.backend.analytics.YearRatePoint;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.Year;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -198,6 +201,8 @@ public class FinancialItemService {
         requireWritablePlan(planId);
         Instant now = Instant.now();
         int priority = request.priority() == null ? repository.findGoals(planId).size() + 1 : positiveInteger(request.priority(), "priority");
+        Goal.GrowthType growthType = enumValue(Goal.GrowthType.class, request.growthType(), "growthType");
+        BigDecimal growthPct = resolveGrowthPct(planId, growthType, request.growthPct());
         Goal goal = new Goal(
                 UUID.randomUUID(),
                 planId,
@@ -209,8 +214,8 @@ public class FinancialItemService {
                 targetYear(required(request.targetYear(), "targetYear")),
                 targetMonth(request.targetMonth()),
                 enumValue(Goal.Type.class, request.type(), "type"),
-                enumValue(Goal.GrowthType.class, request.growthType(), "growthType"),
-                percent(defaultBigDecimal(request.growthPct(), ZERO), "growthPct"),
+                growthType,
+                percent(growthPct, "growthPct"),
                 request.indexLabel(),
                 priority,
                 now,
@@ -272,6 +277,20 @@ public class FinancialItemService {
         List<Goal> reordered = repository.reorderGoals(planId, goalIds);
         auditLog.info("financial_items_reordered type=goal planId={} count={}", planId, reordered.size());
         return reordered;
+    }
+
+    private BigDecimal resolveGrowthPct(UUID planId, Goal.GrowthType growthType, BigDecimal requested) {
+        if (requested != null || growthType != Goal.GrowthType.INFLATION) {
+            return defaultBigDecimal(requested, ZERO);
+        }
+        int currentYear = Year.now().getValue();
+        List<YearRatePoint> rates = repository.findInflationRates(planId);
+        return rates.stream()
+                .filter(p -> p.year() == currentYear)
+                .map(YearRatePoint::ratePct)
+                .findFirst()
+                .or(() -> rates.stream().findFirst().map(YearRatePoint::ratePct))
+                .orElse(ZERO);
     }
 
     private void requirePlan(UUID planId) {

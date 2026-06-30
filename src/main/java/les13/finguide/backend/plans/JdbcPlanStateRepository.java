@@ -1199,6 +1199,11 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     }
 
     @Override
+    public List<YearRatePoint> findInflationRates(UUID planId) {
+        return loadInflationRates(planId);
+    }
+
+    @Override
     @Transactional
     public ModelAssumptions updateModelAssumptions(UUID planId, ModelAssumptions assumptions) {
         jdbcTemplate.update(
