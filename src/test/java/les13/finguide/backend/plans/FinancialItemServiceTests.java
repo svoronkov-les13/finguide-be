@@ -64,6 +64,7 @@ class FinancialItemServiceTests {
                 "monthly",
                 "manual",
                 BigDecimal.valueOf(2),
+                List.of(),
                 LocalDate.parse("2026-01-01"),
                 null
         ));
@@ -83,6 +84,7 @@ class FinancialItemServiceTests {
                 "monthly",
                 "manual",
                 BigDecimal.ZERO,
+                List.of(),
                 null,
                 "needs",
                 LocalDate.parse("2026-01-01"),

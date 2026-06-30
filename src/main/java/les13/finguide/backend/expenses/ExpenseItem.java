@@ -1,8 +1,11 @@
 package les13.finguide.backend.expenses;
 
+import les13.finguide.backend.analytics.YearRatePoint;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 public record ExpenseItem(
@@ -14,6 +17,7 @@ public record ExpenseItem(
         Frequency frequency,
         GrowthType growthType,
         BigDecimal growthPct,
+        List<YearRatePoint> growthSchedule,
         String growthLabel,
         BudgetClass budgetClass,
         LocalDate startDate,

@@ -2,6 +2,7 @@ package les13.finguide.backend.plans;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.swagger.v3.oas.annotations.media.Schema;
+import les13.finguide.backend.analytics.YearRatePoint;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -22,6 +23,7 @@ final class FinancialItemRequests {
             String frequency,
             String growthType,
             BigDecimal growthPct,
+            List<YearRatePoint> growthSchedule,
             LocalDate startDate,
             LocalDate endDate
     ) {
@@ -37,6 +39,7 @@ final class FinancialItemRequests {
             String frequency,
             String growthType,
             BigDecimal growthPct,
+            List<YearRatePoint> growthSchedule,
             String growthLabel,
             String budgetClass,
             LocalDate startDate,

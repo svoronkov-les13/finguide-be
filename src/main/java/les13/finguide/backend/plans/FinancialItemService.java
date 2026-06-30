@@ -65,6 +65,7 @@ public class FinancialItemService {
                 enumValue(IncomeSource.Frequency.class, request.frequency(), "frequency"),
                 enumValue(IncomeSource.GrowthType.class, request.growthType(), "growthType"),
                 percent(defaultBigDecimal(request.growthPct(), ZERO), "growthPct"),
+                validatedGrowthSchedule(request.growthSchedule()),
                 required(request.startDate(), "startDate"),
                 request.endDate(),
                 now,
@@ -91,6 +92,7 @@ public class FinancialItemService {
                 enumValueOrCurrent(IncomeSource.Frequency.class, request.frequency(), current.frequency(), "frequency"),
                 enumValueOrCurrent(IncomeSource.GrowthType.class, request.growthType(), current.growthType(), "growthType"),
                 percent(valueOrCurrent(request.growthPct(), current.growthPct()), "growthPct"),
+                request.growthSchedule() == null ? current.growthSchedule() : validatedGrowthSchedule(request.growthSchedule()),
                 valueOrCurrent(request.startDate(), current.startDate()),
                 request.endDate() == null ? current.endDate() : request.endDate(),
                 current.createdAt(),
@@ -135,6 +137,7 @@ public class FinancialItemService {
                 enumValue(ExpenseItem.Frequency.class, request.frequency(), "frequency"),
                 enumValue(ExpenseItem.GrowthType.class, request.growthType(), "growthType"),
                 percent(defaultBigDecimal(request.growthPct(), ZERO), "growthPct"),
+                validatedGrowthSchedule(request.growthSchedule()),
                 request.growthLabel(),
                 enumValueOrDefault(ExpenseItem.BudgetClass.class, request.budgetClass(), ExpenseItem.BudgetClass.NEEDS, "budgetClass"),
                 required(request.startDate(), "startDate"),
@@ -163,6 +166,7 @@ public class FinancialItemService {
                 enumValueOrCurrent(ExpenseItem.Frequency.class, request.frequency(), current.frequency(), "frequency"),
                 enumValueOrCurrent(ExpenseItem.GrowthType.class, request.growthType(), current.growthType(), "growthType"),
                 percent(valueOrCurrent(request.growthPct(), current.growthPct()), "growthPct"),
+                request.growthSchedule() == null ? current.growthSchedule() : validatedGrowthSchedule(request.growthSchedule()),
                 request.growthLabel() == null ? current.growthLabel() : request.growthLabel(),
                 enumValueOrCurrent(ExpenseItem.BudgetClass.class, request.budgetClass(), current.budgetClass(), "budgetClass"),
                 valueOrCurrent(request.startDate(), current.startDate()),
@@ -209,7 +213,7 @@ public class FinancialItemService {
                 requiredText(request.name(), "name"),
                 request.icon(),
                 nonNegative(required(request.currentCost(), "currentCost"), "currentCost"),
-                ZERO,
+                nonNegative(defaultBigDecimal(request.savedAmount(), ZERO), "savedAmount"),
                 currency(request.currency()),
                 targetYear(required(request.targetYear(), "targetYear")),
                 targetMonth(request.targetMonth()),
@@ -238,7 +242,7 @@ public class FinancialItemService {
                 textOrCurrent(request.name(), current.name(), "name"),
                 request.icon() == null ? current.icon() : request.icon(),
                 nonNegative(valueOrCurrent(request.currentCost(), current.currentCost()), "currentCost"),
-                current.savedAmount(),
+                nonNegative(valueOrCurrent(request.savedAmount(), current.savedAmount()), "savedAmount"),
                 request.currency() == null ? current.currency() : currency(request.currency()),
                 request.targetYear() == null ? current.targetYear() : targetYear(request.targetYear()),
                 request.targetMonth() == null ? current.targetMonth() : targetMonth(request.targetMonth()),
@@ -291,6 +295,22 @@ public class FinancialItemService {
                 .findFirst()
                 .or(() -> rates.stream().findFirst().map(YearRatePoint::ratePct))
                 .orElse(ZERO);
+    }
+
+    private static List<YearRatePoint> validatedGrowthSchedule(List<YearRatePoint> schedule) {
+        if (schedule == null) {
+            return List.of();
+        }
+        schedule.forEach(point -> {
+            if (point == null) {
+                throw badRequest("growthSchedule contains an empty point");
+            }
+            if (point.year() < 1900 || point.year() > 2200) {
+                throw badRequest("growthSchedule.year must be between 1900 and 2200");
+            }
+            percent(point.ratePct(), "growthSchedule.ratePct");
+        });
+        return List.copyOf(schedule);
     }
 
     private void requirePlan(UUID planId) {

@@ -209,11 +209,14 @@ public class ScenarioService {
                 state.incomes().stream().map(income -> new IncomeSource(
                         income.id(), income.planId(), income.name(), income.amount().multiply(incomeFactor), income.currency(),
                         income.frequency(), income.growthType(), income.growthPct().add(adjustments.incomeAdjPct()),
+                        income.growthSchedule().stream().map(point -> new YearRatePoint(point.year(), point.ratePct().add(adjustments.incomeAdjPct()))).toList(),
                         income.startDate(), income.endDate(), income.createdAt(), income.updatedAt()
                 )).toList(),
                 state.expenses().stream().map(expense -> new ExpenseItem(
                         expense.id(), expense.planId(), expense.name(), expense.amount().multiply(expenseFactor), expense.currency(),
-                        expense.frequency(), expense.growthType(), expense.growthPct().add(adjustments.expenseAdjPct()), expense.growthLabel(),
+                        expense.frequency(), expense.growthType(), expense.growthPct().add(adjustments.expenseAdjPct()),
+                        expense.growthSchedule().stream().map(point -> new YearRatePoint(point.year(), point.ratePct().add(adjustments.expenseAdjPct()))).toList(),
+                        expense.growthLabel(),
                         expense.budgetClass(), expense.startDate(), expense.endDate(), expense.createdAt(), expense.updatedAt()
                 )).toList(),
                 state.goals().stream().map(goal -> new Goal(
