@@ -217,6 +217,65 @@ class PlanReadControllerTests {
     }
 
     @Test
+    void goalInflationGrowthUsesModelInflationInDashboardCashflowAndProjectedCost() throws Exception {
+        String subject = "goal-inflation-growth-owner";
+        String planId = currentPlanId(subject);
+
+        String createdBody = mockMvc.perform(post("/api/v1/plans/{planId}/goals", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Goal Inflation Growth Owner")
+                                .claim("preferred_username", subject)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "Inflation Target",
+                                  "currentCost": 10000,
+                                  "currency": "RUB",
+                                  "targetYear": 2027,
+                                  "targetMonth": 12,
+                                  "type": "one_time",
+                                  "growthType": "inflation",
+                                  "growthPct": 0,
+                                  "priority": 1
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String goalId = objectMapper.readTree(createdBody).at("/data/id").asText();
+
+        String body = mockMvc.perform(get("/api/v1/plans/current")
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Goal Inflation Growth Owner")
+                                .claim("preferred_username", subject))))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        JsonNode goal = java.util.stream.StreamSupport.stream(objectMapper.readTree(body).at("/data/goals").spliterator(), false)
+                .filter(node -> goalId.equals(node.get("id").asText()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(goal.get("projectedTargetCost").decimalValue()).isEqualByComparingTo("10700.00");
+
+        mockMvc.perform(get("/api/v1/plans/{planId}/analytics/cashflow", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Goal Inflation Growth Owner")
+                                .claim("preferred_username", subject))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[1].totalGoalExpenses").value(1615700.0));
+
+        mockMvc.perform(get("/api/v1/plans/{planId}/dashboard", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Goal Inflation Growth Owner")
+                                .claim("preferred_username", subject))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.yearlyProjection[1].goalsCost").value(1615700.0));
+    }
+
+    @Test
     void goalReachabilityAllowsPositiveCapitalBeforeTargetMonth() throws Exception {
         String subject = "goal-month-deadline-owner";
         String planId = currentPlanId(subject);

@@ -647,7 +647,7 @@ public class PlanReadService {
             if (goal.targetYear() < startYear || goal.targetYear() > endYear) {
                 continue;
             }
-            BigDecimal targetCost = targetCost(goal, startYear);
+            BigDecimal targetCost = targetCost(state, goal, startYear);
             BigDecimal remaining = targetCost.subtract(goal.savedAmount()).max(BigDecimal.ZERO);
             byMonth.merge(java.time.YearMonth.of(goal.targetYear(), goal.targetMonth()), remaining, BigDecimal::add);
         }
@@ -677,7 +677,7 @@ public class PlanReadService {
         Map<UUID, Integer> completionYears = new HashMap<>();
         Map<UUID, Boolean> reachableByGoal = new HashMap<>();
         for (Goal goal : goals) {
-            BigDecimal targetCost = targetCost(goal, startYear);
+            BigDecimal targetCost = targetCost(state, goal, startYear);
             targetCosts.put(goal.id(), targetCost);
             allocatedByGoal.put(goal.id(), goal.savedAmount().max(BigDecimal.ZERO));
             if (goal.savedAmount().compareTo(targetCost) >= 0) {
@@ -758,11 +758,12 @@ public class PlanReadService {
         return Math.max(1, (goal.targetYear() - startYear) * monthsPerYear + goal.targetMonth());
     }
 
-    private static BigDecimal targetCost(Goal goal, int currentYear) {
+    private static BigDecimal targetCost(PlanState state, Goal goal, int currentYear) {
         if (goal.growthType() == Goal.GrowthType.NONE) {
             return goal.currentCost().setScale(2, RoundingMode.HALF_UP);
         }
-        return grow(goal.currentCost(), goal.growthPct(), Math.max(0, goal.targetYear() - currentYear));
+        BigDecimal growthPct = goal.growthType() == Goal.GrowthType.INFLATION ? state.pension().inflationPct() : goal.growthPct();
+        return grow(goal.currentCost(), growthPct, Math.max(0, goal.targetYear() - currentYear));
     }
 
     private record GoalAllocationPlan(Map<UUID, GoalAllocation> byGoal, Map<Integer, BigDecimal> byYear) {
