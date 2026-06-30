@@ -470,7 +470,7 @@ public class PlanReadService {
     private static BigDecimal monthlyIncome(PlanState state, int offset) {
         return state.incomes().stream()
                 .filter(item -> item.frequency() == IncomeSource.Frequency.MONTHLY)
-                .map(item -> grow(item.amount(), item.growthPct(), item.growthSchedule(), state.modelAssumptions().startYear(), offset))
+                .map(item -> grow(item.amount(), incomeGrowthPct(state, item), incomeGrowthSchedule(state, item), state.modelAssumptions().startYear(), offset))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
@@ -485,7 +485,7 @@ public class PlanReadService {
     private static BigDecimal yearlyOneTimeIncome(PlanState state, int offset) {
         return state.incomes().stream()
                 .filter(item -> item.frequency() == IncomeSource.Frequency.YEARLY || item.frequency() == IncomeSource.Frequency.ONE_TIME)
-                .map(item -> grow(item.amount(), item.growthPct(), item.growthSchedule(), state.modelAssumptions().startYear(), offset))
+                .map(item -> grow(item.amount(), incomeGrowthPct(state, item), incomeGrowthSchedule(state, item), state.modelAssumptions().startYear(), offset))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
@@ -496,7 +496,7 @@ public class PlanReadService {
     private static BigDecimal monthlyExpenses(PlanState state, int offset) {
         return state.expenses().stream()
                 .filter(item -> item.frequency() == ExpenseItem.Frequency.MONTHLY)
-                .map(item -> grow(item.amount(), item.growthPct(), item.growthSchedule(), state.modelAssumptions().startYear(), offset))
+                .map(item -> grow(item.amount(), expenseGrowthPct(state, item), expenseGrowthSchedule(state, item), state.modelAssumptions().startYear(), offset))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
@@ -511,8 +511,28 @@ public class PlanReadService {
     private static BigDecimal yearlyOneTimeExpenses(PlanState state, int offset) {
         return state.expenses().stream()
                 .filter(item -> item.frequency() == ExpenseItem.Frequency.YEARLY || item.frequency() == ExpenseItem.Frequency.ONE_TIME)
-                .map(item -> grow(item.amount(), item.growthPct(), item.growthSchedule(), state.modelAssumptions().startYear(), offset))
+                .map(item -> grow(item.amount(), expenseGrowthPct(state, item), expenseGrowthSchedule(state, item), state.modelAssumptions().startYear(), offset))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private static BigDecimal incomeGrowthPct(PlanState state, IncomeSource item) {
+        return item.growthType() == IncomeSource.GrowthType.INFLATION ? state.pension().inflationPct() : item.growthPct();
+    }
+
+    private static List<les13.finguide.backend.analytics.YearRatePoint> incomeGrowthSchedule(PlanState state, IncomeSource item) {
+        return item.growthType() == IncomeSource.GrowthType.INFLATION && (item.growthSchedule() == null || item.growthSchedule().isEmpty())
+                ? state.modelAssumptions().inflationSchedule()
+                : item.growthSchedule();
+    }
+
+    private static BigDecimal expenseGrowthPct(PlanState state, ExpenseItem item) {
+        return item.growthType() == ExpenseItem.GrowthType.INFLATION ? state.pension().inflationPct() : item.growthPct();
+    }
+
+    private static List<les13.finguide.backend.analytics.YearRatePoint> expenseGrowthSchedule(PlanState state, ExpenseItem item) {
+        return item.growthType() == ExpenseItem.GrowthType.INFLATION && (item.growthSchedule() == null || item.growthSchedule().isEmpty())
+                ? state.modelAssumptions().inflationSchedule()
+                : item.growthSchedule();
     }
 
     private static BigDecimal average(List<BigDecimal> values) {
