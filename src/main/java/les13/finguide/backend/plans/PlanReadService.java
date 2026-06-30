@@ -138,7 +138,9 @@ public class PlanReadService {
     }
 
     public List<CashFlowProjectionPoint> cashflow(UUID planId) {
-        return cashflow(planId, 12);
+        PlanState state = plan(planId);
+        int horizon = projectionHorizon(state);
+        return cashflow(state, horizon, actualGoalExpensesByYear(state, horizon), monthlyTrackerSavingsByMonth(state, horizon));
     }
 
     public List<Map<String, Object>> monthlyCashflow(UUID planId) {
@@ -560,6 +562,10 @@ public class PlanReadService {
     }
 
     private static int projectionHorizon(PlanState state) {
+        Integer horizonYears = state.modelAssumptions().horizonYears();
+        if (horizonYears != null) {
+            return Math.max(1, horizonYears);
+        }
         int currentYear = Math.max(Year.now().getValue(), state.modelAssumptions().startYear());
         int latestGoalYear = state.goals().stream().mapToInt(Goal::targetYear).max().orElse(currentYear);
         return Math.max(1, latestGoalYear - currentYear + 1);
