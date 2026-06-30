@@ -148,8 +148,8 @@ class PlanReadControllerTests {
                 .andExpect(jsonPath("$.data[0].capitalEndOfYear").value(5182000.0))
                 .andExpect(jsonPath("$.data[1].monthlyIncome").value(370650.0))
                 .andExpect(jsonPath("$.data[1].yearlyIncome").value(198000.0))
-                .andExpect(jsonPath("$.data[1].monthlyExpenses").value(152820.0))
-                .andExpect(jsonPath("$.data[1].netSavings").value(1206960.0))
+                .andExpect(jsonPath("$.data[1].monthlyExpenses").value(151980.0))
+                .andExpect(jsonPath("$.data[1].netSavings").value(1217040.0))
                 .andExpect(jsonPath("$.data[1].totalGoalExpenses").value(1605000.0));
 
         mockMvc.perform(get("/api/v1/plans/current"))
@@ -161,6 +161,59 @@ class PlanReadControllerTests {
                 .andExpect(jsonPath("$.data.goals[0].targetMonth").value(12))
                 .andExpect(jsonPath("$.data.goals[0].projectedCompletionYear").value(2026))
                 .andExpect(jsonPath("$.data.goals[1].projectedSavedAmount", greaterThan(0.0)));
+    }
+
+    @Test
+    void inflationGrowthTypeUsesModelInflationWhenItemGrowthPctIsZero() throws Exception {
+        String subject = "cashflow-inflation-growth-owner";
+        String planId = currentPlanId(subject);
+
+        mockMvc.perform(post("/api/v1/plans/{planId}/incomes", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Cashflow Inflation Growth Owner")
+                                .claim("preferred_username", subject)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "Инфляционный доход",
+                                  "amount": 10000,
+                                  "currency": "RUB",
+                                  "frequency": "monthly",
+                                  "growthType": "inflation",
+                                  "growthPct": 0,
+                                  "startDate": "2026-01-01"
+                                }
+                                """))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/v1/plans/{planId}/expenses", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Cashflow Inflation Growth Owner")
+                                .claim("preferred_username", subject)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "Инфляционный расход",
+                                  "amount": 10000,
+                                  "currency": "RUB",
+                                  "frequency": "monthly",
+                                  "growthType": "inflation",
+                                  "growthPct": 0,
+                                  "startDate": "2026-01-01"
+                                }
+                                """))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/v1/plans/{planId}/analytics/cashflow", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Cashflow Inflation Growth Owner")
+                                .claim("preferred_username", subject))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[1].monthlyIncome").value(381150.0))
+                .andExpect(jsonPath("$.data[1].monthlyExpenses").value(162480.0));
     }
 
     @Test
