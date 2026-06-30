@@ -647,7 +647,7 @@ public class PlanReadService {
             if (goal.targetYear() < startYear || goal.targetYear() > endYear) {
                 continue;
             }
-            BigDecimal targetCost = targetCost(goal, startYear);
+            BigDecimal targetCost = targetCost(state, goal, startYear);
             BigDecimal remaining = targetCost.subtract(goal.savedAmount()).max(BigDecimal.ZERO);
             byMonth.merge(java.time.YearMonth.of(goal.targetYear(), goal.targetMonth()), remaining, BigDecimal::add);
         }
@@ -673,13 +673,15 @@ public class PlanReadService {
                 .toList();
 
         Map<UUID, BigDecimal> targetCosts = new LinkedHashMap<>();
-        Map<UUID, BigDecimal> allocatedByGoal = new LinkedHashMap<>();
+        Map<UUID, BigDecimal> projectedAllocatedByGoal = new LinkedHashMap<>();
+        Map<UUID, BigDecimal> totalFundedByGoal = new LinkedHashMap<>();
         Map<UUID, Integer> completionYears = new HashMap<>();
         Map<UUID, Boolean> reachableByGoal = new HashMap<>();
         for (Goal goal : goals) {
-            BigDecimal targetCost = targetCost(goal, startYear);
+            BigDecimal targetCost = targetCost(state, goal, startYear);
             targetCosts.put(goal.id(), targetCost);
-            allocatedByGoal.put(goal.id(), goal.savedAmount().max(BigDecimal.ZERO));
+            projectedAllocatedByGoal.put(goal.id(), BigDecimal.ZERO);
+            totalFundedByGoal.put(goal.id(), goal.savedAmount().max(BigDecimal.ZERO));
             if (goal.savedAmount().compareTo(targetCost) >= 0) {
                 completionYears.put(goal.id(), startYear);
                 reachableByGoal.put(goal.id(), true);
@@ -700,16 +702,17 @@ public class PlanReadService {
             pool = pool.add(monthlyFreeCashflow.subtract(actualGoalExpenses));
             BigDecimal monthlyAllocation = BigDecimal.ZERO;
             for (Goal goal : goals) {
-                BigDecimal remaining = targetCosts.get(goal.id()).subtract(allocatedByGoal.get(goal.id())).max(BigDecimal.ZERO);
+                BigDecimal remaining = targetCosts.get(goal.id()).subtract(totalFundedByGoal.get(goal.id())).max(BigDecimal.ZERO);
                 if (remaining.signum() == 0 || pool.signum() <= 0) {
                     continue;
                 }
                 BigDecimal allocation = pool.min(remaining);
                 pool = pool.subtract(allocation);
                 monthlyAllocation = monthlyAllocation.add(allocation);
-                BigDecimal nextAllocated = allocatedByGoal.get(goal.id()).add(allocation);
-                allocatedByGoal.put(goal.id(), nextAllocated);
-                if (nextAllocated.compareTo(targetCosts.get(goal.id())) >= 0) {
+                projectedAllocatedByGoal.put(goal.id(), projectedAllocatedByGoal.get(goal.id()).add(allocation));
+                BigDecimal nextTotalFunded = totalFundedByGoal.get(goal.id()).add(allocation);
+                totalFundedByGoal.put(goal.id(), nextTotalFunded);
+                if (nextTotalFunded.compareTo(targetCosts.get(goal.id())) >= 0) {
                     completionYears.putIfAbsent(goal.id(), year);
                     if (monthIndex <= targetMonthIndex(goal, startYear, monthsPerYear)) {
                         reachableByGoal.putIfAbsent(goal.id(), true);
@@ -726,16 +729,17 @@ public class PlanReadService {
         Map<UUID, GoalAllocation> byGoal = new LinkedHashMap<>();
         for (Goal goal : goals) {
             BigDecimal targetCost = targetCosts.get(goal.id()).setScale(2, RoundingMode.HALF_UP);
-            BigDecimal savedAmount = allocatedByGoal.get(goal.id()).min(targetCost).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal projectedAmount = projectedAllocatedByGoal.get(goal.id()).min(targetCost).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal totalFunded = goal.savedAmount().max(BigDecimal.ZERO).add(projectedAmount).min(targetCost).setScale(2, RoundingMode.HALF_UP);
             BigDecimal progressPct = targetCost.signum() == 0
                     ? HUNDRED
-                    : savedAmount.multiply(HUNDRED).divide(targetCost, 1, RoundingMode.HALF_UP).min(HUNDRED);
+                    : totalFunded.multiply(HUNDRED).divide(targetCost, 1, RoundingMode.HALF_UP).min(HUNDRED);
             boolean reachable = capitalEndByYear.containsKey(goal.targetYear())
                     ? capitalEndByYear.get(goal.targetYear()).signum() >= 0
                     : reachableByGoal.getOrDefault(goal.id(), false);
             byGoal.put(goal.id(), new GoalAllocation(
                     targetCost,
-                    savedAmount,
+                    projectedAmount,
                     progressPct,
                     reachable,
                     completionYears.get(goal.id())
@@ -758,11 +762,12 @@ public class PlanReadService {
         return Math.max(1, (goal.targetYear() - startYear) * monthsPerYear + goal.targetMonth());
     }
 
-    private static BigDecimal targetCost(Goal goal, int currentYear) {
+    private static BigDecimal targetCost(PlanState state, Goal goal, int currentYear) {
         if (goal.growthType() == Goal.GrowthType.NONE) {
             return goal.currentCost().setScale(2, RoundingMode.HALF_UP);
         }
-        return grow(goal.currentCost(), goal.growthPct(), Math.max(0, goal.targetYear() - currentYear));
+        BigDecimal growthPct = goal.growthType() == Goal.GrowthType.INFLATION ? state.pension().inflationPct() : goal.growthPct();
+        return grow(goal.currentCost(), growthPct, Math.max(0, goal.targetYear() - currentYear));
     }
 
     private record GoalAllocationPlan(Map<UUID, GoalAllocation> byGoal, Map<Integer, BigDecimal> byYear) {
