@@ -1,8 +1,11 @@
 package les13.finguide.backend.incomes;
 
+import les13.finguide.backend.analytics.YearRatePoint;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 public record IncomeSource(
@@ -14,6 +17,7 @@ public record IncomeSource(
         Frequency frequency,
         GrowthType growthType,
         BigDecimal growthPct,
+        List<YearRatePoint> growthSchedule,
         LocalDate startDate,
         LocalDate endDate,
         Instant createdAt,
