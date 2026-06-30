@@ -72,7 +72,7 @@ class PlanReadControllerTests {
 
         mockMvc.perform(get("/api/v1/plans/{planId}/analytics/cashflow", planId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data", hasSize(12)))
+                .andExpect(jsonPath("$.data", hasSize(53)))
                 .andExpect(jsonPath("$.data[0].capitalEndOfYear").exists());
 
         mockMvc.perform(get("/api/v1/scenarios"))
@@ -433,6 +433,7 @@ class PlanReadControllerTests {
                                 .claim("name", "Analytics Owner")
                                 .claim("preferred_username", "analytics-owner"))))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(3)))
                 .andExpect(jsonPath("$.data[0].capitalStartOfYear").value(1000000.0));
     }
 
