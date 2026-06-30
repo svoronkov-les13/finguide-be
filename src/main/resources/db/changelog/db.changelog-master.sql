@@ -69,7 +69,6 @@ create table incomes (
   frequency varchar(32) not null,
   growth_type varchar(32) not null,
   growth_pct numeric(9, 4) not null,
-  growth_schedule clob,
   start_date date not null,
   end_date date,
   sort_order integer not null,
@@ -86,7 +85,6 @@ create table expenses (
   frequency varchar(32) not null,
   growth_type varchar(32) not null,
   growth_pct numeric(9, 4) not null,
-  growth_schedule clob,
   growth_label varchar(255),
   budget_class varchar(32) not null,
   start_date date not null,
@@ -230,3 +228,10 @@ create index idx_scenarios_plan on scenarios(plan_id, created_at);
 --rollback drop index if exists idx_expenses_plan;
 --rollback drop index if exists idx_incomes_plan;
 --rollback drop index if exists idx_financial_plans_owner;
+
+--changeset finguide:003-cashflow-growth-schedules
+alter table incomes add column growth_schedule clob;
+alter table expenses add column growth_schedule clob;
+
+--rollback alter table expenses drop column growth_schedule;
+--rollback alter table incomes drop column growth_schedule;
