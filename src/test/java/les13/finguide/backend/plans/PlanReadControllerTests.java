@@ -522,6 +522,58 @@ class PlanReadControllerTests {
     }
 
     @Test
+    void initialCapitalClosesFutureYearGoalInProjectedFunding() throws Exception {
+        String subject = "future-goal-initial-capital-owner";
+        String planId = currentPlanId(subject);
+
+        mockMvc.perform(patch("/api/v1/plans/{planId}/analytics/assumptions", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Future Goal Initial Capital Owner")
+                                .claim("preferred_username", subject)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "startYear": 2026,
+                                  "projectionEndYear": 2027,
+                                  "horizonYears": 2,
+                                  "birthYear": 1993,
+                                  "monthsPerYear": 12,
+                                  "currency": "RUB",
+                                  "initialCapital": 900000,
+                                  "investmentReturnPct": 0,
+                                  "inflationSchedule": [
+                                    {"year": 2026, "ratePct": 0},
+                                    {"year": 2027, "ratePct": 0}
+                                  ],
+                                  "sourceModel": "test future goal initial capital"
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        String createdBody = createGoal(subject, planId, "Future Capital Target", 100_000, 0, 2027, 12, 1);
+        String goalId = objectMapper.readTree(createdBody).at("/data/id").asText();
+
+        String body = mockMvc.perform(get("/api/v1/plans/current")
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Future Goal Initial Capital Owner")
+                                .claim("preferred_username", subject))))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        JsonNode goal = java.util.stream.StreamSupport.stream(objectMapper.readTree(body).at("/data/goals").spliterator(), false)
+                .filter(node -> goalId.equals(node.get("id").asText()))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(goal.get("savedAmount").decimalValue()).isEqualByComparingTo("0.00");
+        assertThat(goal.get("projectedSavedAmount").decimalValue()).isEqualByComparingTo("100000.00");
+        assertThat(goal.get("projectedProgressPct").decimalValue()).isEqualByComparingTo("100.0");
+        assertThat(goal.get("projectedReachable").asBoolean()).isTrue();
+    }
+
+    @Test
     void goalReachabilityAllowsPositiveCapitalBeforeTargetMonth() throws Exception {
         String subject = "goal-month-deadline-owner";
         String planId = currentPlanId(subject);
