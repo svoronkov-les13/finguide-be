@@ -19,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.Year;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -470,6 +471,7 @@ public class PlanReadService {
     private static BigDecimal monthlyIncome(PlanState state, int offset) {
         return state.incomes().stream()
                 .filter(item -> item.frequency() == IncomeSource.Frequency.MONTHLY)
+                .filter(item -> activeInProjectionYear(item.startDate(), item.endDate(), projectionYear(state, offset)))
                 .map(item -> grow(item.amount(), incomeGrowthPct(state, item), incomeGrowthSchedule(state, item), state.modelAssumptions().startYear(), offset))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
@@ -485,6 +487,7 @@ public class PlanReadService {
     private static BigDecimal yearlyOneTimeIncome(PlanState state, int offset) {
         return state.incomes().stream()
                 .filter(item -> item.frequency() == IncomeSource.Frequency.YEARLY || item.frequency() == IncomeSource.Frequency.ONE_TIME)
+                .filter(item -> activeInProjectionYear(item.startDate(), item.endDate(), projectionYear(state, offset)))
                 .map(item -> grow(item.amount(), incomeGrowthPct(state, item), incomeGrowthSchedule(state, item), state.modelAssumptions().startYear(), offset))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
@@ -496,6 +499,7 @@ public class PlanReadService {
     private static BigDecimal monthlyExpenses(PlanState state, int offset) {
         return state.expenses().stream()
                 .filter(item -> item.frequency() == ExpenseItem.Frequency.MONTHLY)
+                .filter(item -> activeInProjectionYear(item.startDate(), item.endDate(), projectionYear(state, offset)))
                 .map(item -> grow(item.amount(), expenseGrowthPct(state, item), expenseGrowthSchedule(state, item), state.modelAssumptions().startYear(), offset))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
@@ -511,8 +515,21 @@ public class PlanReadService {
     private static BigDecimal yearlyOneTimeExpenses(PlanState state, int offset) {
         return state.expenses().stream()
                 .filter(item -> item.frequency() == ExpenseItem.Frequency.YEARLY || item.frequency() == ExpenseItem.Frequency.ONE_TIME)
+                .filter(item -> activeInProjectionYear(item.startDate(), item.endDate(), projectionYear(state, offset)))
                 .map(item -> grow(item.amount(), expenseGrowthPct(state, item), expenseGrowthSchedule(state, item), state.modelAssumptions().startYear(), offset))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private static int projectionYear(PlanState state, int offset) {
+        return Math.max(Year.now().getValue(), state.modelAssumptions().startYear()) + offset;
+    }
+
+    private static boolean activeInProjectionYear(LocalDate startDate, LocalDate endDate, int year) {
+        LocalDate yearStart = LocalDate.of(year, 1, 1);
+        LocalDate yearEnd = LocalDate.of(year, 12, 31);
+        boolean started = startDate == null || !startDate.isAfter(yearEnd);
+        boolean notEnded = endDate == null || !endDate.isBefore(yearStart);
+        return started && notEnded;
     }
 
     private static BigDecimal incomeGrowthPct(PlanState state, IncomeSource item) {
@@ -689,7 +706,7 @@ public class PlanReadService {
         }
 
         Map<Integer, BigDecimal> allocatedByYear = new LinkedHashMap<>();
-        BigDecimal pool = BigDecimal.ZERO;
+        BigDecimal pool = state.modelAssumptions().initialCapital().max(BigDecimal.ZERO);
         int monthsPerYear = state.modelAssumptions().monthsPerYear();
         for (int monthIndex = 1; monthIndex <= horizon * monthsPerYear; monthIndex++) {
             int offset = (monthIndex - 1) / monthsPerYear;
