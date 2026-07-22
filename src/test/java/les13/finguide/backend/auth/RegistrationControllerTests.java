@@ -11,6 +11,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -45,5 +46,35 @@ class RegistrationControllerTests {
         assertThat(request.getValue().lastName()).isEqualTo("Воронков");
         assertThat(request.getValue().email()).isEqualTo("stas@example.com");
         assertThat(request.getValue().password()).isEqualTo("correct-horse-battery");
+    }
+
+    @Test
+    void acceptsPasswordResetRequestWithoutBearerToken() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/password/forgot")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "stas@example.com"
+                                }
+                                """))
+                .andExpect(status().isAccepted());
+
+        ArgumentCaptor<PasswordResetRequest> request = ArgumentCaptor.forClass(PasswordResetRequest.class);
+        verify(registrationService).requestPasswordReset(request.capture());
+        assertThat(request.getValue().email()).isEqualTo("stas@example.com");
+    }
+
+    @Test
+    void rejectsInvalidPasswordResetEmail() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/password/forgot")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "not-email"
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(registrationService);
     }
 }

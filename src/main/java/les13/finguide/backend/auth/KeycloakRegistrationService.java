@@ -1,18 +1,22 @@
 package les13.finguide.backend.auth;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.util.UriComponentsBuilder;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Locale;
 import java.util.List;
 import java.util.Map;
 
@@ -24,6 +28,8 @@ public class KeycloakRegistrationService {
     private final String adminClientId;
     private final String adminUsername;
     private final String adminPassword;
+    private final String passwordResetClientId;
+    private final PasswordResetRateLimiter passwordResetRateLimiter;
 
     public KeycloakRegistrationService(
             RestTemplate restTemplate,
@@ -31,7 +37,9 @@ public class KeycloakRegistrationService {
             @Value("${finguide.keycloak.admin-realm:master}") String adminRealm,
             @Value("${finguide.keycloak.admin-client-id:admin-cli}") String adminClientId,
             @Value("${finguide.keycloak.admin-username:}") String adminUsername,
-            @Value("${finguide.keycloak.admin-password:}") String adminPassword
+            @Value("${finguide.keycloak.admin-password:}") String adminPassword,
+            @Value("${finguide.keycloak.password-reset-client-id:finguide-web}") String passwordResetClientId,
+            PasswordResetRateLimiter passwordResetRateLimiter
     ) {
         this.restTemplate = restTemplate;
         this.issuerUri = trimTrailingSlash(issuerUri);
@@ -39,6 +47,8 @@ public class KeycloakRegistrationService {
         this.adminClientId = adminClientId;
         this.adminUsername = adminUsername;
         this.adminPassword = adminPassword;
+        this.passwordResetClientId = passwordResetClientId;
+        this.passwordResetRateLimiter = passwordResetRateLimiter;
     }
 
     public void register(RegistrationRequest request) {
@@ -48,6 +58,18 @@ public class KeycloakRegistrationService {
 
         String accessToken = adminAccessToken();
         createUser(request, accessToken);
+    }
+
+    public void requestPasswordReset(PasswordResetRequest request) {
+        if (adminUsername.isBlank() || adminPassword.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Password reset is not configured");
+        }
+        if (!passwordResetRateLimiter.tryAcquire(request.email())) {
+            return;
+        }
+
+        String accessToken = adminAccessToken();
+        findUserIdByEmail(request.email(), accessToken).ifPresent(userId -> sendPasswordResetEmail(userId, accessToken));
     }
 
     private String adminAccessToken() {
@@ -108,6 +130,63 @@ public class KeycloakRegistrationService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "User already exists", exception);
         } catch (RestClientException exception) {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Keycloak user creation failed", exception);
+        }
+    }
+
+    private java.util.Optional<String> findUserIdByEmail(String email, String accessToken) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+
+        String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
+        String url = UriComponentsBuilder
+                .fromUriString("%s/admin/realms/%s/users".formatted(keycloakBaseUrl(), targetRealm()))
+                .queryParam("email", normalizedEmail)
+                .queryParam("exact", "true")
+                .build()
+                .encode()
+                .toUriString();
+
+        try {
+            var response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    new HttpEntity<>(headers),
+                    new ParameterizedTypeReference<List<Map<String, Object>>>() {}
+            );
+            List<Map<String, Object>> users = response.getBody();
+            if (users == null || users.isEmpty()) {
+                return java.util.Optional.empty();
+            }
+            Object id = users.getFirst().get("id");
+            return id instanceof String value && !value.isBlank()
+                    ? java.util.Optional.of(value)
+                    : java.util.Optional.empty();
+        } catch (RestClientException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Keycloak user lookup failed", exception);
+        }
+    }
+
+    private void sendPasswordResetEmail(String userId, String accessToken) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        String url = UriComponentsBuilder
+                .fromUriString("%s/admin/realms/%s/users/%s/execute-actions-email".formatted(keycloakBaseUrl(), targetRealm(), userId))
+                .queryParam("client_id", passwordResetClientId)
+                .build()
+                .encode()
+                .toUriString();
+
+        try {
+            restTemplate.exchange(
+                    url,
+                    HttpMethod.PUT,
+                    new HttpEntity<>(List.of("UPDATE_PASSWORD"), headers),
+                    Void.class
+            );
+        } catch (RestClientException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Keycloak password reset email failed", exception);
         }
     }
 
