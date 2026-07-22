@@ -322,6 +322,43 @@ class PlanReadControllerTests {
     }
 
     @Test
+    void cashflowProjectionProratesMonthlyItemsInPartialStartAndEndYears() throws Exception {
+        String subject = "cashflow-partial-year-owner";
+        String planId = currentPlanId(subject);
+
+        mockMvc.perform(post("/api/v1/plans/{planId}/expenses", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Cashflow Partial Year Owner")
+                                .claim("preferred_username", subject)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "January-only expense",
+                                  "amount": 12000,
+                                  "currency": "RUB",
+                                  "frequency": "monthly",
+                                  "growthType": "none",
+                                  "growthPct": 0,
+                                  "growthLabel": "Без роста",
+                                  "budgetClass": "needs",
+                                  "startDate": "2027-01-01",
+                                  "endDate": "2027-01-31"
+                                }
+                                """))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/v1/plans/{planId}/analytics/cashflow", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Cashflow Partial Year Owner")
+                                .claim("preferred_username", subject))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[1].totalExpenses").value(1835760.0))
+                .andExpect(jsonPath("$.data[2].totalExpenses").value(1850618.4));
+    }
+
+    @Test
     void goalInflationGrowthUsesModelInflationInDashboardCashflowAndProjectedCost() throws Exception {
         String subject = "goal-inflation-growth-owner";
         String planId = currentPlanId(subject);
