@@ -217,6 +217,111 @@ class PlanReadControllerTests {
     }
 
     @Test
+    void cashflowProjectionStopsMonthlyAndYearlyIncomeAndExpensesAfterEndDate() throws Exception {
+        String subject = "cashflow-end-date-owner";
+        String planId = currentPlanId(subject);
+
+        mockMvc.perform(post("/api/v1/plans/{planId}/incomes", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Cashflow End Date Owner")
+                                .claim("preferred_username", subject)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "Ending monthly income",
+                                  "amount": 1000,
+                                  "currency": "RUB",
+                                  "frequency": "monthly",
+                                  "growthType": "none",
+                                  "growthPct": 0,
+                                  "startDate": "2026-01-01",
+                                  "endDate": "2026-12-31"
+                                }
+                                """))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/v1/plans/{planId}/incomes", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Cashflow End Date Owner")
+                                .claim("preferred_username", subject)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "Ending yearly income",
+                                  "amount": 12000,
+                                  "currency": "RUB",
+                                  "frequency": "yearly",
+                                  "growthType": "none",
+                                  "growthPct": 0,
+                                  "startDate": "2026-01-01",
+                                  "endDate": "2026-12-31"
+                                }
+                                """))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/v1/plans/{planId}/expenses", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Cashflow End Date Owner")
+                                .claim("preferred_username", subject)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "Ending monthly expense",
+                                  "amount": 2000,
+                                  "currency": "RUB",
+                                  "frequency": "monthly",
+                                  "growthType": "none",
+                                  "growthPct": 0,
+                                  "growthLabel": "Без роста",
+                                  "budgetClass": "needs",
+                                  "startDate": "2026-01-01",
+                                  "endDate": "2026-12-31"
+                                }
+                                """))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/v1/plans/{planId}/expenses", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Cashflow End Date Owner")
+                                .claim("preferred_username", subject)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "Ending yearly expense",
+                                  "amount": 24000,
+                                  "currency": "RUB",
+                                  "frequency": "yearly",
+                                  "growthType": "none",
+                                  "growthPct": 0,
+                                  "growthLabel": "Без роста",
+                                  "budgetClass": "needs",
+                                  "startDate": "2026-01-01",
+                                  "endDate": "2026-12-31"
+                                }
+                                """))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/v1/plans/{planId}/analytics/cashflow", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Cashflow End Date Owner")
+                                .claim("preferred_username", subject))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].monthlyIncome").value(346000.0))
+                .andExpect(jsonPath("$.data[0].yearlyIncome").value(192000.0))
+                .andExpect(jsonPath("$.data[0].monthlyExpenses").value(151000.0))
+                .andExpect(jsonPath("$.data[0].yearlyExpenses").value(24000.0))
+                .andExpect(jsonPath("$.data[1].monthlyIncome").value(370650.0))
+                .andExpect(jsonPath("$.data[1].yearlyIncome").value(198000.0))
+                .andExpect(jsonPath("$.data[1].monthlyExpenses").value(151980.0))
+                .andExpect(jsonPath("$.data[1].yearlyExpenses").value(0));
+    }
+
+    @Test
     void goalInflationGrowthUsesModelInflationInDashboardCashflowAndProjectedCost() throws Exception {
         String subject = "goal-inflation-growth-owner";
         String planId = currentPlanId(subject);
@@ -353,8 +458,67 @@ class PlanReadControllerTests {
         assertThat(firstGoal.get("savedAmount").decimalValue()).isEqualByComparingTo("1000000.00");
         assertThat(secondGoal.get("savedAmount").decimalValue()).isEqualByComparingTo("0.00");
         assertThat(secondGoal.get("projectedSavedAmount").decimalValue()).isEqualByComparingTo("2000000.00");
-        assertThat(firstGoal.get("projectedSavedAmount").decimalValue()).isEqualByComparingTo("532000.00");
-        assertThat(firstGoal.get("projectedProgressPct").decimalValue()).isEqualByComparingTo("76.6");
+        assertThat(firstGoal.get("projectedSavedAmount").decimalValue()).isEqualByComparingTo("1000000.00");
+        assertThat(firstGoal.get("projectedProgressPct").decimalValue()).isEqualByComparingTo("100.0");
+    }
+
+    @Test
+    void initialCapitalIsAvailableForProjectedGoalFunding() throws Exception {
+        String subject = "goal-initial-capital-owner";
+        String planId = currentPlanId(subject);
+
+        mockMvc.perform(patch("/api/v1/plans/{planId}/analytics/assumptions", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Goal Initial Capital Owner")
+                                .claim("preferred_username", subject)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "startYear": 2026,
+                                  "projectionEndYear": 2026,
+                                  "horizonYears": 1,
+                                  "birthYear": 1993,
+                                  "monthsPerYear": 12,
+                                  "currency": "RUB",
+                                  "initialCapital": 2500000,
+                                  "investmentReturnPct": 6,
+                                  "inflationSchedule": [
+                                    {"year": 2026, "ratePct": 3}
+                                  ],
+                                  "sourceModel": "test initial capital goal funding"
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        String createdBody = createGoal(subject, planId, "Initial Capital Target", 4_000_000, 0, 2026, 12, 1);
+        String goalId = objectMapper.readTree(createdBody).at("/data/id").asText();
+
+        String body = mockMvc.perform(get("/api/v1/plans/current")
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Goal Initial Capital Owner")
+                                .claim("preferred_username", subject))))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        JsonNode goal = java.util.stream.StreamSupport.stream(objectMapper.readTree(body).at("/data/goals").spliterator(), false)
+                .filter(node -> goalId.equals(node.get("id").asText()))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(goal.get("projectedSavedAmount").decimalValue()).isEqualByComparingTo("4000000.00");
+        assertThat(goal.get("projectedProgressPct").decimalValue()).isEqualByComparingTo("100.0");
+        assertThat(goal.get("projectedReachable").asBoolean()).isTrue();
+
+        mockMvc.perform(get("/api/v1/plans/{planId}/analytics/cashflow", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Goal Initial Capital Owner")
+                                .claim("preferred_username", subject))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].capitalStartOfYear").value(2500000.0))
+                .andExpect(jsonPath("$.data[0].totalGoalExpenses").value(4000000.0));
     }
 
     @Test
@@ -512,7 +676,7 @@ class PlanReadControllerTests {
                 .findFirst()
                 .orElseThrow();
         assertThat(goal.get("projectedReachable").asBoolean()).isTrue();
-        assertThat(goal.get("projectedCompletionYear").asInt()).isGreaterThan(2026);
+        assertThat(goal.get("projectedCompletionYear").asInt()).isEqualTo(2026);
 
         JsonNode negativeCapitalGoal = java.util.stream.StreamSupport.stream(objectMapper.readTree(body).at("/data/goals").spliterator(), false)
                 .filter(node -> node.get("targetYear").asInt() == 2029)
