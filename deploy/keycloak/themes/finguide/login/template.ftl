@@ -255,6 +255,7 @@ label,
 
 #kc-register-form .pf-v5-c-form__group,
 #kc-reset-password-form .pf-v5-c-form__group,
+#kc-passwd-update-form .pf-v5-c-form__group,
 #kc-form-login .pf-v5-c-form__group,
 .pf-v5-c-form__group {
   margin-bottom: 11px !important;
@@ -606,17 +607,17 @@ label,
   font-weight: 500 !important;
 }
 
-/* Forgot-password screen: compact FinGuide auth card, aligned with /fg/login. */
-.pf-v5-c-login:has(#kc-reset-password-form) {
+/* Password recovery screens: compact FinGuide auth card, aligned with /fg/login. */
+.pf-v5-c-login:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) {
   background: #fbf9f3 !important;
 }
 
-.pf-v5-c-login__container:has(#kc-reset-password-form) {
+.pf-v5-c-login__container:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) {
   width: min(100%, 520px) !important;
   max-width: 520px !important;
 }
 
-.pf-v5-c-login__main:has(#kc-reset-password-form) {
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) {
   width: min(100%, 520px) !important;
   max-width: 520px !important;
   border-color: rgba(26, 20, 30, 0.12) !important;
@@ -625,13 +626,13 @@ label,
   box-shadow: 0 10px 34px rgba(26, 20, 30, 0.08) !important;
 }
 
-.pf-v5-c-login__main:has(#kc-reset-password-form) .pf-v5-c-login__main-header {
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) .pf-v5-c-login__main-header {
   padding: 28px 32px 8px !important;
   position: relative !important;
   text-align: left !important;
 }
 
-.pf-v5-c-login__main:has(#kc-reset-password-form) .pf-v5-c-login__main-header::before {
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) .pf-v5-c-login__main-header::before {
   content: "FinPlan";
   display: flex !important;
   align-items: center !important;
@@ -644,7 +645,7 @@ label,
   line-height: 1 !important;
 }
 
-.pf-v5-c-login__main:has(#kc-reset-password-form) .pf-v5-c-login__main-header::after {
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) .pf-v5-c-login__main-header::after {
   content: "";
   display: block !important;
   position: absolute !important;
@@ -659,7 +660,7 @@ label,
     linear-gradient(#1a141e, #1a141e) left center / 44px 44px no-repeat;
 }
 
-.pf-v5-c-login__main:has(#kc-reset-password-form) #kc-page-title {
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) #kc-page-title {
   color: #1a141e !important;
   text-align: left !important;
   font-size: 24px !important;
@@ -668,32 +669,33 @@ label,
   letter-spacing: 0 !important;
 }
 
-.pf-v5-c-login__main:has(#kc-reset-password-form) .pf-v5-c-login__main-body {
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) .pf-v5-c-login__main-body {
   padding: 12px 32px 28px !important;
 }
 
-.pf-v5-c-login__main:has(#kc-reset-password-form) .instruction,
-.pf-v5-c-login__main:has(#kc-reset-password-form) #kc-info-wrapper,
-.pf-v5-c-login__main:has(#kc-reset-password-form) .pf-v5-c-helper-text__item-text,
-.pf-v5-c-login__main:has(#kc-reset-password-form) .pf-v5-c-form__label-text,
-.pf-v5-c-login__main:has(#kc-reset-password-form) label {
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) .instruction,
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) #kc-info-wrapper,
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) .pf-v5-c-helper-text__item-text,
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) .pf-v5-c-form__label-text,
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) label {
   color: #807688 !important;
 }
 
-.pf-v5-c-login__main:has(#kc-reset-password-form) .instruction {
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) .instruction {
   max-width: 420px !important;
   margin-bottom: 22px !important;
   font-size: 13px !important;
   line-height: 1.6 !important;
 }
 
-.pf-v5-c-login__main:has(#kc-reset-password-form) .pf-v5-c-form__group {
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) .pf-v5-c-form__group {
   margin-bottom: 18px !important;
 }
 
-.pf-v5-c-login__main:has(#kc-reset-password-form) .pf-v5-c-form-control,
-.pf-v5-c-login__main:has(#kc-reset-password-form) input[type="text"],
-.pf-v5-c-login__main:has(#kc-reset-password-form) input[type="email"] {
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) .pf-v5-c-form-control,
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) input[type="text"],
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) input[type="password"],
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) input[type="email"] {
   min-height: 44px !important;
   border-color: rgba(26, 20, 30, 0.12) !important;
   border-radius: 12px !important;
@@ -701,20 +703,21 @@ label,
   color: #1a141e !important;
 }
 
-.pf-v5-c-login__main:has(#kc-reset-password-form) .pf-v5-c-form-control:focus-within,
-.pf-v5-c-login__main:has(#kc-reset-password-form) input[type="text"]:focus,
-.pf-v5-c-login__main:has(#kc-reset-password-form) input[type="email"]:focus {
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) .pf-v5-c-form-control:focus-within,
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) input[type="text"]:focus,
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) input[type="password"]:focus,
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) input[type="email"]:focus {
   border-color: rgba(26, 20, 30, 0.22) !important;
   box-shadow: 0 0 0 3px rgba(26, 20, 30, 0.08) !important;
 }
 
-.pf-v5-c-login__main:has(#kc-reset-password-form) .pf-v5-c-form__actions,
-.pf-v5-c-login__main:has(#kc-reset-password-form) #kc-form-buttons {
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) .pf-v5-c-form__actions,
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) #kc-form-buttons {
   margin-top: 2px !important;
 }
 
-.pf-v5-c-login__main:has(#kc-reset-password-form) .pf-v5-c-button.pf-m-primary,
-.pf-v5-c-login__main:has(#kc-reset-password-form) input[type="submit"] {
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) .pf-v5-c-button.pf-m-primary,
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) input[type="submit"] {
   height: 48px !important;
   min-height: 48px !important;
   border-radius: 999px !important;
@@ -722,38 +725,38 @@ label,
   color: #ffffff !important;
 }
 
-.pf-v5-c-login__main:has(#kc-reset-password-form) .pf-v5-c-button.pf-m-primary:hover,
-.pf-v5-c-login__main:has(#kc-reset-password-form) input[type="submit"]:hover {
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) .pf-v5-c-button.pf-m-primary:hover,
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) input[type="submit"]:hover {
   background: #281534 !important;
 }
 
-.pf-v5-c-login__main:has(#kc-reset-password-form) .pf-v5-c-login__main-footer-band {
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) .pf-v5-c-login__main-footer-band {
   padding: 16px 32px 24px !important;
   border-top: 0 !important;
   background: transparent !important;
 }
 
-.pf-v5-c-login__main:has(#kc-reset-password-form) a,
-.pf-v5-c-login__main:has(#kc-reset-password-form) .pf-v5-c-button.pf-m-link {
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) a,
+.pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) .pf-v5-c-button.pf-m-link {
   color: #1a141e !important;
   font-weight: 700 !important;
 }
 
 @media (max-width: 640px) {
-  .pf-v5-c-login__main:has(#kc-reset-password-form) .pf-v5-c-login__main-header {
+  .pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) .pf-v5-c-login__main-header {
     padding: 24px 22px 8px !important;
   }
 
-  .pf-v5-c-login__main:has(#kc-reset-password-form) .pf-v5-c-login__main-header::after {
+  .pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) .pf-v5-c-login__main-header::after {
     top: 24px !important;
     left: 22px !important;
   }
 
-  .pf-v5-c-login__main:has(#kc-reset-password-form) .pf-v5-c-login__main-body {
+  .pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) .pf-v5-c-login__main-body {
     padding: 12px 22px 24px !important;
   }
 
-  .pf-v5-c-login__main:has(#kc-reset-password-form) .pf-v5-c-login__main-footer-band {
+  .pf-v5-c-login__main:has(:is(#kc-reset-password-form, #kc-passwd-update-form)) .pf-v5-c-login__main-footer-band {
     padding: 14px 22px 22px !important;
   }
 }
