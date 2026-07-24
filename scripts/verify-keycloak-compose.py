@@ -6,6 +6,8 @@ root = Path(__file__).resolve().parents[1]
 compose = (root / "deploy/keycloak/compose.yaml").read_text()
 env = (root / "deploy/keycloak/.env.example").read_text()
 readme = (root / "deploy/keycloak/README.md").read_text()
+theme_css = (root / "deploy/keycloak/themes/finguide/login/resources/css/finguide.css").read_text()
+theme_template = (root / "deploy/keycloak/themes/finguide/login/template.ftl").read_text()
 checks = {
     "keycloak service": re.search(r"^  keycloak:\n", compose, re.M),
     "postgres service": "keycloak-postgres:" in compose,
@@ -18,6 +20,8 @@ checks = {
     "theme mounted": "themes/finguide" in compose,
     "backup docs": "pg_dump" in readme and "Restore" in readme,
     "no real secrets": "github_pat_" not in compose + env + readme and "change-me-generate-secret" in env,
+    "forgot password theme": "#kc-reset-password-form" in theme_css and "#kc-reset-password-form" in theme_template,
+    "update password theme": "#kc-passwd-update-form" in theme_css and "#kc-passwd-update-form" in theme_template,
 }
 failed = [name for name, ok in checks.items() if not ok]
 if failed:
