@@ -768,18 +768,16 @@ public class PlanReadService {
                 .toList();
 
         Map<UUID, BigDecimal> targetCosts = new LinkedHashMap<>();
-        Map<UUID, BigDecimal> projectedAllocatedByGoal = new LinkedHashMap<>();
+        Map<UUID, BigDecimal> deadlineAllocatedByGoal = new LinkedHashMap<>();
         Map<UUID, BigDecimal> totalFundedByGoal = new LinkedHashMap<>();
         Map<UUID, Integer> completionYears = new HashMap<>();
-        Map<UUID, Boolean> reachableByGoal = new HashMap<>();
         for (Goal goal : goals) {
             BigDecimal targetCost = targetCost(state, goal, startYear);
             targetCosts.put(goal.id(), targetCost);
-            projectedAllocatedByGoal.put(goal.id(), BigDecimal.ZERO);
+            deadlineAllocatedByGoal.put(goal.id(), BigDecimal.ZERO);
             totalFundedByGoal.put(goal.id(), goal.savedAmount().max(BigDecimal.ZERO));
             if (goal.savedAmount().compareTo(targetCost) >= 0) {
                 completionYears.put(goal.id(), startYear);
-                reachableByGoal.put(goal.id(), true);
             }
         }
 
@@ -810,14 +808,13 @@ public class PlanReadService {
                 BigDecimal allocation = pool.min(remaining);
                 pool = pool.subtract(allocation);
                 monthlyAllocation = monthlyAllocation.add(allocation);
-                projectedAllocatedByGoal.put(goal.id(), projectedAllocatedByGoal.get(goal.id()).add(allocation));
+                if (monthIndex <= targetMonthIndex(goal, startYear, monthsPerYear)) {
+                    deadlineAllocatedByGoal.put(goal.id(), deadlineAllocatedByGoal.get(goal.id()).add(allocation));
+                }
                 BigDecimal nextTotalFunded = totalFundedByGoal.get(goal.id()).add(allocation);
                 totalFundedByGoal.put(goal.id(), nextTotalFunded);
                 if (nextTotalFunded.compareTo(targetCosts.get(goal.id())) >= 0) {
                     completionYears.putIfAbsent(goal.id(), year);
-                    if (monthIndex <= targetMonthIndex(goal, startYear, monthsPerYear)) {
-                        reachableByGoal.putIfAbsent(goal.id(), true);
-                    }
                 }
             }
             allocatedByYear.merge(year, monthlyAllocation, BigDecimal::add);
@@ -830,12 +827,12 @@ public class PlanReadService {
         Map<UUID, GoalAllocation> byGoal = new LinkedHashMap<>();
         for (Goal goal : goals) {
             BigDecimal targetCost = targetCosts.get(goal.id()).setScale(2, RoundingMode.HALF_UP);
-            BigDecimal projectedAmount = projectedAllocatedByGoal.get(goal.id()).min(targetCost).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal projectedAmount = deadlineAllocatedByGoal.get(goal.id()).min(targetCost).setScale(2, RoundingMode.HALF_UP);
             BigDecimal totalFunded = goal.savedAmount().max(BigDecimal.ZERO).add(projectedAmount).min(targetCost).setScale(2, RoundingMode.HALF_UP);
             BigDecimal progressPct = targetCost.signum() == 0
                     ? HUNDRED
                     : totalFunded.multiply(HUNDRED).divide(targetCost, 1, RoundingMode.HALF_UP).min(HUNDRED);
-            boolean reachable = reachableByGoal.getOrDefault(goal.id(), false);
+            boolean reachable = totalFunded.compareTo(targetCost) >= 0;
             byGoal.put(goal.id(), new GoalAllocation(
                     targetCost,
                     projectedAmount,
