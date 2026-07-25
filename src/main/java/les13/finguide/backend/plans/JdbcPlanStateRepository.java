@@ -1,5 +1,8 @@
 package les13.finguide.backend.plans;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import les13.finguide.backend.analytics.ModelAssumptions;
 import les13.finguide.backend.analytics.YearRatePoint;
 import les13.finguide.backend.budget.BudgetEnvelope;
@@ -40,6 +43,8 @@ import java.util.UUID;
 @Repository
 public class JdbcPlanStateRepository implements PlanStateRepository {
     private static final UUID SEEDED_DEMO_PLAN_ID = UUID.fromString("22222222-2222-4222-8222-222222222222");
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final TypeReference<List<YearRatePoint>> YEAR_RATE_POINTS = new TypeReference<>() {};
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -303,7 +308,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                 "select * from incomes where plan_id = ? order by sort_order, name",
                 rs -> {
                     jdbcTemplate.update(
-                            "insert into incomes (id, plan_id, name, amount, currency, frequency, growth_type, growth_pct, start_date, end_date, sort_order, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            "insert into incomes (id, plan_id, name, amount, currency, frequency, growth_type, growth_pct, growth_schedule, start_date, end_date, sort_order, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                             UUID.randomUUID(),
                             planId,
                             rs.getString("name"),
@@ -312,6 +317,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                             rs.getString("frequency"),
                             rs.getString("growth_type"),
                             rs.getBigDecimal("growth_pct"),
+                            rs.getString("growth_schedule"),
                             localDate(rs, "start_date"),
                             localDate(rs, "end_date"),
                             rs.getInt("sort_order"),
@@ -328,7 +334,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                 "select * from expenses where plan_id = ? order by sort_order, name",
                 rs -> {
                     jdbcTemplate.update(
-                            "insert into expenses (id, plan_id, name, amount, currency, frequency, growth_type, growth_pct, growth_label, budget_class, start_date, end_date, sort_order, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            "insert into expenses (id, plan_id, name, amount, currency, frequency, growth_type, growth_pct, growth_schedule, growth_label, budget_class, start_date, end_date, sort_order, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                             UUID.randomUUID(),
                             planId,
                             rs.getString("name"),
@@ -337,6 +343,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                             rs.getString("frequency"),
                             rs.getString("growth_type"),
                             rs.getBigDecimal("growth_pct"),
+                            rs.getString("growth_schedule"),
                             rs.getString("growth_label"),
                             rs.getString("budget_class"),
                             localDate(rs, "start_date"),
@@ -383,7 +390,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
         jdbcTemplate.update("update budget_settings set created_at = ?, updated_at = ? where plan_id = ?", now, now, planId);
         jdbcTemplate.update(
                 "insert into budget_envelopes (id, plan_id, name, limit_amount, icon, color, sort_order, created_at, updated_at) " +
-                        "select random_uuid(), ?, name, limit_amount, icon, color, sort_order, ?, ? from budget_envelopes where plan_id = ?",
+                        "select gen_random_uuid(), ?, name, limit_amount, icon, color, sort_order, ?, ? from budget_envelopes where plan_id = ?",
                 planId,
                 now,
                 now,
@@ -428,7 +435,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     private void cloneOperationJournal(UUID seedPlanId, UUID planId, OffsetDateTime now) {
         jdbcTemplate.update(
                 "insert into operation_journal_entries (id, plan_id, entry_date, title, amount, entry_type, status, created_at, updated_at) " +
-                        "select random_uuid(), ?, entry_date, title, amount, entry_type, status, ?, ? from operation_journal_entries where plan_id = ?",
+                        "select gen_random_uuid(), ?, entry_date, title, amount, entry_type, status, ?, ? from operation_journal_entries where plan_id = ?",
                 planId,
                 now,
                 now,
@@ -439,7 +446,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     private void cloneScenarios(UUID seedPlanId, UUID planId, OffsetDateTime now) {
         jdbcTemplate.update(
                 "insert into scenarios (id, plan_id, name, emoji, description, is_base, income_adj_pct, expense_adj_pct, return_adj_pct, inflation_adj_pct, retirement_age_shift, goals_cost_adj_pct, snapshot_json, created_at, updated_at) " +
-                        "select random_uuid(), ?, name, emoji, description, is_base, income_adj_pct, expense_adj_pct, return_adj_pct, inflation_adj_pct, retirement_age_shift, goals_cost_adj_pct, snapshot_json, ?, ? from scenarios where plan_id = ?",
+                        "select gen_random_uuid(), ?, name, emoji, description, is_base, income_adj_pct, expense_adj_pct, return_adj_pct, inflation_adj_pct, retirement_age_shift, goals_cost_adj_pct, snapshot_json, ?, ? from scenarios where plan_id = ?",
                 planId,
                 now,
                 now,
@@ -537,7 +544,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     public IncomeSource createIncome(IncomeSource income) {
         OffsetDateTime now = offset(income.updatedAt());
         jdbcTemplate.update(
-                "insert into incomes (id, plan_id, name, amount, currency, frequency, growth_type, growth_pct, start_date, end_date, sort_order, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "insert into incomes (id, plan_id, name, amount, currency, frequency, growth_type, growth_pct, growth_schedule, start_date, end_date, sort_order, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 income.id(),
                 income.planId(),
                 income.name(),
@@ -546,6 +553,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                 dbValue(income.frequency()),
                 dbValue(income.growthType()),
                 income.growthPct(),
+                writeGrowthSchedule(income.growthSchedule()),
                 income.startDate(),
                 income.endDate(),
                 nextSortOrder("incomes", income.planId()),
@@ -560,13 +568,14 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     public IncomeSource updateIncome(IncomeSource income) {
         OffsetDateTime now = offset(income.updatedAt());
         jdbcTemplate.update(
-                "update incomes set name = ?, amount = ?, currency = ?, frequency = ?, growth_type = ?, growth_pct = ?, start_date = ?, end_date = ?, updated_at = ? where plan_id = ? and id = ?",
+                "update incomes set name = ?, amount = ?, currency = ?, frequency = ?, growth_type = ?, growth_pct = ?, growth_schedule = ?, start_date = ?, end_date = ?, updated_at = ? where plan_id = ? and id = ?",
                 income.name(),
                 income.amount(),
                 income.currency(),
                 dbValue(income.frequency()),
                 dbValue(income.growthType()),
                 income.growthPct(),
+                writeGrowthSchedule(income.growthSchedule()),
                 income.startDate(),
                 income.endDate(),
                 now,
@@ -609,7 +618,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     public ExpenseItem createExpense(ExpenseItem expense) {
         OffsetDateTime now = offset(expense.updatedAt());
         jdbcTemplate.update(
-                "insert into expenses (id, plan_id, name, amount, currency, frequency, growth_type, growth_pct, growth_label, budget_class, start_date, end_date, sort_order, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "insert into expenses (id, plan_id, name, amount, currency, frequency, growth_type, growth_pct, growth_schedule, growth_label, budget_class, start_date, end_date, sort_order, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 expense.id(),
                 expense.planId(),
                 expense.name(),
@@ -618,6 +627,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                 dbValue(expense.frequency()),
                 dbValue(expense.growthType()),
                 expense.growthPct(),
+                writeGrowthSchedule(expense.growthSchedule()),
                 expense.growthLabel(),
                 dbValue(expense.budgetClass()),
                 expense.startDate(),
@@ -634,13 +644,14 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     public ExpenseItem updateExpense(ExpenseItem expense) {
         OffsetDateTime now = offset(expense.updatedAt());
         jdbcTemplate.update(
-                "update expenses set name = ?, amount = ?, currency = ?, frequency = ?, growth_type = ?, growth_pct = ?, growth_label = ?, budget_class = ?, start_date = ?, end_date = ?, updated_at = ? where plan_id = ? and id = ?",
+                "update expenses set name = ?, amount = ?, currency = ?, frequency = ?, growth_type = ?, growth_pct = ?, growth_schedule = ?, growth_label = ?, budget_class = ?, start_date = ?, end_date = ?, updated_at = ? where plan_id = ? and id = ?",
                 expense.name(),
                 expense.amount(),
                 expense.currency(),
                 dbValue(expense.frequency()),
                 dbValue(expense.growthType()),
                 expense.growthPct(),
+                writeGrowthSchedule(expense.growthSchedule()),
                 expense.growthLabel(),
                 dbValue(expense.budgetClass()),
                 expense.startDate(),
@@ -746,15 +757,14 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     @Override
     public List<Goal> reorderGoals(UUID planId, List<UUID> goalIds) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        List<Object[]> batchArgs = new ArrayList<>();
         for (int index = 0; index < goalIds.size(); index++) {
-            jdbcTemplate.update(
-                    "update goals set priority = ?, updated_at = ? where plan_id = ? and id = ?",
-                    index + 1,
-                    now,
-                    planId,
-                    goalIds.get(index)
-            );
+            batchArgs.add(new Object[]{index + 1, now, planId, goalIds.get(index)});
         }
+        jdbcTemplate.batchUpdate(
+                "update goals set priority = ?, updated_at = ? where plan_id = ? and id = ?",
+                batchArgs
+        );
         touchPlan(planId, now);
         return findGoals(planId);
     }
@@ -1024,32 +1034,24 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     private void insertBudget(UUID planId, BudgetSettings.Method method, List<BudgetEnvelope> envelopes, Map<UUID, BudgetSettings.BudgetClass> classifications, OffsetDateTime now) {
         ensureBudgetSettings(planId, method, now);
         insertBudgetEnvelopes(planId, envelopes, now);
-        classifications.forEach((expenseId, budgetClass) -> jdbcTemplate.update(
+        jdbcTemplate.batchUpdate(
                 "insert into budget_classifications (plan_id, expense_id, budget_class, created_at, updated_at) values (?, ?, ?, ?, ?)",
-                planId,
-                expenseId,
-                dbValue(budgetClass),
-                now,
-                now
-        ));
+                classifications.entrySet().stream()
+                        .map(e -> new Object[]{planId, e.getKey(), dbValue(e.getValue()), now, now})
+                        .toList()
+        );
     }
 
     private void insertBudgetEnvelopes(UUID planId, List<BudgetEnvelope> envelopes, OffsetDateTime now) {
+        List<Object[]> batchArgs = new ArrayList<>();
         for (int index = 0; index < envelopes.size(); index++) {
-            BudgetEnvelope envelope = envelopes.get(index);
-            jdbcTemplate.update(
-                    "insert into budget_envelopes (id, plan_id, name, limit_amount, icon, color, sort_order, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    envelope.id(),
-                    planId,
-                    envelope.name(),
-                    envelope.limit(),
-                    envelope.icon(),
-                    envelope.color(),
-                    index + 1,
-                    now,
-                    now
-            );
+            BudgetEnvelope e = envelopes.get(index);
+            batchArgs.add(new Object[]{e.id(), planId, e.name(), e.limit(), e.icon(), e.color(), index + 1, now, now});
         }
+        jdbcTemplate.batchUpdate(
+                "insert into budget_envelopes (id, plan_id, name, limit_amount, icon, color, sort_order, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                batchArgs
+        );
     }
 
     private List<BudgetEnvelope> findBudgetEnvelopes(UUID planId) {
@@ -1159,6 +1161,11 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
             touchPlan(planId, OffsetDateTime.now(ZoneOffset.UTC));
         }
         return deleted > 0;
+    }
+
+    @Override
+    public List<YearRatePoint> findInflationRates(UUID planId) {
+        return loadInflationRates(planId);
     }
 
     @Override
@@ -1453,6 +1460,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                 enumValue(IncomeSource.Frequency.class, rs.getString("frequency")),
                 enumValue(IncomeSource.GrowthType.class, rs.getString("growth_type")),
                 rs.getBigDecimal("growth_pct"),
+                readGrowthSchedule(rs.getString("growth_schedule")),
                 localDate(rs, "start_date"),
                 localDate(rs, "end_date"),
                 instant(rs, "created_at"),
@@ -1470,6 +1478,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                 enumValue(ExpenseItem.Frequency.class, rs.getString("frequency")),
                 enumValue(ExpenseItem.GrowthType.class, rs.getString("growth_type")),
                 rs.getBigDecimal("growth_pct"),
+                readGrowthSchedule(rs.getString("growth_schedule")),
                 rs.getString("growth_label"),
                 enumValue(ExpenseItem.BudgetClass.class, rs.getString("budget_class")),
                 localDate(rs, "start_date"),
@@ -1498,6 +1507,28 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                 instant(rs, "created_at"),
                 instant(rs, "updated_at")
         );
+    }
+
+    private static List<YearRatePoint> readGrowthSchedule(String value) {
+        if (value == null || value.isBlank()) {
+            return List.of();
+        }
+        try {
+            return OBJECT_MAPPER.readValue(value, YEAR_RATE_POINTS);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Invalid growth schedule JSON", e);
+        }
+    }
+
+    private static String writeGrowthSchedule(List<YearRatePoint> schedule) {
+        if (schedule == null || schedule.isEmpty()) {
+            return null;
+        }
+        try {
+            return OBJECT_MAPPER.writeValueAsString(schedule);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Invalid growth schedule", e);
+        }
     }
 
     private static Instant instant(ResultSet rs, String column) throws SQLException {

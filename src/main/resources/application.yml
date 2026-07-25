@@ -58,3 +58,6 @@ finguide:
     admin-client-id: ${FINGUIDE_KEYCLOAK_ADMIN_CLIENT_ID:admin-cli}
     admin-username: ${FINGUIDE_KEYCLOAK_ADMIN_USERNAME:}
     admin-password: ${FINGUIDE_KEYCLOAK_ADMIN_PASSWORD:}
+    password-reset-client-id: ${FINGUIDE_KEYCLOAK_PASSWORD_RESET_CLIENT_ID:finguide-web}
+    password-reset-max-attempts: ${FINGUIDE_KEYCLOAK_PASSWORD_RESET_MAX_ATTEMPTS:3}
+    password-reset-window: ${FINGUIDE_KEYCLOAK_PASSWORD_RESET_WINDOW:PT1H}

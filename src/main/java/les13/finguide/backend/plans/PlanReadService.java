@@ -19,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.Year;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -135,7 +136,9 @@ public class PlanReadService {
     }
 
     public List<CashFlowProjectionPoint> cashflow(UUID planId) {
-        return cashflow(planId, 12);
+        PlanState state = plan(planId);
+        int horizon = projectionHorizon(state);
+        return cashflow(state, horizon, actualGoalExpensesByYear(state, horizon), monthlyTrackerSavingsByMonth(state, horizon));
     }
 
     public List<Map<String, Object>> monthlyCashflow(UUID planId) {
@@ -328,17 +331,20 @@ public class PlanReadService {
         List<CashFlowProjectionPoint> result = new ArrayList<>();
         for (int offset = 0; offset < horizon; offset++) {
             int year = startYear + offset;
-            BigDecimal monthlyIncome = monthlyIncome(state, offset);
+            BigDecimal monthlyIncomeTotal = monthlyIncomeTotalForYear(state, year, offset);
+            BigDecimal monthlyIncome = monthlyIncomeTotal.divide(TWELVE, 2, RoundingMode.HALF_UP);
             BigDecimal yearlyIncome = yearlyOneTimeIncome(state, offset);
-            BigDecimal totalIncome = monthlyIncome.multiply(TWELVE).add(yearlyIncome);
-            BigDecimal monthlyExpenses = monthlyExpenses(state, offset);
+            BigDecimal totalIncome = monthlyIncomeTotal.add(yearlyIncome);
+            BigDecimal monthlyExpensesTotal = monthlyExpensesTotalForYear(state, year, offset);
+            BigDecimal monthlyExpenses = monthlyExpensesTotal.divide(TWELVE, 2, RoundingMode.HALF_UP);
             BigDecimal yearlyExpenses = yearlyOneTimeExpenses(state, offset);
-            BigDecimal totalExpenses = monthlyExpenses.multiply(TWELVE).add(yearlyExpenses);
-            BigDecimal plannedMonthlySavings = monthlyIncome.subtract(monthlyExpenses);
+            BigDecimal totalExpenses = monthlyExpensesTotal.add(yearlyExpenses);
             BigDecimal monthlySavings = BigDecimal.ZERO;
             BigDecimal plannedGoalExpenses = BigDecimal.ZERO;
             for (int month = 1; month <= 12; month++) {
                 java.time.YearMonth yearMonth = java.time.YearMonth.of(year, month);
+                BigDecimal plannedMonthlySavings = monthlyIncome(state, yearMonth, offset)
+                        .subtract(monthlyExpenses(state, yearMonth, offset));
                 monthlySavings = monthlySavings.add(monthlyTrackerSavingsByMonth.getOrDefault(yearMonth, plannedMonthlySavings));
                 plannedGoalExpenses = plannedGoalExpenses.add(plannedGoalExpensesByMonth.getOrDefault(yearMonth, BigDecimal.ZERO));
             }
@@ -376,15 +382,15 @@ public class PlanReadService {
         List<Map<String, Object>> result = new ArrayList<>();
         for (int offset = 0; offset < horizon; offset++) {
             int year = startYear + offset;
-            BigDecimal monthlyIncome = monthlyIncome(state, offset);
-            BigDecimal monthlyExpenses = monthlyExpenses(state, offset);
-            BigDecimal plannedMonthlySavings = monthlyIncome.subtract(monthlyExpenses);
             BigDecimal yearlyIncome = yearlyOneTimeIncome(state, offset);
             BigDecimal yearlyExpenses = yearlyOneTimeExpenses(state, offset);
             BigDecimal investmentReturn = state.modelAssumptions().investmentReturnPct();
             BigDecimal capitalStartOfYear = capital;
             for (int month = 1; month <= 12; month++) {
                 java.time.YearMonth yearMonth = java.time.YearMonth.of(year, month);
+                BigDecimal monthlyIncome = monthlyIncome(state, yearMonth, offset);
+                BigDecimal monthlyExpenses = monthlyExpenses(state, yearMonth, offset);
+                BigDecimal plannedMonthlySavings = monthlyIncome.subtract(monthlyExpenses);
                 BigDecimal income = monthlyIncome.add(month == 12 ? yearlyIncome : BigDecimal.ZERO);
                 BigDecimal expenses = monthlyExpenses.add(month == 12 ? yearlyExpenses : BigDecimal.ZERO);
                 BigDecimal savings = monthlyTrackerSavingsByMonth.getOrDefault(yearMonth, plannedMonthlySavings);
@@ -465,8 +471,25 @@ public class PlanReadService {
     private static BigDecimal monthlyIncome(PlanState state, int offset) {
         return state.incomes().stream()
                 .filter(item -> item.frequency() == IncomeSource.Frequency.MONTHLY)
-                .map(item -> grow(item.amount(), item.growthPct(), offset))
+                .filter(item -> activeInProjectionYear(item.startDate(), item.endDate(), projectionYear(state, offset)))
+                .map(item -> grow(item.amount(), incomeGrowthPct(state, item), incomeGrowthSchedule(state, item), state.modelAssumptions().startYear(), offset))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private static BigDecimal monthlyIncome(PlanState state, java.time.YearMonth month, int offset) {
+        return state.incomes().stream()
+                .filter(item -> item.frequency() == IncomeSource.Frequency.MONTHLY)
+                .filter(item -> activeInProjectionMonth(item.startDate(), item.endDate(), month))
+                .map(item -> grow(item.amount(), incomeGrowthPct(state, item), incomeGrowthSchedule(state, item), state.modelAssumptions().startYear(), offset))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private static BigDecimal monthlyIncomeTotalForYear(PlanState state, int year, int offset) {
+        BigDecimal total = BigDecimal.ZERO;
+        for (int month = 1; month <= 12; month++) {
+            total = total.add(monthlyIncome(state, java.time.YearMonth.of(year, month), offset));
+        }
+        return total;
     }
 
     private static BigDecimal yearlyIncome(PlanState state) {
@@ -480,7 +503,8 @@ public class PlanReadService {
     private static BigDecimal yearlyOneTimeIncome(PlanState state, int offset) {
         return state.incomes().stream()
                 .filter(item -> item.frequency() == IncomeSource.Frequency.YEARLY || item.frequency() == IncomeSource.Frequency.ONE_TIME)
-                .map(item -> grow(item.amount(), item.growthPct(), offset))
+                .filter(item -> activeInProjectionYear(item.startDate(), item.endDate(), projectionYear(state, offset)))
+                .map(item -> grow(item.amount(), incomeGrowthPct(state, item), incomeGrowthSchedule(state, item), state.modelAssumptions().startYear(), offset))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
@@ -491,8 +515,25 @@ public class PlanReadService {
     private static BigDecimal monthlyExpenses(PlanState state, int offset) {
         return state.expenses().stream()
                 .filter(item -> item.frequency() == ExpenseItem.Frequency.MONTHLY)
-                .map(item -> grow(item.amount(), item.growthPct(), offset))
+                .filter(item -> activeInProjectionYear(item.startDate(), item.endDate(), projectionYear(state, offset)))
+                .map(item -> grow(item.amount(), expenseGrowthPct(state, item), expenseGrowthSchedule(state, item), state.modelAssumptions().startYear(), offset))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private static BigDecimal monthlyExpenses(PlanState state, java.time.YearMonth month, int offset) {
+        return state.expenses().stream()
+                .filter(item -> item.frequency() == ExpenseItem.Frequency.MONTHLY)
+                .filter(item -> activeInProjectionMonth(item.startDate(), item.endDate(), month))
+                .map(item -> grow(item.amount(), expenseGrowthPct(state, item), expenseGrowthSchedule(state, item), state.modelAssumptions().startYear(), offset))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private static BigDecimal monthlyExpensesTotalForYear(PlanState state, int year, int offset) {
+        BigDecimal total = BigDecimal.ZERO;
+        for (int month = 1; month <= 12; month++) {
+            total = total.add(monthlyExpenses(state, java.time.YearMonth.of(year, month), offset));
+        }
+        return total;
     }
 
     private static BigDecimal yearlyExpenses(PlanState state) {
@@ -506,8 +547,49 @@ public class PlanReadService {
     private static BigDecimal yearlyOneTimeExpenses(PlanState state, int offset) {
         return state.expenses().stream()
                 .filter(item -> item.frequency() == ExpenseItem.Frequency.YEARLY || item.frequency() == ExpenseItem.Frequency.ONE_TIME)
-                .map(item -> grow(item.amount(), item.growthPct(), offset))
+                .filter(item -> activeInProjectionYear(item.startDate(), item.endDate(), projectionYear(state, offset)))
+                .map(item -> grow(item.amount(), expenseGrowthPct(state, item), expenseGrowthSchedule(state, item), state.modelAssumptions().startYear(), offset))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private static int projectionYear(PlanState state, int offset) {
+        return Math.max(Year.now().getValue(), state.modelAssumptions().startYear()) + offset;
+    }
+
+    private static boolean activeInProjectionYear(LocalDate startDate, LocalDate endDate, int year) {
+        LocalDate yearStart = LocalDate.of(year, 1, 1);
+        LocalDate yearEnd = LocalDate.of(year, 12, 31);
+        boolean started = startDate == null || !startDate.isAfter(yearEnd);
+        boolean notEnded = endDate == null || !endDate.isBefore(yearStart);
+        return started && notEnded;
+    }
+
+    private static boolean activeInProjectionMonth(LocalDate startDate, LocalDate endDate, java.time.YearMonth month) {
+        LocalDate monthStart = month.atDay(1);
+        LocalDate monthEnd = month.atEndOfMonth();
+        boolean started = startDate == null || !startDate.isAfter(monthEnd);
+        boolean notEnded = endDate == null || !endDate.isBefore(monthStart);
+        return started && notEnded;
+    }
+
+    private static BigDecimal incomeGrowthPct(PlanState state, IncomeSource item) {
+        return item.growthType() == IncomeSource.GrowthType.INFLATION ? state.pension().inflationPct() : item.growthPct();
+    }
+
+    private static List<les13.finguide.backend.analytics.YearRatePoint> incomeGrowthSchedule(PlanState state, IncomeSource item) {
+        return item.growthType() == IncomeSource.GrowthType.INFLATION && (item.growthSchedule() == null || item.growthSchedule().isEmpty())
+                ? state.modelAssumptions().inflationSchedule()
+                : item.growthSchedule();
+    }
+
+    private static BigDecimal expenseGrowthPct(PlanState state, ExpenseItem item) {
+        return item.growthType() == ExpenseItem.GrowthType.INFLATION ? state.pension().inflationPct() : item.growthPct();
+    }
+
+    private static List<les13.finguide.backend.analytics.YearRatePoint> expenseGrowthSchedule(PlanState state, ExpenseItem item) {
+        return item.growthType() == ExpenseItem.GrowthType.INFLATION && (item.growthSchedule() == null || item.growthSchedule().isEmpty())
+                ? state.modelAssumptions().inflationSchedule()
+                : item.growthSchedule();
     }
 
     private static BigDecimal average(List<BigDecimal> values) {
@@ -518,12 +600,28 @@ public class PlanReadService {
     }
 
     private static BigDecimal grow(BigDecimal value, BigDecimal growthPct, int years) {
+        return grow(value, growthPct, List.of(), 0, years);
+    }
+
+    private static BigDecimal grow(BigDecimal value, BigDecimal growthPct, List<les13.finguide.backend.analytics.YearRatePoint> schedule, int startYear, int years) {
         BigDecimal result = value;
-        BigDecimal multiplier = BigDecimal.ONE.add(growthPct.divide(HUNDRED, 8, RoundingMode.HALF_UP));
         for (int i = 0; i < years; i++) {
+            BigDecimal ratePct = growthRateForYear(schedule, startYear + i, growthPct);
+            BigDecimal multiplier = BigDecimal.ONE.add(ratePct.divide(HUNDRED, 8, RoundingMode.HALF_UP));
             result = result.multiply(multiplier);
         }
         return result.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private static BigDecimal growthRateForYear(List<les13.finguide.backend.analytics.YearRatePoint> schedule, int year, BigDecimal fallback) {
+        if (schedule == null || schedule.isEmpty()) {
+            return fallback;
+        }
+        return schedule.stream()
+                .filter(point -> point.year() == year)
+                .map(les13.finguide.backend.analytics.YearRatePoint::ratePct)
+                .findFirst()
+                .orElse(fallback);
     }
 
     private static BigDecimal goalsForYear(PlanState state, int year) {
@@ -541,6 +639,10 @@ public class PlanReadService {
     }
 
     private static int projectionHorizon(PlanState state) {
+        Integer horizonYears = state.modelAssumptions().horizonYears();
+        if (horizonYears != null) {
+            return Math.max(1, horizonYears);
+        }
         int currentYear = Math.max(Year.now().getValue(), state.modelAssumptions().startYear());
         int latestGoalYear = state.goals().stream().mapToInt(Goal::targetYear).max().orElse(currentYear);
         return Math.max(1, latestGoalYear - currentYear + 1);
@@ -576,7 +678,7 @@ public class PlanReadService {
             if (goal.targetYear() < startYear || goal.targetYear() > endYear) {
                 continue;
             }
-            BigDecimal targetCost = targetCost(goal, startYear);
+            BigDecimal targetCost = targetCost(state, goal, startYear);
             BigDecimal remaining = targetCost.subtract(goal.savedAmount()).max(BigDecimal.ZERO);
             byMonth.merge(java.time.YearMonth.of(goal.targetYear(), goal.targetMonth()), remaining, BigDecimal::add);
         }
@@ -598,13 +700,15 @@ public class PlanReadService {
                 .toList();
 
         Map<UUID, BigDecimal> targetCosts = new LinkedHashMap<>();
-        Map<UUID, BigDecimal> allocatedByGoal = new LinkedHashMap<>();
+        Map<UUID, BigDecimal> projectedAllocatedByGoal = new LinkedHashMap<>();
+        Map<UUID, BigDecimal> totalFundedByGoal = new LinkedHashMap<>();
         Map<UUID, Integer> completionYears = new HashMap<>();
         Map<UUID, Boolean> reachableByGoal = new HashMap<>();
         for (Goal goal : goals) {
-            BigDecimal targetCost = targetCost(goal, startYear);
+            BigDecimal targetCost = targetCost(state, goal, startYear);
             targetCosts.put(goal.id(), targetCost);
-            allocatedByGoal.put(goal.id(), goal.savedAmount().max(BigDecimal.ZERO));
+            projectedAllocatedByGoal.put(goal.id(), BigDecimal.ZERO);
+            totalFundedByGoal.put(goal.id(), goal.savedAmount().max(BigDecimal.ZERO));
             if (goal.savedAmount().compareTo(targetCost) >= 0) {
                 completionYears.put(goal.id(), startYear);
                 reachableByGoal.put(goal.id(), true);
@@ -619,22 +723,28 @@ public class PlanReadService {
             int month = ((monthIndex - 1) % monthsPerYear) + 1;
             int year = startYear + offset;
             java.time.YearMonth yearMonth = java.time.YearMonth.of(year, month);
-            BigDecimal plannedMonthlyFreeCashflow = freeCashflow(state, offset).divide(BigDecimal.valueOf(monthsPerYear), 2, RoundingMode.HALF_UP);
+            BigDecimal yearlyFreeCashflowShare = yearlyOneTimeIncome(state, offset)
+                    .subtract(yearlyOneTimeExpenses(state, offset))
+                    .divide(BigDecimal.valueOf(monthsPerYear), 2, RoundingMode.HALF_UP);
+            BigDecimal plannedMonthlyFreeCashflow = monthlyIncome(state, yearMonth, offset)
+                    .subtract(monthlyExpenses(state, yearMonth, offset))
+                    .add(yearlyFreeCashflowShare);
             BigDecimal monthlyFreeCashflow = monthlyTrackerSavingsByMonth.getOrDefault(yearMonth, plannedMonthlyFreeCashflow);
             BigDecimal actualGoalExpenses = month == 1 ? actualGoalExpensesByYear.getOrDefault(year, BigDecimal.ZERO) : BigDecimal.ZERO;
             pool = pool.add(monthlyFreeCashflow.subtract(actualGoalExpenses));
             BigDecimal monthlyAllocation = BigDecimal.ZERO;
             for (Goal goal : goals) {
-                BigDecimal remaining = targetCosts.get(goal.id()).subtract(allocatedByGoal.get(goal.id())).max(BigDecimal.ZERO);
+                BigDecimal remaining = targetCosts.get(goal.id()).subtract(totalFundedByGoal.get(goal.id())).max(BigDecimal.ZERO);
                 if (remaining.signum() == 0 || pool.signum() <= 0) {
                     continue;
                 }
                 BigDecimal allocation = pool.min(remaining);
                 pool = pool.subtract(allocation);
                 monthlyAllocation = monthlyAllocation.add(allocation);
-                BigDecimal nextAllocated = allocatedByGoal.get(goal.id()).add(allocation);
-                allocatedByGoal.put(goal.id(), nextAllocated);
-                if (nextAllocated.compareTo(targetCosts.get(goal.id())) >= 0) {
+                projectedAllocatedByGoal.put(goal.id(), projectedAllocatedByGoal.get(goal.id()).add(allocation));
+                BigDecimal nextTotalFunded = totalFundedByGoal.get(goal.id()).add(allocation);
+                totalFundedByGoal.put(goal.id(), nextTotalFunded);
+                if (nextTotalFunded.compareTo(targetCosts.get(goal.id())) >= 0) {
                     completionYears.putIfAbsent(goal.id(), year);
                     if (monthIndex <= targetMonthIndex(goal, startYear, monthsPerYear)) {
                         reachableByGoal.putIfAbsent(goal.id(), true);
@@ -651,14 +761,15 @@ public class PlanReadService {
         Map<UUID, GoalAllocation> byGoal = new LinkedHashMap<>();
         for (Goal goal : goals) {
             BigDecimal targetCost = targetCosts.get(goal.id()).setScale(2, RoundingMode.HALF_UP);
-            BigDecimal savedAmount = allocatedByGoal.get(goal.id()).min(targetCost).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal projectedAmount = projectedAllocatedByGoal.get(goal.id()).min(targetCost).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal totalFunded = goal.savedAmount().max(BigDecimal.ZERO).add(projectedAmount).min(targetCost).setScale(2, RoundingMode.HALF_UP);
             BigDecimal progressPct = targetCost.signum() == 0
                     ? HUNDRED
-                    : savedAmount.multiply(HUNDRED).divide(targetCost, 1, RoundingMode.HALF_UP).min(HUNDRED);
+                    : totalFunded.multiply(HUNDRED).divide(targetCost, 1, RoundingMode.HALF_UP).min(HUNDRED);
             boolean reachable = reachableByGoal.getOrDefault(goal.id(), false);
             byGoal.put(goal.id(), new GoalAllocation(
                     targetCost,
-                    savedAmount,
+                    projectedAmount,
                     progressPct,
                     reachable,
                     completionYears.get(goal.id())
@@ -681,11 +792,12 @@ public class PlanReadService {
         return Math.max(1, (goal.targetYear() - startYear) * monthsPerYear + goal.targetMonth());
     }
 
-    private static BigDecimal targetCost(Goal goal, int currentYear) {
+    private static BigDecimal targetCost(PlanState state, Goal goal, int currentYear) {
         if (goal.growthType() == Goal.GrowthType.NONE) {
             return goal.currentCost().setScale(2, RoundingMode.HALF_UP);
         }
-        return grow(goal.currentCost(), goal.growthPct(), Math.max(0, goal.targetYear() - currentYear));
+        BigDecimal growthPct = goal.growthType() == Goal.GrowthType.INFLATION ? state.pension().inflationPct() : goal.growthPct();
+        return grow(goal.currentCost(), growthPct, Math.max(0, goal.targetYear() - currentYear));
     }
 
     private record GoalAllocationPlan(Map<UUID, GoalAllocation> byGoal, Map<Integer, BigDecimal> byYear) {

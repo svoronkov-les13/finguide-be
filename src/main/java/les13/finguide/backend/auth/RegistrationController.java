@@ -28,4 +28,11 @@ public class RegistrationController {
         return ResponseEntity.created(URI.create("/api/v1/auth/register"))
                 .body(ApiEnvelope.of(Map.of("email", request.email())));
     }
+
+    @PostMapping("/password/forgot")
+    @ApiResponse(responseCode = "202", description = "Password reset email accepted")
+    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody PasswordResetRequest request) {
+        registrationService.requestPasswordReset(request);
+        return ResponseEntity.accepted().build();
+    }
 }

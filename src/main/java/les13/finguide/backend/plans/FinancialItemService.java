@@ -11,9 +11,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import les13.finguide.backend.analytics.YearRatePoint;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.Year;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -62,6 +65,7 @@ public class FinancialItemService {
                 enumValue(IncomeSource.Frequency.class, request.frequency(), "frequency"),
                 enumValue(IncomeSource.GrowthType.class, request.growthType(), "growthType"),
                 percent(defaultBigDecimal(request.growthPct(), ZERO), "growthPct"),
+                validatedGrowthSchedule(request.growthSchedule()),
                 required(request.startDate(), "startDate"),
                 request.endDate(),
                 now,
@@ -88,6 +92,7 @@ public class FinancialItemService {
                 enumValueOrCurrent(IncomeSource.Frequency.class, request.frequency(), current.frequency(), "frequency"),
                 enumValueOrCurrent(IncomeSource.GrowthType.class, request.growthType(), current.growthType(), "growthType"),
                 percent(valueOrCurrent(request.growthPct(), current.growthPct()), "growthPct"),
+                request.growthSchedule() == null ? current.growthSchedule() : validatedGrowthSchedule(request.growthSchedule()),
                 valueOrCurrent(request.startDate(), current.startDate()),
                 request.endDate() == null ? current.endDate() : request.endDate(),
                 current.createdAt(),
@@ -132,6 +137,7 @@ public class FinancialItemService {
                 enumValue(ExpenseItem.Frequency.class, request.frequency(), "frequency"),
                 enumValue(ExpenseItem.GrowthType.class, request.growthType(), "growthType"),
                 percent(defaultBigDecimal(request.growthPct(), ZERO), "growthPct"),
+                validatedGrowthSchedule(request.growthSchedule()),
                 request.growthLabel(),
                 enumValueOrDefault(ExpenseItem.BudgetClass.class, request.budgetClass(), ExpenseItem.BudgetClass.NEEDS, "budgetClass"),
                 required(request.startDate(), "startDate"),
@@ -160,6 +166,7 @@ public class FinancialItemService {
                 enumValueOrCurrent(ExpenseItem.Frequency.class, request.frequency(), current.frequency(), "frequency"),
                 enumValueOrCurrent(ExpenseItem.GrowthType.class, request.growthType(), current.growthType(), "growthType"),
                 percent(valueOrCurrent(request.growthPct(), current.growthPct()), "growthPct"),
+                request.growthSchedule() == null ? current.growthSchedule() : validatedGrowthSchedule(request.growthSchedule()),
                 request.growthLabel() == null ? current.growthLabel() : request.growthLabel(),
                 enumValueOrCurrent(ExpenseItem.BudgetClass.class, request.budgetClass(), current.budgetClass(), "budgetClass"),
                 valueOrCurrent(request.startDate(), current.startDate()),
@@ -198,6 +205,8 @@ public class FinancialItemService {
         requireWritablePlan(planId);
         Instant now = Instant.now();
         int priority = request.priority() == null ? repository.findGoals(planId).size() + 1 : positiveInteger(request.priority(), "priority");
+        Goal.GrowthType growthType = enumValue(Goal.GrowthType.class, request.growthType(), "growthType");
+        BigDecimal growthPct = resolveGrowthPct(planId, growthType, request.growthPct());
         Goal goal = new Goal(
                 UUID.randomUUID(),
                 planId,
@@ -209,8 +218,8 @@ public class FinancialItemService {
                 targetYear(required(request.targetYear(), "targetYear")),
                 targetMonth(request.targetMonth()),
                 enumValue(Goal.Type.class, request.type(), "type"),
-                enumValue(Goal.GrowthType.class, request.growthType(), "growthType"),
-                percent(defaultBigDecimal(request.growthPct(), ZERO), "growthPct"),
+                growthType,
+                percent(growthPct, "growthPct"),
                 request.indexLabel(),
                 priority,
                 now,
@@ -272,6 +281,36 @@ public class FinancialItemService {
         List<Goal> reordered = repository.reorderGoals(planId, goalIds);
         auditLog.info("financial_items_reordered type=goal planId={} count={}", planId, reordered.size());
         return reordered;
+    }
+
+    private BigDecimal resolveGrowthPct(UUID planId, Goal.GrowthType growthType, BigDecimal requested) {
+        if (requested != null || growthType != Goal.GrowthType.INFLATION) {
+            return defaultBigDecimal(requested, ZERO);
+        }
+        int currentYear = Year.now().getValue();
+        List<YearRatePoint> rates = repository.findInflationRates(planId);
+        return rates.stream()
+                .filter(p -> p.year() == currentYear)
+                .map(YearRatePoint::ratePct)
+                .findFirst()
+                .or(() -> rates.stream().findFirst().map(YearRatePoint::ratePct))
+                .orElse(ZERO);
+    }
+
+    private static List<YearRatePoint> validatedGrowthSchedule(List<YearRatePoint> schedule) {
+        if (schedule == null) {
+            return List.of();
+        }
+        schedule.forEach(point -> {
+            if (point == null) {
+                throw badRequest("growthSchedule contains an empty point");
+            }
+            if (point.year() < 1900 || point.year() > 2200) {
+                throw badRequest("growthSchedule.year must be between 1900 and 2200");
+            }
+            percent(point.ratePct(), "growthSchedule.ratePct");
+        });
+        return List.copyOf(schedule);
     }
 
     private void requirePlan(UUID planId) {

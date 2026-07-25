@@ -53,12 +53,18 @@ class FinancialItemControllerTests {
                                   "frequency": "yearly",
                                   "growthType": "manual",
                                   "growthPct": 3,
+                                  "growthSchedule": [
+                                    { "year": 2026, "ratePct": 3 },
+                                    { "year": 2027, "ratePct": 5 }
+                                  ],
                                   "startDate": "2026-01-01"
                                 }
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.id").exists())
                 .andExpect(jsonPath("$.data.name").value("Бонус"))
+                .andExpect(jsonPath("$.data.growthSchedule[0].year").value(2026))
+                .andExpect(jsonPath("$.data.growthSchedule[1].ratePct").value(5))
                 .andReturn().getResponse().getContentAsString();
         String createdId = objectMapper.readTree(createdBody).at("/data/id").asText();
 
@@ -69,10 +75,20 @@ class FinancialItemControllerTests {
         mockMvc.perform(patch("/api/v1/plans/{planId}/incomes/{id}", planId, createdId)
                         .with(userJwt())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"amount\":75000,\"growthPct\":4}"))
+                        .content("""
+                                {
+                                  "amount": 75000,
+                                  "growthPct": 4,
+                                  "growthSchedule": [
+                                    { "year": 2028, "ratePct": 6 }
+                                  ]
+                                }
+                                """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.amount").value(75000))
-                .andExpect(jsonPath("$.data.growthPct").value(4));
+                .andExpect(jsonPath("$.data.growthPct").value(4))
+                .andExpect(jsonPath("$.data.growthSchedule[0].year").value(2028))
+                .andExpect(jsonPath("$.data.growthSchedule[0].ratePct").value(6));
 
         mockMvc.perform(delete("/api/v1/plans/{planId}/incomes/{id}", planId, createdId).with(userJwt()))
                 .andExpect(status().isNoContent());

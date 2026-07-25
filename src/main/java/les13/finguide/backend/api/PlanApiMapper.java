@@ -113,11 +113,13 @@ public class PlanApiMapper {
 
     public Map<String, Object> income(IncomeSource income) {
         Map<String, Object> result = baseCashItem(income.id(), income.name(), income.amount(), income.currency(), income.frequency(), income.growthType(), income.growthPct(), income.startDate(), income.endDate(), income.createdAt(), income.updatedAt());
+        result.put("growthSchedule", rateSchedule(income.growthSchedule()));
         return result;
     }
 
     public Map<String, Object> expense(ExpenseItem expense) {
         Map<String, Object> result = baseCashItem(expense.id(), expense.name(), expense.amount(), expense.currency(), expense.frequency(), expense.growthType(), expense.growthPct(), expense.startDate(), expense.endDate(), expense.createdAt(), expense.updatedAt());
+        result.put("growthSchedule", rateSchedule(expense.growthSchedule()));
         result.put("growthLabel", expense.growthLabel());
         result.put("budgetClass", apiValue(expense.budgetClass()));
         return result;
@@ -374,6 +376,12 @@ public class PlanApiMapper {
         result.put("createdAt", createdAt);
         result.put("updatedAt", updatedAt);
         return result;
+    }
+
+    private List<Map<String, Object>> rateSchedule(List<les13.finguide.backend.analytics.YearRatePoint> schedule) {
+        return schedule == null ? List.of() : schedule.stream()
+                .map(point -> Map.<String, Object>of("year", point.year(), "ratePct", point.ratePct()))
+                .toList();
     }
 
     private static String apiValue(Enum<?> value) {

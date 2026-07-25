@@ -9,6 +9,7 @@ import les13.finguide.backend.expenses.ExpenseItem;
 import les13.finguide.backend.goals.Goal;
 import les13.finguide.backend.incomes.IncomeSource;
 import les13.finguide.backend.analytics.ModelAssumptions;
+import les13.finguide.backend.analytics.YearRatePoint;
 import les13.finguide.backend.pension.PensionSettings;
 import les13.finguide.backend.scenarios.Scenario;
 
@@ -110,6 +111,8 @@ public interface PlanStateRepository {
     Scenario updateScenario(Scenario scenario);
 
     boolean deleteScenario(UUID planId, UUID scenarioId);
+
+    List<YearRatePoint> findInflationRates(UUID planId);
 
     ModelAssumptions updateModelAssumptions(UUID planId, ModelAssumptions assumptions);
 
