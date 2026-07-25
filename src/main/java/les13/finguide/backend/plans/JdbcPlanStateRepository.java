@@ -823,52 +823,6 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     }
 
     @Override
-    public void recalculateGoalSavedAmount(UUID planId, UUID goalId) {
-        List<GoalSavingsTarget> goals = jdbcTemplate.query(
-                "select id, current_cost from goals where plan_id = ? order by target_year, target_month, priority, id",
-                (rs, rowNum) -> new GoalSavingsTarget(rs.getObject("id", UUID.class), rs.getBigDecimal("current_cost")),
-                planId
-        );
-        if (goals.isEmpty()) {
-            return;
-        }
-
-        Map<UUID, BigDecimal> manualByGoal = new LinkedHashMap<>();
-        jdbcTemplate.query(
-                "select goal_id, coalesce(sum(amount), 0) amount from contributions where plan_id = ? group by goal_id",
-                (RowCallbackHandler) rs -> manualByGoal.put(rs.getObject("goal_id", UUID.class), rs.getBigDecimal("amount")),
-                planId
-        );
-        BigDecimal journalGeneratedPool = queryOptional(
-                "select coalesce(sum(amount), 0) from operation_journal_entries where plan_id = ? and entry_type = 'goal' and status = 'actual' and amount > 0",
-                (rs, rowNum) -> rs.getBigDecimal(1),
-                planId
-        ).orElse(BigDecimal.ZERO);
-        BigDecimal monthlyGeneratedPool = queryOptional(
-                "select coalesce(sum(amount), 0) from monthly_tracker_entries where plan_id = ? and amount > 0",
-                (rs, rowNum) -> rs.getBigDecimal(1),
-                planId
-        ).orElse(BigDecimal.ZERO);
-        BigDecimal generatedPool = journalGeneratedPool.add(monthlyGeneratedPool);
-
-        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        BigDecimal overflow = generatedPool.max(BigDecimal.ZERO);
-        List<Object[]> batchArgs = new ArrayList<>();
-        for (GoalSavingsTarget goal : goals) {
-            BigDecimal available = overflow.add(manualByGoal.getOrDefault(goal.id(), BigDecimal.ZERO).max(BigDecimal.ZERO));
-            BigDecimal target = goal.currentCost().max(BigDecimal.ZERO);
-            BigDecimal saved = available.min(target).setScale(2, RoundingMode.HALF_UP);
-            overflow = available.subtract(saved).max(BigDecimal.ZERO);
-            batchArgs.add(new Object[]{saved, now, planId, goal.id()});
-        }
-        jdbcTemplate.batchUpdate(
-                "update goals set saved_amount = ?, updated_at = ? where plan_id = ? and id = ?",
-                batchArgs
-        );
-        touchPlan(planId, now);
-    }
-
-    @Override
     public BudgetSettings findBudget(UUID planId) {
         BudgetSettings.Method method = queryOptional(
                 "select method from budget_settings where plan_id = ?",
@@ -1279,9 +1233,6 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
 
     private static String dbValue(Enum<?> value) {
         return value.name().toLowerCase();
-    }
-
-    private record GoalSavingsTarget(UUID id, BigDecimal currentCost) {
     }
 
     private record PlanCore(FinancialPlan plan, UserProfile profile, PensionSettings pension, ModelAssumptions assumptions) {

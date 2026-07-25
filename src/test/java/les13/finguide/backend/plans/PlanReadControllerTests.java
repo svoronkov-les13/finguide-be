@@ -12,6 +12,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.lessThan;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -318,17 +319,93 @@ class PlanReadControllerTests {
                 .findFirst()
                 .orElseThrow();
         assertThat(goal.get("projectedReachable").asBoolean()).isTrue();
-        assertThat(goal.get("projectedCompletionYear").asInt()).isGreaterThan(2026);
+        assertThat(goal.get("projectedCompletionYear").asInt()).isEqualTo(2026);
 
         JsonNode negativeCapitalGoal = java.util.stream.StreamSupport.stream(objectMapper.readTree(body).at("/data/goals").spliterator(), false)
-                .filter(node -> node.get("targetYear").asInt() == 2029)
+                .filter(node -> node.get("targetYear").asInt() == 2028)
                 .findFirst()
                 .orElseThrow();
         assertThat(negativeCapitalGoal.get("projectedReachable").asBoolean()).isFalse();
     }
 
     @Test
-    void actualGoalContributionsReduceCurrentYearCapital() throws Exception {
+    void goalCanBeFundedAtTargetMonthEvenWhenYearEndCapitalTurnsNegative() throws Exception {
+        String subject = "goal-funded-before-year-end-owner";
+        String planId = currentPlanId(subject);
+
+        String createdBody = mockMvc.perform(post("/api/v1/plans/{planId}/goals", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Goal Funded Before Year End Owner")
+                                .claim("preferred_username", subject)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "January purchase",
+                                  "currentCost": 1000000,
+                                  "currency": "RUB",
+                                  "targetYear": 2026,
+                                  "targetMonth": 1,
+                                  "type": "one_time",
+                                  "growthType": "none",
+                                  "growthPct": 0,
+                                  "priority": 1
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String goalId = objectMapper.readTree(createdBody).at("/data/id").asText();
+
+        mockMvc.perform(post("/api/v1/plans/{planId}/expenses", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Goal Funded Before Year End Owner")
+                                .claim("preferred_username", subject)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "Temporary burn",
+                                  "amount": 500000,
+                                  "currency": "RUB",
+                                  "frequency": "monthly",
+                                  "growthType": "none",
+                                  "growthPct": 0,
+                                  "growthLabel": "No growth",
+                                  "budgetClass": "needs",
+                                  "startDate": "2026-01-01"
+                                }
+                                """))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/v1/plans/{planId}/analytics/cashflow", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Goal Funded Before Year End Owner")
+                                .claim("preferred_username", subject))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].totalGoalExpenses", greaterThan(0.0)))
+                .andExpect(jsonPath("$.data[0].capitalEndOfYear", lessThan(0.0)));
+
+        String body = mockMvc.perform(get("/api/v1/plans/current")
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Goal Funded Before Year End Owner")
+                                .claim("preferred_username", subject))))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        JsonNode goal = java.util.stream.StreamSupport.stream(objectMapper.readTree(body).at("/data/goals").spliterator(), false)
+                .filter(node -> goalId.equals(node.get("id").asText()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(goal.get("projectedSavedAmount").decimalValue()).isEqualByComparingTo("1000000.00");
+        assertThat(goal.get("projectedProgressPct").decimalValue()).isEqualByComparingTo("100.0");
+        assertThat(goal.get("projectedReachable").asBoolean()).isTrue();
+        assertThat(goal.get("projectedCompletionYear").asInt()).isEqualTo(2026);
+    }
+
+    @Test
+    void contributionLedgerDoesNotReduceCurrentYearCapital() throws Exception {
         String subject = "actual-goal-outflow-owner";
         String planId = currentPlanId(subject);
         String currentPlan = mockMvc.perform(get("/api/v1/plans/current")
@@ -347,15 +424,15 @@ class PlanReadControllerTests {
                                 .claim("preferred_username", subject)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {
-                                  "goalId": "%s",
-                                  "amount": 3000000,
+                {
+                  "goalId": "%s",
+                  "amount": 3000000,
                                   "currency": "RUB",
                                   "date": "2026-05-15",
                                   "note": "close goal"
-                                }
-                                """.formatted(goalId)))
-                .andExpect(status().isCreated());
+                }
+                """.formatted(goalId)))
+                .andExpect(status().isBadRequest());
 
         mockMvc.perform(get("/api/v1/plans/{planId}/analytics/cashflow", planId)
                         .with(jwt().jwt(token -> token.subject(subject)
@@ -363,9 +440,9 @@ class PlanReadControllerTests {
                                 .claim("name", "Actual Goal Outflow Owner")
                                 .claim("preferred_username", subject))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[0].totalGoalExpenses").value(3000000))
-                .andExpect(jsonPath("$.data[0].netSavings").value(-468000))
-                .andExpect(jsonPath("$.data[0].capitalEndOfYear").value(2182000.0));
+                .andExpect(jsonPath("$.data[0].totalGoalExpenses").value(0))
+                .andExpect(jsonPath("$.data[0].netSavings").value(2532000))
+                .andExpect(jsonPath("$.data[0].capitalEndOfYear").value(5182000.0));
     }
 
     @Test

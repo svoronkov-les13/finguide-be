@@ -206,7 +206,8 @@ class BudgetTrackerControllerTests {
 
         mockMvc.perform(get("/api/v1/plans/current").with(jwt))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.goals[0].savedAmount").value(150000));
+                .andExpect(jsonPath("$.data.goals[0].savedAmount").value(0))
+                .andExpect(jsonPath("$.data.goals[0].projectedSavedAmount").exists());
 
         mockMvc.perform(post("/api/v1/plans/{planId}/calendar/monthly-tracker", planId)
                         .with(jwt)
@@ -230,29 +231,15 @@ class BudgetTrackerControllerTests {
 
         mockMvc.perform(get("/api/v1/plans/current").with(jwt))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.goals[0].savedAmount").value(75000));
+                .andExpect(jsonPath("$.data.goals[0].savedAmount").value(0))
+                .andExpect(jsonPath("$.data.goals[0].projectedSavedAmount").exists());
     }
 
     @Test
-    void actualGoalTrackerEntriesContributeToGoalsAndOverflowByYearThenPriority() throws Exception {
+    void rejectsGoalOperationJournalEntries() throws Exception {
         RequestPostProcessor jwt = userJwt("operation-journal-goal-owner");
         JsonNode current = currentPlan(jwt);
         String planId = current.at("/data/id").asText();
-        String firstGoalId = current.at("/data/goals/0/id").asText();
-
-        mockMvc.perform(post("/api/v1/plans/{planId}/contributions", planId)
-                        .with(jwt)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "goalId": "%s",
-                                  "amount": 1000000,
-                                  "currency": "RUB",
-                                  "date": "2026-05-14",
-                                  "note": "Manual deposit"
-                                }
-                                """.formatted(firstGoalId)))
-                .andExpect(status().isCreated());
 
         mockMvc.perform(post("/api/v1/plans/{planId}/tracker/entries", planId)
                         .with(jwt)
@@ -266,17 +253,17 @@ class BudgetTrackerControllerTests {
                                   "status": "actual"
                                 }
                                 """))
-                .andExpect(status().isCreated());
+                .andExpect(status().isBadRequest());
 
         mockMvc.perform(get("/api/v1/plans/current").with(jwt))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.goals[0].savedAmount").value(1500000))
+                .andExpect(jsonPath("$.data.goals[0].savedAmount").value(0))
                 .andExpect(jsonPath("$.data.goals[1].savedAmount").value(0))
-                .andExpect(jsonPath("$.data.goals[2].savedAmount").value(100000));
+                .andExpect(jsonPath("$.data.goals[2].savedAmount").value(0));
     }
 
     @Test
-    void monthlyTrackerAmountsOverflowToNextGoalByYearThenPriority() throws Exception {
+    void monthlyTrackerAmountsDoNotRewriteGoalSavedAmount() throws Exception {
         RequestPostProcessor jwt = userJwt("monthly-tracker-overflow-owner");
         String planId = currentPlan(jwt).at("/data/id").asText();
 
@@ -309,11 +296,13 @@ class BudgetTrackerControllerTests {
         mockMvc.perform(get("/api/v1/plans/current").with(jwt))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.goals[0].name").value("Финансовая подушка"))
-                .andExpect(jsonPath("$.data.goals[0].savedAmount").value(1500000))
+                .andExpect(jsonPath("$.data.goals[0].savedAmount").value(0))
+                .andExpect(jsonPath("$.data.goals[0].projectedSavedAmount").exists())
                 .andExpect(jsonPath("$.data.goals[1].name").value("Первый взнос на квартиру"))
                 .andExpect(jsonPath("$.data.goals[1].savedAmount").value(0))
                 .andExpect(jsonPath("$.data.goals[2].name").value("Новый автомобиль"))
-                .andExpect(jsonPath("$.data.goals[2].savedAmount").value(100000));
+                .andExpect(jsonPath("$.data.goals[2].savedAmount").value(0))
+                .andExpect(jsonPath("$.data.goals[2].projectedSavedAmount").exists());
     }
 
     @Test

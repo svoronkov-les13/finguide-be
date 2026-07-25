@@ -115,7 +115,6 @@ public class BudgetTrackerService {
         Instant now = Instant.now();
         BigDecimal amount = nonNegative(request.amount() == null ? BigDecimal.ZERO : request.amount(), "amount");
         repository.upsertMonthlyTrackerEntry(planId, new MonthlyTrackerEntry(month, status, amount, request.note(), now, now));
-        repository.recalculateGoalSavedAmount(planId, null);
     }
 
     public List<OperationJournalEntry> operationJournal(UUID planId, Integer year, Integer month) {
@@ -133,18 +132,19 @@ public class BudgetTrackerService {
     public OperationJournalEntry createOperationJournalEntry(UUID planId, BudgetTrackerRequests.OperationJournalEntryRequest request) {
         accessService.requireWritablePlan(planId);
         Instant now = Instant.now();
+        OperationJournalEntry.Type type = parseOperationType(requiredText(request.type(), "type"));
+        rejectGoalOperationType(type);
         OperationJournalEntry created = repository.createOperationJournalEntry(new OperationJournalEntry(
                 UUID.randomUUID(),
                 planId,
                 parseDate(requiredText(request.date(), "date")),
                 requiredText(request.title(), "title"),
                 required(request.amount(), "amount"),
-                parseOperationType(requiredText(request.type(), "type")),
+                type,
                 parseOperationStatus(requiredText(request.status(), "status")),
                 now,
                 now
         ));
-        repository.recalculateGoalSavedAmount(planId, null);
         return created;
     }
 
@@ -154,18 +154,19 @@ public class BudgetTrackerService {
         OperationJournalEntry current = repository.findOperationJournalEntry(planId, entryId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "operation journal entry was not found"));
         Instant now = Instant.now();
+        OperationJournalEntry.Type nextType = request.type() == null ? current.type() : parseOperationType(requiredText(request.type(), "type"));
+        rejectGoalOperationType(nextType);
         OperationJournalEntry updated = repository.updateOperationJournalEntry(new OperationJournalEntry(
                 current.id(),
                 current.planId(),
                 request.date() == null ? current.date() : parseDate(requiredText(request.date(), "date")),
                 request.title() == null ? current.title() : requiredText(request.title(), "title"),
                 request.amount() == null ? current.amount() : request.amount(),
-                request.type() == null ? current.type() : parseOperationType(requiredText(request.type(), "type")),
+                nextType,
                 request.status() == null ? current.status() : parseOperationStatus(requiredText(request.status(), "status")),
                 current.createdAt(),
                 now
         ));
-        repository.recalculateGoalSavedAmount(planId, null);
         return updated;
     }
 
@@ -175,7 +176,6 @@ public class BudgetTrackerService {
         if (!repository.deleteOperationJournalEntry(planId, entryId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "operation journal entry was not found");
         }
-        repository.recalculateGoalSavedAmount(planId, null);
     }
 
     private static BudgetSettings.Method parseMethod(String value) {
@@ -210,6 +210,12 @@ public class BudgetTrackerService {
             return OperationJournalEntry.Type.valueOf(value.toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException ignored) {
             throw badRequest("type is invalid");
+        }
+    }
+
+    private static void rejectGoalOperationType(OperationJournalEntry.Type type) {
+        if (type == OperationJournalEntry.Type.GOAL) {
+            throw badRequest("goal operation journal entries are disabled; use savings tracker and goal savedAmount instead");
         }
     }
 

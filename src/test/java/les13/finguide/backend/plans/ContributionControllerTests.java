@@ -36,69 +36,31 @@ class ContributionControllerTests {
     private ObjectMapper objectMapper;
 
     @Test
-    void createsListsReadsUpdatesAndDeletesContributionForAuthenticatedPlan() throws Exception {
+    void rejectsContributionLedgerMutationsForAuthenticatedPlan() throws Exception {
         RequestPostProcessor jwt = userJwt("contribution-owner");
         JsonNode current = currentPlan(jwt);
         String planId = current.at("/data/id").asText();
         String firstGoalId = current.at("/data/goals/0/id").asText();
-        String secondGoalId = current.at("/data/goals/1/id").asText();
         org.assertj.core.api.Assertions.assertThat(current.at("/data/goals/0/savedAmount").decimalValue())
                 .isEqualByComparingTo("0");
 
-        String createdBody = mockMvc.perform(post("/api/v1/plans/{planId}/contributions", planId)
+        mockMvc.perform(post("/api/v1/plans/{planId}/contributions", planId)
                         .with(jwt)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(contributionJson(firstGoalId, 1000, "2026-05-14", "Initial deposit")))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.data.id").exists())
-                .andExpect(jsonPath("$.data.goalId").value(firstGoalId))
-                .andExpect(jsonPath("$.data.amount").value(1000))
-                .andExpect(jsonPath("$.data.currency").value("RUB"))
-                .andExpect(jsonPath("$.data.note").value("Initial deposit"))
-                .andReturn().getResponse().getContentAsString();
-        String contributionId = objectMapper.readTree(createdBody).at("/data/id").asText();
+                .andExpect(status().isBadRequest());
 
         mockMvc.perform(get("/api/v1/plans/{planId}/contributions", planId).with(jwt))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data", hasSize(1)))
-                .andExpect(jsonPath("$.data[0].id").value(contributionId));
-
-        mockMvc.perform(get("/api/v1/plans/{planId}/contributions/{id}", planId, contributionId).with(jwt))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.note").value("Initial deposit"));
+                .andExpect(jsonPath("$.data", hasSize(0)));
 
         mockMvc.perform(get("/api/v1/plans/current").with(jwt))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.goals[0].savedAmount").value(1000));
-
-        mockMvc.perform(patch("/api/v1/plans/{planId}/contributions/{id}", planId, contributionId)
-                        .with(jwt)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(contributionJson(secondGoalId, 2500, "2026-05-15", "Moved deposit")))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.goalId").value(secondGoalId))
-                .andExpect(jsonPath("$.data.amount").value(2500))
-                .andExpect(jsonPath("$.data.date").value("2026-05-15"))
-                .andExpect(jsonPath("$.data.note").value("Moved deposit"));
-
-        mockMvc.perform(get("/api/v1/plans/current").with(jwt))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.goals[0].savedAmount").value(0))
-                .andExpect(jsonPath("$.data.goals[1].savedAmount").value(2500));
-
-        mockMvc.perform(delete("/api/v1/plans/{planId}/contributions/{id}", planId, contributionId).with(jwt))
-                .andExpect(status().isNoContent());
-
-        mockMvc.perform(get("/api/v1/plans/current").with(jwt))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.goals[1].savedAmount").value(0));
-
-        mockMvc.perform(get("/api/v1/plans/{planId}/contributions/{id}", planId, contributionId).with(jwt))
-                .andExpect(status().isNotFound());
+                .andExpect(jsonPath("$.data.goals[0].savedAmount").value(0));
     }
 
     @Test
-    void capsManualContributionOverflowWhenThereIsNoNextGoal() throws Exception {
+    void rejectsContributionOverflowLedgerWrites() throws Exception {
         RequestPostProcessor jwt = userJwt("contribution-overflow-last-owner");
         JsonNode current = currentPlan(jwt);
         String planId = current.at("/data/id").asText();
@@ -108,25 +70,19 @@ class ContributionControllerTests {
                         .with(jwt)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(contributionJson(lastGoalId, 4000000, "2026-05-14", "Over target")))
-                .andExpect(status().isCreated());
+                .andExpect(status().isBadRequest());
 
         mockMvc.perform(get("/api/v1/plans/current").with(jwt))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.goals[2].savedAmount").value(3500000));
+                .andExpect(jsonPath("$.data.goals[2].savedAmount").value(0));
     }
 
     @Test
-    void deletingGoalAlsoDeletesItsContributions() throws Exception {
+    void deletingGoalStillWorksWhenContributionLedgerIsDisabled() throws Exception {
         RequestPostProcessor jwt = userJwt("contribution-goal-delete-owner");
         JsonNode current = currentPlan(jwt);
         String planId = current.at("/data/id").asText();
         String goalId = current.at("/data/goals/0/id").asText();
-
-        mockMvc.perform(post("/api/v1/plans/{planId}/contributions", planId)
-                        .with(jwt)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(contributionJson(goalId, 1000, "2026-05-14", "Before goal delete")))
-                .andExpect(status().isCreated());
 
         mockMvc.perform(delete("/api/v1/plans/{planId}/goals/{id}", planId, goalId).with(jwt))
                 .andExpect(status().isNoContent());
