@@ -923,7 +923,7 @@ class PlanReadControllerTests {
                 .andExpect(jsonPath("$.data.retirementAge").value(60))
                 .andExpect(jsonPath("$.data.capitalAtRetirement", greaterThan(0.0)))
                 .andExpect(jsonPath("$.data.preserveCapital.monthlySpendableCurrentPrices", greaterThan(0.0)))
-                .andExpect(jsonPath("$.data.spendDown.series", hasSize(30)));
+                .andExpect(jsonPath("$.data.spendDown.series", hasSize(25)));
     }
 
     @Test
@@ -1043,6 +1043,57 @@ class PlanReadControllerTests {
                 .andExpect(jsonPath("$.data.retirementAge").value(67))
                 .andExpect(jsonPath("$.data.nominalReturnPct").value(5))
                 .andExpect(jsonPath("$.data.spendDown.desiredMonthlyExpensesCurrentPrices").value(180000));
+    }
+
+    @Test
+    void pensionProjectionSpendDownLengthFollowsGeneralHorizon() throws Exception {
+        String subject = "pension-horizon-owner";
+        String planId = currentPlanId(subject);
+
+        mockMvc.perform(patch("/api/v1/plans/{planId}/analytics/assumptions", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Pension Horizon Owner")
+                                .claim("preferred_username", subject)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "startYear": 2026,
+                                  "projectionEndYear": 2028,
+                                  "horizonYears": 3,
+                                  "birthYear": 1981,
+                                  "monthsPerYear": 12,
+                                  "currency": "RUB",
+                                  "initialCapital": 1000000,
+                                  "investmentReturnPct": 4,
+                                  "inflationSchedule": [
+                                    {"year": 2026, "ratePct": 4},
+                                    {"year": 2027, "ratePct": 4},
+                                    {"year": 2028, "ratePct": 4}
+                                  ],
+                                  "sourceModel": "pension horizon test"
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/v1/plans/{planId}/pension", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Pension Horizon Owner")
+                                .claim("preferred_username", subject)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(pensionPatchJson(50000).replace("\"retirementAge\": 67", "\"retirementAge\": 46")))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/plans/{planId}/pension/projection", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Pension Horizon Owner")
+                                .claim("preferred_username", subject))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.retirementYear").value(2027))
+                .andExpect(jsonPath("$.data.spendDown.retirementYears").value(2))
+                .andExpect(jsonPath("$.data.spendDown.series", hasSize(2)));
     }
 
     @Test
