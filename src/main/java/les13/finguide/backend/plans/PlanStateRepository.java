@@ -82,8 +82,6 @@ public interface PlanStateRepository {
 
     boolean deleteContribution(UUID planId, UUID contributionId);
 
-    void recalculateGoalSavedAmount(UUID planId, UUID goalId);
-
     BudgetSettings findBudget(UUID planId);
 
     BudgetSettings replaceBudget(UUID planId, BudgetSettings budget);

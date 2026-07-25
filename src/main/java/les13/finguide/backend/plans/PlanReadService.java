@@ -51,10 +51,7 @@ public class PlanReadService {
         int horizon = projectionHorizon(state);
         Map<Integer, BigDecimal> actualGoalExpensesByYear = actualGoalExpensesByYear(state, horizon);
         Map<java.time.YearMonth, BigDecimal> monthlyTrackerSavingsByMonth = monthlyTrackerSavingsByMonth(state, horizon);
-        Map<Integer, BigDecimal> capitalEndByYear = new HashMap<>();
-        cashflow(state, horizon, actualGoalExpensesByYear, monthlyTrackerSavingsByMonth)
-                .forEach(point -> capitalEndByYear.put(point.year(), point.capitalEndOfYear()));
-        return goalAllocationPlan(state, horizon, actualGoalExpensesByYear, monthlyTrackerSavingsByMonth, capitalEndByYear).byGoal();
+        return goalAllocationPlan(state, horizon, actualGoalExpensesByYear, monthlyTrackerSavingsByMonth).byGoal();
     }
 
     public PlanState plan(UUID planId) {
@@ -324,7 +321,7 @@ public class PlanReadService {
     }
 
     public static List<CashFlowProjectionPoint> cashflow(PlanState state, int horizon) {
-        return cashflow(state, horizon, actualContributionExpensesByYear(state, horizon), Map.of());
+        return cashflow(state, horizon, Map.of(), Map.of());
     }
 
     private static List<CashFlowProjectionPoint> cashflow(PlanState state, int horizon, Map<Integer, BigDecimal> actualGoalExpensesByYear, Map<java.time.YearMonth, BigDecimal> monthlyTrackerSavingsByMonth) {
@@ -652,17 +649,7 @@ public class PlanReadService {
     }
 
     private Map<Integer, BigDecimal> actualGoalExpensesByYear(PlanState state, int horizon) {
-        Map<Integer, BigDecimal> byYear = new HashMap<>(actualContributionExpensesByYear(state, horizon));
-        int startYear = Math.max(Year.now().getValue(), state.modelAssumptions().startYear());
-        for (int offset = 0; offset < horizon; offset++) {
-            int year = startYear + offset;
-            repository.findOperationJournalEntries(state.plan().id(), year, null).stream()
-                    .filter(entry -> entry.type() == les13.finguide.backend.budget.OperationJournalEntry.Type.GOAL)
-                    .filter(entry -> entry.status() == les13.finguide.backend.budget.OperationJournalEntry.Status.ACTUAL)
-                    .filter(entry -> entry.amount().signum() > 0)
-                    .forEach(entry -> byYear.merge(year, entry.amount(), BigDecimal::add));
-        }
-        return byYear;
+        return Map.of();
     }
 
     private Map<java.time.YearMonth, BigDecimal> monthlyTrackerSavingsByMonth(PlanState state, int horizon) {
@@ -675,22 +662,6 @@ public class PlanReadService {
             );
         }
         return byMonth;
-    }
-
-    /**
-     * Legacy compatibility path for the historical contributions ledger.
-     * Current UI writes factual goal outflows through operation journal entries.
-     */
-    @Deprecated(since = "0.1", forRemoval = false)
-    private static Map<Integer, BigDecimal> actualContributionExpensesByYear(PlanState state, int horizon) {
-        int startYear = Math.max(Year.now().getValue(), state.modelAssumptions().startYear());
-        int endYear = startYear + horizon - 1;
-        Map<Integer, BigDecimal> byYear = new HashMap<>();
-        state.contributions().stream()
-                .filter(contribution -> contribution.amount().signum() > 0)
-                .filter(contribution -> contribution.date().getYear() >= startYear && contribution.date().getYear() <= endYear)
-                .forEach(contribution -> byYear.merge(contribution.date().getYear(), contribution.amount(), BigDecimal::add));
-        return byYear;
     }
 
     private static Map<Integer, BigDecimal> plannedGoalExpensesByYear(PlanState state, int horizon) {
@@ -715,21 +686,17 @@ public class PlanReadService {
     }
 
     private static GoalAllocationPlan goalAllocationPlan(PlanState state, int horizon) {
-        return goalAllocationPlan(state, horizon, Map.of(), Map.of(), Map.of());
+        return goalAllocationPlan(state, horizon, Map.of(), Map.of());
     }
 
     private static GoalAllocationPlan goalAllocationPlan(PlanState state, int horizon, Map<Integer, BigDecimal> actualGoalExpensesByYear) {
-        return goalAllocationPlan(state, horizon, actualGoalExpensesByYear, Map.of(), Map.of());
+        return goalAllocationPlan(state, horizon, actualGoalExpensesByYear, Map.of());
     }
 
     private static GoalAllocationPlan goalAllocationPlan(PlanState state, int horizon, Map<Integer, BigDecimal> actualGoalExpensesByYear, Map<java.time.YearMonth, BigDecimal> monthlyTrackerSavingsByMonth) {
-        return goalAllocationPlan(state, horizon, actualGoalExpensesByYear, monthlyTrackerSavingsByMonth, Map.of());
-    }
-
-    private static GoalAllocationPlan goalAllocationPlan(PlanState state, int horizon, Map<Integer, BigDecimal> actualGoalExpensesByYear, Map<java.time.YearMonth, BigDecimal> monthlyTrackerSavingsByMonth, Map<Integer, BigDecimal> capitalEndByYear) {
         int startYear = Math.max(Year.now().getValue(), state.modelAssumptions().startYear());
         List<Goal> goals = state.goals().stream()
-                .sorted(Comparator.comparingInt(Goal::targetYear).thenComparingInt(Goal::targetMonth).thenComparingInt(Goal::priority).thenComparing(Goal::id))
+                .sorted(Comparator.comparingInt(Goal::priority).thenComparingInt(Goal::targetYear).thenComparingInt(Goal::targetMonth).thenComparing(Goal::id))
                 .toList();
 
         Map<UUID, BigDecimal> targetCosts = new LinkedHashMap<>();
@@ -799,9 +766,7 @@ public class PlanReadService {
             BigDecimal progressPct = targetCost.signum() == 0
                     ? HUNDRED
                     : totalFunded.multiply(HUNDRED).divide(targetCost, 1, RoundingMode.HALF_UP).min(HUNDRED);
-            boolean reachable = capitalEndByYear.containsKey(goal.targetYear())
-                    ? capitalEndByYear.get(goal.targetYear()).signum() >= 0
-                    : reachableByGoal.getOrDefault(goal.id(), false);
+            boolean reachable = reachableByGoal.getOrDefault(goal.id(), false);
             byGoal.put(goal.id(), new GoalAllocation(
                     targetCost,
                     projectedAmount,

@@ -1,9 +1,11 @@
 package les13.finguide.backend.auth;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -25,6 +27,17 @@ import java.util.Map;
 @EnableMethodSecurity
 public class SecurityConfig {
     @Bean
+    @Order(0)
+    SecurityFilterChain actuatorSecurityFilterChain(HttpSecurity http) throws Exception {
+        return http
+                .securityMatcher(EndpointRequest.to("health", "info", "prometheus"))
+                .csrf(AbstractHttpConfigurer::disable)
+                .authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll())
+                .build();
+    }
+
+    @Bean
+    @Order(1)
     SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             JwtAudienceFilter jwtAudienceFilter,
@@ -37,6 +50,7 @@ public class SecurityConfig {
                     authorize.requestMatchers(
                             "/actuator/health/**",
                             "/actuator/info",
+                            "/actuator/prometheus",
                             "/api/v1/auth/register",
                             "/api/v1/auth/password/forgot",
                             "/v3/api-docs/**",

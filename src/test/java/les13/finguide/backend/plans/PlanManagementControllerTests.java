@@ -75,21 +75,6 @@ class PlanManagementControllerTests {
         RequestPostProcessor jwt = userJwt("plan-copy-owner");
         JsonNode source = currentPlan(jwt);
         String sourcePlanId = source.at("/data/id").asText();
-        String firstGoalId = source.at("/data/goals/0/id").asText();
-
-        mockMvc.perform(post("/api/v1/plans/{planId}/contributions", sourcePlanId)
-                        .with(jwt)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "goalId": "%s",
-                                  "amount": 123000,
-                                  "currency": "RUB",
-                                  "date": "2026-05-14",
-                                  "note": "Fact"
-                                }
-                                """.formatted(firstGoalId)))
-                .andExpect(status().isCreated());
         mockMvc.perform(post("/api/v1/plans/{planId}/calendar/monthly-tracker", sourcePlanId)
                         .with(jwt)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -108,9 +93,9 @@ class PlanManagementControllerTests {
                         .content("""
                                 {
                                   "date": "2026-05-15",
-                                  "title": "Actual goal transfer",
+                                  "title": "Actual expense",
                                   "amount": 10000,
-                                  "type": "goal",
+                                  "type": "expense",
                                   "status": "actual"
                                 }
                                 """))
