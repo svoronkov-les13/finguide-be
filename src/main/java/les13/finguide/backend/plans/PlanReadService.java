@@ -136,8 +136,12 @@ public class PlanReadService {
     }
 
     public List<CashFlowProjectionPoint> cashflow(UUID planId) {
+        return cashflow(planId, (Integer) null);
+    }
+
+    public List<CashFlowProjectionPoint> cashflow(UUID planId, Integer years) {
         PlanState state = plan(planId);
-        int horizon = projectionHorizon(state);
+        int horizon = years == null ? projectionHorizon(state) : Math.min(80, Math.max(1, years));
         return cashflow(state, horizon, actualGoalExpensesByYear(state, horizon), monthlyTrackerSavingsByMonth(state, horizon));
     }
 
