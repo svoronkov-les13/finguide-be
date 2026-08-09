@@ -12,10 +12,11 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import les13.finguide.backend.api.RequestIdFilter;
+
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.UUID;
 
 @Component
 public class JwtAudienceFilter extends OncePerRequestFilter {
@@ -57,7 +58,7 @@ public class JwtAudienceFilter extends OncePerRequestFilter {
         error.put("code", "FORBIDDEN");
         error.put("message", "JWT audience is not accepted");
         error.put("details", details);
-        error.put("requestId", UUID.randomUUID().toString());
+        error.put("requestId", RequestIdFilter.currentRequestId());
         payload.put("error", error);
         return payload;
     }

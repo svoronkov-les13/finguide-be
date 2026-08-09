@@ -334,7 +334,7 @@ public class PlanReadService {
             boolean retired = isRetirementYearOrLater(state, year);
             BigDecimal monthlyIncomeTotal = retired ? retirementMonthlyIncomeTotalForYear(state, year, offset) : monthlyIncomeTotalForYear(state, year, offset);
             BigDecimal monthlyIncome = monthlyIncomeTotal.divide(TWELVE, 2, RoundingMode.HALF_UP);
-            BigDecimal yearlyIncome = yearlyOneTimeIncome(state, offset);
+            BigDecimal yearlyIncome = yearlyOneTimeIncome(state, offset, retired);
             BigDecimal totalIncome = monthlyIncomeTotal.add(yearlyIncome);
             BigDecimal monthlyExpensesTotal = retired ? retirementMonthlyExpensesTotalForYear(state, year, offset) : monthlyExpensesTotalForYear(state, year, offset);
             BigDecimal monthlyExpenses = monthlyExpensesTotal.divide(TWELVE, 2, RoundingMode.HALF_UP);
@@ -383,13 +383,13 @@ public class PlanReadService {
         List<Map<String, Object>> result = new ArrayList<>();
         for (int offset = 0; offset < horizon; offset++) {
             int year = startYear + offset;
-            BigDecimal yearlyIncome = yearlyOneTimeIncome(state, offset);
+            boolean retired = isRetirementYearOrLater(state, year);
+            BigDecimal yearlyIncome = yearlyOneTimeIncome(state, offset, retired);
             BigDecimal yearlyExpenses = yearlyOneTimeExpenses(state, offset);
             BigDecimal investmentReturn = investmentReturnPctForYear(state, year);
             BigDecimal capitalStartOfYear = capital;
             for (int month = 1; month <= 12; month++) {
                 java.time.YearMonth yearMonth = java.time.YearMonth.of(year, month);
-                boolean retired = isRetirementYearOrLater(state, year);
                 BigDecimal monthlyIncome = monthlyIncomeForProjectionMonth(state, yearMonth, offset, retired);
                 BigDecimal monthlyExpenses = monthlyExpensesForProjectionMonth(state, yearMonth, offset, retired);
                 BigDecimal plannedMonthlySavings = monthlyIncome.subtract(monthlyExpenses);
@@ -485,15 +485,20 @@ public class PlanReadService {
     }
 
     private static BigDecimal monthlyIncome(PlanState state, java.time.YearMonth month, int offset) {
+        return monthlyIncome(state, month, offset, false);
+    }
+
+    private static BigDecimal monthlyIncome(PlanState state, java.time.YearMonth month, int offset, boolean retired) {
         return state.incomes().stream()
                 .filter(item -> item.frequency() == IncomeSource.Frequency.MONTHLY)
+                .filter(item -> !retired || item.continueAfterRetirement())
                 .filter(item -> activeInProjectionMonth(item.startDate(), item.endDate(), month))
                 .map(item -> grow(item.amount(), incomeGrowthPct(state, item), incomeGrowthSchedule(state, item), state.modelAssumptions().startYear(), offset))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private static BigDecimal monthlyIncomeForProjectionMonth(PlanState state, java.time.YearMonth month, int offset, boolean retired) {
-        BigDecimal income = monthlyIncome(state, month, offset);
+        BigDecimal income = monthlyIncome(state, month, offset, retired);
         if (!retired || !state.pension().statePensionEnabled()) {
             return income;
         }
@@ -517,7 +522,7 @@ public class PlanReadService {
     }
 
     private static BigDecimal retirementIncomeTotalForYear(PlanState state, int year, int offset) {
-        return retirementMonthlyIncomeTotalForYear(state, year, offset).add(yearlyOneTimeIncome(state, offset));
+        return retirementMonthlyIncomeTotalForYear(state, year, offset).add(yearlyOneTimeIncome(state, offset, true));
     }
 
     private static BigDecimal yearlyIncome(PlanState state) {
@@ -529,8 +534,13 @@ public class PlanReadService {
     }
 
     private static BigDecimal yearlyOneTimeIncome(PlanState state, int offset) {
+        return yearlyOneTimeIncome(state, offset, false);
+    }
+
+    private static BigDecimal yearlyOneTimeIncome(PlanState state, int offset, boolean retired) {
         return state.incomes().stream()
                 .filter(item -> item.frequency() == IncomeSource.Frequency.YEARLY || item.frequency() == IncomeSource.Frequency.ONE_TIME)
+                .filter(item -> !retired || item.continueAfterRetirement())
                 .filter(item -> activeInProjectionYear(item.startDate(), item.endDate(), projectionYear(state, offset)))
                 .map(item -> grow(item.amount(), incomeGrowthPct(state, item), incomeGrowthSchedule(state, item), state.modelAssumptions().startYear(), offset))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -790,7 +800,7 @@ public class PlanReadService {
             int year = startYear + offset;
             java.time.YearMonth yearMonth = java.time.YearMonth.of(year, month);
             boolean retired = isRetirementYearOrLater(state, year);
-            BigDecimal yearlyFreeCashflowShare = yearlyOneTimeIncome(state, offset)
+            BigDecimal yearlyFreeCashflowShare = yearlyOneTimeIncome(state, offset, retired)
                     .subtract(yearlyOneTimeExpenses(state, offset))
                     .divide(BigDecimal.valueOf(monthsPerYear), 2, RoundingMode.HALF_UP);
             BigDecimal plannedMonthlyFreeCashflow = monthlyIncomeForProjectionMonth(state, yearMonth, offset, retired)
