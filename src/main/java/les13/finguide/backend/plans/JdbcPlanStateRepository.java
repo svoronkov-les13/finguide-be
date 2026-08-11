@@ -308,7 +308,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                 "select * from incomes where plan_id = ? order by sort_order, name",
                 rs -> {
                     jdbcTemplate.update(
-                            "insert into incomes (id, plan_id, name, amount, currency, frequency, growth_type, growth_pct, growth_schedule, start_date, end_date, sort_order, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            "insert into incomes (id, plan_id, name, amount, currency, frequency, growth_type, growth_pct, growth_schedule, continue_after_retirement, start_date, end_date, sort_order, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                             UUID.randomUUID(),
                             planId,
                             rs.getString("name"),
@@ -318,6 +318,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                             rs.getString("growth_type"),
                             rs.getBigDecimal("growth_pct"),
                             rs.getString("growth_schedule"),
+                            rs.getBoolean("continue_after_retirement"),
                             localDate(rs, "start_date"),
                             localDate(rs, "end_date"),
                             rs.getInt("sort_order"),
@@ -544,7 +545,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     public IncomeSource createIncome(IncomeSource income) {
         OffsetDateTime now = offset(income.updatedAt());
         jdbcTemplate.update(
-                "insert into incomes (id, plan_id, name, amount, currency, frequency, growth_type, growth_pct, growth_schedule, start_date, end_date, sort_order, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "insert into incomes (id, plan_id, name, amount, currency, frequency, growth_type, growth_pct, growth_schedule, continue_after_retirement, start_date, end_date, sort_order, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 income.id(),
                 income.planId(),
                 income.name(),
@@ -554,6 +555,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                 dbValue(income.growthType()),
                 income.growthPct(),
                 writeGrowthSchedule(income.growthSchedule()),
+                income.continueAfterRetirement(),
                 income.startDate(),
                 income.endDate(),
                 nextSortOrder("incomes", income.planId()),
@@ -568,7 +570,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
     public IncomeSource updateIncome(IncomeSource income) {
         OffsetDateTime now = offset(income.updatedAt());
         jdbcTemplate.update(
-                "update incomes set name = ?, amount = ?, currency = ?, frequency = ?, growth_type = ?, growth_pct = ?, growth_schedule = ?, start_date = ?, end_date = ?, updated_at = ? where plan_id = ? and id = ?",
+                "update incomes set name = ?, amount = ?, currency = ?, frequency = ?, growth_type = ?, growth_pct = ?, growth_schedule = ?, continue_after_retirement = ?, start_date = ?, end_date = ?, updated_at = ? where plan_id = ? and id = ?",
                 income.name(),
                 income.amount(),
                 income.currency(),
@@ -576,6 +578,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                 dbValue(income.growthType()),
                 income.growthPct(),
                 writeGrowthSchedule(income.growthSchedule()),
+                income.continueAfterRetirement(),
                 income.startDate(),
                 income.endDate(),
                 now,
@@ -1461,6 +1464,7 @@ public class JdbcPlanStateRepository implements PlanStateRepository {
                 enumValue(IncomeSource.GrowthType.class, rs.getString("growth_type")),
                 rs.getBigDecimal("growth_pct"),
                 readGrowthSchedule(rs.getString("growth_schedule")),
+                rs.getBoolean("continue_after_retirement"),
                 localDate(rs, "start_date"),
                 localDate(rs, "end_date"),
                 instant(rs, "created_at"),

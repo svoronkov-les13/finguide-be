@@ -21,6 +21,10 @@ spring:
         jwt:
           issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/finguide}
 
+logging:
+  pattern:
+    level: "%5p [rid:%X{requestId:-}]"
+
 server:
   port: ${SERVER_PORT:8080}
   forward-headers-strategy: framework

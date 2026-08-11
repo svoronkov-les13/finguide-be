@@ -18,6 +18,7 @@ public record IncomeSource(
         GrowthType growthType,
         BigDecimal growthPct,
         List<YearRatePoint> growthSchedule,
+        boolean continueAfterRetirement,
         LocalDate startDate,
         LocalDate endDate,
         Instant createdAt,

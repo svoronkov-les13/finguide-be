@@ -65,8 +65,8 @@ public class PlanReadController {
     }
 
     @GetMapping("/plans/{planId}/analytics/cashflow")
-    public ApiEnvelope<Object> cashflow(@PathVariable UUID planId) {
-        return ApiEnvelope.of(planReadService.cashflow(planId).stream().map(mapper::cashflow).toList());
+    public ApiEnvelope<Object> cashflow(@PathVariable UUID planId, @RequestParam(required = false) Integer years) {
+        return ApiEnvelope.of(planReadService.cashflow(planId, years).stream().map(mapper::cashflow).toList());
     }
 
     @GetMapping("/plans/{planId}/analytics/cashflow/monthly")
