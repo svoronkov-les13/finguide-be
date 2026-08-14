@@ -49,18 +49,6 @@ class PlanReadServiceUnitTests {
     }
 
     @Test
-    void incomeStopsAtRetirementWhenContinueAfterRetirementIsOff() {
-        PlanState state = planState(false);
-
-        List<CashFlowProjectionPoint> points = PlanReadService.cashflow(state, 2);
-
-        assertThat(points.get(0).year()).isEqualTo(2026);
-        assertThat(points.get(0).totalIncome()).isEqualByComparingTo("1200.00");
-        assertThat(points.get(1).year()).isEqualTo(2027);
-        assertThat(points.get(1).totalIncome()).isEqualByComparingTo("240.00");
-    }
-
-    @Test
     void goalProgressUsesFundingAvailableByTargetMonthNotFullHorizon() {
         Goal lateGoal = goal("22222222-2222-4222-8222-222222222222", "Домик", 2, 2027, 12, "300");
         PlanStateRepository repository = mock(PlanStateRepository.class);
@@ -79,10 +67,6 @@ class PlanReadServiceUnitTests {
     }
 
     private static PlanState planState() {
-        return planState(true);
-    }
-
-    private static PlanState planState(boolean incomeContinuesAfterRetirement) {
         return new PlanState(
                 new FinancialPlan(PLAN_ID, UUID.randomUUID(), "Test", "RUB", NOW, NOW),
                 new UserProfile(UUID.randomUUID(), "subject", "test@example.com", "Test", null, null, 45, null, BigDecimal.ZERO, NOW, NOW),
@@ -109,7 +93,6 @@ class PlanReadServiceUnitTests {
                         IncomeSource.GrowthType.NONE,
                         BigDecimal.ZERO,
                         List.of(),
-                        incomeContinuesAfterRetirement,
                         LocalDate.of(2026, 1, 1),
                         null,
                         NOW,
@@ -167,7 +150,6 @@ class PlanReadServiceUnitTests {
                         IncomeSource.GrowthType.NONE,
                         BigDecimal.ZERO,
                         List.of(),
-                        true,
                         LocalDate.of(2026, 1, 1),
                         null,
                         NOW,

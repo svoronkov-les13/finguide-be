@@ -46,7 +46,6 @@ class FinancialItemServiceUnitTests {
                 "manual",
                 BigDecimal.ZERO,
                 List.of(),
-                null,
                 LocalDate.parse("2026-12-31"),
                 LocalDate.parse("2026-01-01")
         );

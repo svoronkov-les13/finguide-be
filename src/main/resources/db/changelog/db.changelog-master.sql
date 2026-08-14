@@ -235,8 +235,3 @@ alter table expenses add column growth_schedule text;
 
 --rollback alter table expenses drop column growth_schedule;
 --rollback alter table incomes drop column growth_schedule;
-
---changeset finguide:004-income-continue-after-retirement
-alter table incomes add column continue_after_retirement boolean default true not null;
-
---rollback alter table incomes drop column continue_after_retirement;

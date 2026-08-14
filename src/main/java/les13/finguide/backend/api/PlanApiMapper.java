@@ -114,7 +114,6 @@ public class PlanApiMapper {
     public Map<String, Object> income(IncomeSource income) {
         Map<String, Object> result = baseCashItem(income.id(), income.name(), income.amount(), income.currency(), income.frequency(), income.growthType(), income.growthPct(), income.startDate(), income.endDate(), income.createdAt(), income.updatedAt());
         result.put("growthSchedule", rateSchedule(income.growthSchedule()));
-        result.put("continueAfterRetirement", income.continueAfterRetirement());
         return result;
     }
 

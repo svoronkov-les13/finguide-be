@@ -34,7 +34,7 @@ def run(args: list[str], env: dict[str, str], *, capture: bool = False) -> subpr
 
 
 def compose(env: dict[str, str], *args: str, capture: bool = False) -> subprocess.CompletedProcess[str]:
-    return run(["docker", "compose", "--env-file", str(ENV_FILE), "-f", str(COMPOSE_FILE), *args], env, capture=capture)
+    return run(["docker-compose", "--env-file", str(ENV_FILE), "-f", str(COMPOSE_FILE), *args], env, capture=capture)
 
 
 def kcadm(env: dict[str, str], *args: str, capture: bool = False) -> subprocess.CompletedProcess[str]:
@@ -118,7 +118,7 @@ def main() -> int:
     REALM_JSON.parent.mkdir(parents=True, exist_ok=True)
     REALM_JSON.write_text(json.dumps(build_realm(env), ensure_ascii=False, indent=2) + "\n")
 
-    compose(env, "cp", str(REALM_JSON), "keycloak:/tmp/finguide-realm.json")
+    run(["docker", "cp", str(REALM_JSON), "finguide-keycloak:/tmp/finguide-realm.json"], env)
     kcadm(
         env,
         "config",
@@ -137,7 +137,7 @@ def main() -> int:
     kcadm(env, "update", "realms/master", "-s", f"sslRequired={master_ssl_required}")
 
     exists = subprocess.run(
-        ["docker", "compose", "--env-file", str(ENV_FILE), "-f", str(COMPOSE_FILE), "exec", "-T", "keycloak", "/opt/keycloak/bin/kcadm.sh", "get", f"realms/{realm_name}"],
+        ["docker-compose", "--env-file", str(ENV_FILE), "-f", str(COMPOSE_FILE), "exec", "-T", "keycloak", "/opt/keycloak/bin/kcadm.sh", "get", f"realms/{realm_name}"],
         cwd=ROOT,
         env=env,
         text=True,
@@ -174,7 +174,7 @@ def main() -> int:
         )
         for role in ("user", "admin"):
             if subprocess.run(
-                ["docker", "compose", "--env-file", str(ENV_FILE), "-f", str(COMPOSE_FILE), "exec", "-T", "keycloak", "/opt/keycloak/bin/kcadm.sh", "get", f"roles/{role}", "-r", realm_name],
+                ["docker-compose", "--env-file", str(ENV_FILE), "-f", str(COMPOSE_FILE), "exec", "-T", "keycloak", "/opt/keycloak/bin/kcadm.sh", "get", f"roles/{role}", "-r", realm_name],
                 cwd=ROOT,
                 env=env,
                 stdout=subprocess.DEVNULL,

@@ -24,7 +24,6 @@ final class FinancialItemRequests {
             String growthType,
             BigDecimal growthPct,
             List<YearRatePoint> growthSchedule,
-            Boolean continueAfterRetirement,
             LocalDate startDate,
             LocalDate endDate
     ) {

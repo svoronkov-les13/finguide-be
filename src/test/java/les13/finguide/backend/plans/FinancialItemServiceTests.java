@@ -65,7 +65,6 @@ class FinancialItemServiceTests {
                 "manual",
                 BigDecimal.valueOf(2),
                 List.of(),
-                null,
                 LocalDate.parse("2026-01-01"),
                 null
         ));

@@ -210,7 +210,6 @@ public class ScenarioService {
                         income.id(), income.planId(), income.name(), income.amount().multiply(incomeFactor), income.currency(),
                         income.frequency(), income.growthType(), income.growthPct(),
                         income.growthSchedule(),
-                        income.continueAfterRetirement(),
                         income.startDate(), income.endDate(), income.createdAt(), income.updatedAt()
                 )).toList(),
                 state.expenses().stream().map(expense -> new ExpenseItem(
