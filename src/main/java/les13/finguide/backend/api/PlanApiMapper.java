@@ -300,14 +300,17 @@ public class PlanApiMapper {
         result.put("nominalReturnPct", projection.nominalReturnPct());
         result.put("averageInflationPct", projection.averageInflationPct());
         result.put("realReturnPct", projection.realReturnPct());
-        result.put("preserveCapital", Map.of(
-                "annualSpendableAtRetirement", projection.preserveCapital().annualSpendableAtRetirement(),
-                "annualSpendableCurrentPrices", projection.preserveCapital().annualSpendableCurrentPrices(),
-                "monthlySpendableCurrentPrices", projection.preserveCapital().monthlySpendableCurrentPrices()
-        ));
+        Map<String, Object> preserveCapital = new LinkedHashMap<>();
+        preserveCapital.put("annualSpendableAtRetirement", projection.preserveCapital().annualSpendableAtRetirement());
+        preserveCapital.put("annualSpendableCurrentPrices", projection.preserveCapital().annualSpendableCurrentPrices());
+        preserveCapital.put("monthlySpendableCurrentPrices", projection.preserveCapital().monthlySpendableCurrentPrices());
+        preserveCapital.put("requiredCapitalAtRetirement", projection.preserveCapital().requiredCapitalAtRetirement());
+        preserveCapital.put("requiredCapitalStatus", apiValue(projection.preserveCapital().requiredCapitalStatus()));
+        result.put("preserveCapital", preserveCapital);
         result.put("spendDown", Map.of(
                 "desiredMonthlyExpensesCurrentPrices", projection.spendDown().desiredMonthlyExpensesCurrentPrices(),
                 "desiredAnnualExpensesAtRetirement", projection.spendDown().desiredAnnualExpensesAtRetirement(),
+                "requiredCapitalAtRetirement", projection.spendDown().requiredCapitalAtRetirement(),
                 "retirementYears", projection.spendDown().retirementYears(),
                 "depletionAge", projection.spendDown().depletionAge(),
                 "series", projection.spendDown().series().stream().map(this::pensionSpendDown).toList()

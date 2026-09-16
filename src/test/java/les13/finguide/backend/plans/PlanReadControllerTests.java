@@ -13,6 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.lessThan;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -923,6 +924,9 @@ class PlanReadControllerTests {
                 .andExpect(jsonPath("$.data.retirementAge").value(60))
                 .andExpect(jsonPath("$.data.capitalAtRetirement", greaterThan(0.0)))
                 .andExpect(jsonPath("$.data.preserveCapital.monthlySpendableCurrentPrices", greaterThan(0.0)))
+                .andExpect(jsonPath("$.data.preserveCapital.requiredCapitalStatus").value("calculated"))
+                .andExpect(jsonPath("$.data.preserveCapital.requiredCapitalAtRetirement", greaterThan(0.0)))
+                .andExpect(jsonPath("$.data.spendDown.requiredCapitalAtRetirement", greaterThan(0.0)))
                 .andExpect(jsonPath("$.data.spendDown.series", hasSize(25)));
     }
 
@@ -1043,6 +1047,85 @@ class PlanReadControllerTests {
                 .andExpect(jsonPath("$.data.retirementAge").value(67))
                 .andExpect(jsonPath("$.data.nominalReturnPct").value(5))
                 .andExpect(jsonPath("$.data.spendDown.desiredMonthlyExpensesCurrentPrices").value(180000));
+    }
+
+    @Test
+    void increasingDesiredPensionExpensesRaisesBothRequiredCapitalValues() throws Exception {
+        String subject = "pension-required-capital-owner";
+        String planId = currentPlanId(subject);
+
+        mockMvc.perform(patch("/api/v1/plans/{planId}/pension", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Pension Required Capital Owner")
+                                .claim("preferred_username", subject)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(pensionPatchJson(0).replace(
+                                "\"desiredMonthlyExpensesCurrentPrices\": 180000",
+                                "\"desiredMonthlyExpensesCurrentPrices\": 100000")))
+                .andExpect(status().isOk());
+
+        String baselineBody = mockMvc.perform(get("/api/v1/plans/{planId}/pension/projection", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Pension Required Capital Owner")
+                                .claim("preferred_username", subject))))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        mockMvc.perform(patch("/api/v1/plans/{planId}/pension", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Pension Required Capital Owner")
+                                .claim("preferred_username", subject)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(pensionPatchJson(0).replace(
+                                "\"desiredMonthlyExpensesCurrentPrices\": 180000",
+                                "\"desiredMonthlyExpensesCurrentPrices\": 200000")))
+                .andExpect(status().isOk());
+
+        String higherSpendingBody = mockMvc.perform(get("/api/v1/plans/{planId}/pension/projection", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Pension Required Capital Owner")
+                                .claim("preferred_username", subject))))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        JsonNode baseline = objectMapper.readTree(baselineBody).at("/data");
+        JsonNode higherSpending = objectMapper.readTree(higherSpendingBody).at("/data");
+        assertThat(higherSpending.at("/preserveCapital/requiredCapitalAtRetirement").decimalValue())
+                .isGreaterThan(baseline.at("/preserveCapital/requiredCapitalAtRetirement").decimalValue());
+        assertThat(higherSpending.at("/spendDown/requiredCapitalAtRetirement").decimalValue())
+                .isGreaterThan(baseline.at("/spendDown/requiredCapitalAtRetirement").decimalValue());
+    }
+
+    @Test
+    void pensionProjectionReportsNonPositiveRealReturnRequiredCapital() throws Exception {
+        String subject = "pension-non-positive-real-return-owner";
+        String planId = currentPlanId(subject);
+
+        mockMvc.perform(patch("/api/v1/plans/{planId}/pension", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Pension Non Positive Return Owner")
+                                .claim("preferred_username", subject)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(pensionPatchJson(0).replace(
+                                "\"expectedReturnPct\": 5",
+                                "\"expectedReturnPct\": 3")))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/plans/{planId}/pension/projection", planId)
+                        .with(jwt().jwt(token -> token.subject(subject)
+                                .claim("email", subject + "@example.com")
+                                .claim("name", "Pension Non Positive Return Owner")
+                                .claim("preferred_username", subject))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.preserveCapital.requiredCapitalAtRetirement")
+                        .value(nullValue()))
+                .andExpect(jsonPath("$.data.preserveCapital.requiredCapitalStatus")
+                        .value("non_positive_real_return"));
     }
 
     @Test
