@@ -105,13 +105,16 @@ public final class FinGuideMockServer {
           "preserveCapital": {
             "annualSpendableAtRetirement": 73537.99,
             "annualSpendableCurrentPrices": 39940.65,
-            "monthlySpendableCurrentPrices": 3328.39
+            "monthlySpendableCurrentPrices": 3328.39,
+            "requiredCapitalAtRetirement": 7854756.12,
+            "requiredCapitalStatus": "calculated"
           },
           "spendDown": {
             "desiredMonthlyExpensesCurrentPrices": 10000,
             "desiredAnnualExpensesAtRetirement": 220941.76,
             "retirementYears": 13,
             "depletionAge": 63,
+            "requiredCapitalAtRetirement": 4893421.67,
             "series": [
               {"year":2043,"age":50,"beginningCapital":2614402.18,"plannedExpense":220941.76,"nominalReturnPct":6,"endingCapital":2614402.18},
               {"year":2044,"age":51,"beginningCapital":2614402.18,"plannedExpense":227790.96,"nominalReturnPct":6,"endingCapital":2529807.89},

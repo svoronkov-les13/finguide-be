@@ -3851,7 +3851,9 @@
             "required": [
               "annualSpendableAtRetirement",
               "annualSpendableCurrentPrices",
-              "monthlySpendableCurrentPrices"
+              "monthlySpendableCurrentPrices",
+              "requiredCapitalAtRetirement",
+              "requiredCapitalStatus"
             ],
             "properties": {
               "annualSpendableAtRetirement": {
@@ -3862,6 +3864,19 @@
               },
               "monthlySpendableCurrentPrices": {
                 "type": "number"
+              },
+              "requiredCapitalAtRetirement": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "requiredCapitalStatus": {
+                "type": "string",
+                "enum": [
+                  "calculated",
+                  "non_positive_real_return"
+                ]
               }
             }
           },
@@ -3870,6 +3885,7 @@
             "required": [
               "desiredMonthlyExpensesCurrentPrices",
               "desiredAnnualExpensesAtRetirement",
+              "requiredCapitalAtRetirement",
               "retirementYears",
               "depletionAge",
               "series"
@@ -3879,6 +3895,9 @@
                 "type": "number"
               },
               "desiredAnnualExpensesAtRetirement": {
+                "type": "number"
+              },
+              "requiredCapitalAtRetirement": {
                 "type": "number"
               },
               "retirementYears": {

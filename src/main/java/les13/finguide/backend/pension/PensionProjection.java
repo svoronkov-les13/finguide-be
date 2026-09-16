@@ -20,13 +20,16 @@ public record PensionProjection(
     public record PreserveCapital(
             BigDecimal annualSpendableAtRetirement,
             BigDecimal annualSpendableCurrentPrices,
-            BigDecimal monthlySpendableCurrentPrices
+            BigDecimal monthlySpendableCurrentPrices,
+            BigDecimal requiredCapitalAtRetirement,
+            PensionRequiredCapitalCalculator.RequiredCapitalStatus requiredCapitalStatus
     ) {
     }
 
     public record SpendDown(
             BigDecimal desiredMonthlyExpensesCurrentPrices,
             BigDecimal desiredAnnualExpensesAtRetirement,
+            BigDecimal requiredCapitalAtRetirement,
             int retirementYears,
             int depletionAge,
             List<PensionSpendDownPoint> series

@@ -7,6 +7,7 @@ import les13.finguide.backend.analytics.GoalAllocation;
 import les13.finguide.backend.analytics.ModelAssumptions;
 import les13.finguide.backend.analytics.YearlyProjectionPoint;
 import les13.finguide.backend.pension.PensionProjection;
+import les13.finguide.backend.pension.PensionRequiredCapitalCalculator;
 import les13.finguide.backend.pension.PensionSettings;
 import les13.finguide.backend.pension.PensionSpendDownPoint;
 import les13.finguide.backend.expenses.ExpenseItem;
@@ -224,13 +225,16 @@ public class PlanReadService {
         BigDecimal averageInflationPct = averageInflation(state);
         BigDecimal realReturnPct = nominalReturnPct.subtract(averageInflationPct).setScale(2, RoundingMode.HALF_UP);
         BigDecimal statePensionAnnual = pension.statePensionEnabled() ? pension.statePensionMonthly().multiply(TWELVE) : BigDecimal.ZERO;
+        PensionRequiredCapitalCalculator.Result required = PensionRequiredCapitalCalculator.calculate(pension, yearsToRetirement);
 
         BigDecimal annualSpendableAtRetirement = capitalAtRetirement.multiply(nominalReturnPct).divide(HUNDRED, 2, RoundingMode.HALF_UP).add(statePensionAnnual);
         BigDecimal annualSpendableCurrentPrices = discount(annualSpendableAtRetirement, averageInflationPct, yearsToRetirement);
         PensionProjection.PreserveCapital preserveCapital = new PensionProjection.PreserveCapital(
                 annualSpendableAtRetirement,
                 annualSpendableCurrentPrices,
-                annualSpendableCurrentPrices.divide(TWELVE, 2, RoundingMode.HALF_UP)
+                annualSpendableCurrentPrices.divide(TWELVE, 2, RoundingMode.HALF_UP),
+                required.preserveCapital(),
+                required.preserveStatus()
         );
 
         int retirementYears = retirementSpendDownYears(state, yearsToRetirement);
@@ -244,6 +248,7 @@ public class PlanReadService {
         PensionProjection.SpendDown spendDown = new PensionProjection.SpendDown(
                 pension.desiredMonthlyExpensesCurrentPrices(),
                 desiredAnnualAtRetirement,
+                required.spendDownCapital(),
                 retirementYears,
                 depletionAge,
                 series
