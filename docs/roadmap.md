@@ -51,6 +51,10 @@
 - [x] [#10](https://github.com/svoronkov-les13/finguide-be/issues/10) — legacy/deprecated contributions ledger endpoints `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}`, TDD coverage, OpenAPI gap уменьшен до 19 операций.
 - [x] [#12](https://github.com/svoronkov-les13/finguide-be/issues/12) — budget/monthly tracker endpoints `GET/PATCH /plans/{planId}/budget`, `POST /plans/{planId}/budget/envelopes/autogenerate`, `GET/POST /plans/{planId}/calendar/monthly-tracker`, TDD coverage, OpenAPI gap уменьшен до 14 операций.
 - [x] [#13](https://github.com/svoronkov-les13/finguide-be/issues/13) — scenarios CRUD/compare endpoints `GET/POST /scenarios`, `GET/PATCH/DELETE /scenarios/{scenarioId}`, `POST /scenarios/compare`, TDD coverage, OpenAPI gap уменьшен до 9 операций.
+- [x] Multi-plan management — `GET/POST /plans`, `POST /plans/{planId}/copy`, `PUT /plans/current`; копирование переносит модель без фактической tracker/contribution истории.
+- [x] Registration/password reset facades — `POST /auth/register`, `POST /auth/password/forgot` поверх Keycloak admin/client flows.
+- [x] Pension required capital — `GET /plans/{planId}/pension/projection` отдаёт `requiredCapitalAtRetirement` для preserve-capital и spend-down стратегий.
+- [x] Observability baseline — Actuator health/info/prometheus, JVM metrics guard.
 - [ ] [finguide-web#7](https://github.com/svoronkov-les13/finguide-web/issues/7) — выделить первые implementation issues: design tokens, app shell/sidebar/topbar, shared UI primitives, dashboard desktop target.
 
 ### Next — frontend contract smoke + first redesigned screens
@@ -65,7 +69,6 @@
 
 ### Later — account, replace-plan, async perimeter, polish
 
-- [ ] [#7](https://github.com/svoronkov-les13/finguide-be/issues/7) — replace current plan endpoint.
 - [ ] [#8](https://github.com/svoronkov-les13/finguide-be/issues/8) — profile/avatar/account endpoints.
 - [ ] [#14](https://github.com/svoronkov-les13/finguide-be/issues/14) — import/export jobs.
 - [ ] [#15](https://github.com/svoronkov-les13/finguide-be/issues/15) — notifications endpoints.

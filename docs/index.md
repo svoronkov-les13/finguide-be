@@ -2,7 +2,7 @@
 
 Документация backend/API для **FinGuide / «Финансовый капитал»**.
 
-FinGuide строится как contract-first продукт: frontend редактирует входные данные финансового плана, backend владеет хранением, безопасностью и расчётами. Текущий этап — переход от mock/localStorage прототипа к real Spring Boot backend с persisted demo state и Keycloak/OIDC boundary.
+FinGuide строится как contract-first продукт: frontend редактирует входные данные финансового плана, backend владеет хранением, безопасностью и расчётами. Текущий backend — real Spring Boot сервис с persisted plan state, Keycloak/OIDC boundary, multi-plan management, canonical analytics и GitHub Pages документацией.
 
 ## Быстрые ссылки
 
@@ -22,6 +22,7 @@ Legacy mock больше не входит в публичный deployment cont
 
 - [Текущее состояние реализации](status.md) — что реально работает сейчас.
 - [Roadmap](roadmap.md) — готовые и будущие задачи.
+- [API reference](api-reference.md) — фактическая карта endpoint'ов real backend.
 - [База данных](database.md) — Liquibase schema, local H2 режим и prod PostgreSQL.
 - [Контракт API](contract.md) — целевой договор backend ↔ frontend.
 - [Operations и CI/CD](operations.md) — GitHub Pages, GHCR image publishing и Kubernetes rollout boundary.
@@ -34,10 +35,13 @@ Legacy mock больше не входит в публичный deployment cont
 Реализовано в real backend:
 
 - API index;
+- registration/password reset facades поверх Keycloak admin client;
 - `GET /me`;
 - `GET /plans/current`;
+- user plan list/create/copy/current switch;
 - dashboard/health/cashflow and scenario CRUD/compare;
-- analytics assumptions, current balance, yearly projection, pension settings and pension projection from persisted state;
+- analytics assumptions, current balance, yearly projection, monthly cashflow, pension settings and pension projection from persisted state;
+- required pension capital fields for `preserve_capital` and `spend_down_30y`;
 - CRUD incomes/expenses/goals;
 - goals reorder;
 - Keycloak JWT Resource Server boundary;
@@ -51,6 +55,7 @@ Legacy mock больше не входит в публичный deployment cont
 - [#4](https://github.com/svoronkov-les13/finguide-be/issues/4) analytics/pension endpoints строятся из persisted plan state;
 - [#11](https://github.com/svoronkov-les13/finguide-be/issues/11) pension settings endpoints реализованы поверх persisted state;
 - [#10](https://github.com/svoronkov-les13/finguide-be/issues/10) contributions ledger endpoints реализованы поверх persisted state; `Goal.savedAmount` теперь выводится из суммы взносов.
+- Spring Boot Actuator health/info/prometheus endpoints for smoke checks and JVM metrics.
 
 Следующий backend guardrail: сократить оставшийся gap между checked-in OpenAPI и real Springdoc, не ломая уже реализованные operations.
 

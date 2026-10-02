@@ -211,8 +211,9 @@ currentAge = YEAR(TODAY()) - birthYear
 retirementYear = YEAR(TODAY()) + (retirementAge - currentAge)
 capitalAtRetirement = accumulatedCapital[retirementYear]
 averageInflationPct = average(inflationPct from current year to retirementYear)
-realReturnPct = (1 + nominalReturnPct) / (1 + averageInflationPct) - 1
-annualSpendableAtRetirement = capitalAtRetirement * realReturnPct
+realReturnPct = nominalReturnPct - averageInflationPct
+statePensionAnnual = statePensionEnabled ? statePensionMonthly * 12 : 0
+annualSpendableAtRetirement = capitalAtRetirement * (nominalReturnPct / 100) + statePensionAnnual
 annualSpendableCurrentPrices = annualSpendableAtRetirement * discountFactor[retirementYear]
 monthlySpendableCurrentPrices = annualSpendableCurrentPrices / 12
 ```
@@ -226,6 +227,32 @@ monthlySpendableCurrentPrices = annualSpendableCurrentPrices / 12
 | nominalReturnPct | 10% |
 | averageInflationPct | 0% |
 | monthlySpendableCurrentPrices | 3328.4 |
+
+### Required capital для preserve-capital
+
+`capitalAtRetirement` отвечает на вопрос «сколько текущий план накопит к пенсии». Отдельное поле `preserveCapital.requiredCapitalAtRetirement` отвечает на другой вопрос: «сколько капитала нужно, чтобы финансировать желаемые пенсионные расходы и не тратить principal».
+
+Формулы runtime-калькулятора:
+
+```txt
+yearsToRetirement = max(0, retirementAge - currentAge)
+inflationFactor = (1 + inflationPct / 100) ^ yearsToRetirement
+desiredAnnualAtRetirement = desiredMonthlyExpensesCurrentPrices * 12 * inflationFactor
+statePensionAnnualAtRetirement =
+  statePensionEnabled ? statePensionMonthly * 12 * inflationFactor : 0
+annualNeed = max(0, desiredAnnualAtRetirement - statePensionAnnualAtRetirement)
+realReturnPct = expectedReturnPct - inflationPct
+
+if annualNeed == 0:
+  requiredCapitalAtRetirement = 0
+  requiredCapitalStatus = calculated
+else if realReturnPct <= 0:
+  requiredCapitalAtRetirement = null
+  requiredCapitalStatus = non_positive_real_return
+else:
+  requiredCapitalAtRetirement = annualNeed / (realReturnPct / 100)
+  requiredCapitalStatus = calculated
+```
 
 ## Пенсия: вариант «расходовать капитал»
 
@@ -253,6 +280,20 @@ depletionAge = retirementAge + retirementYears
 | desiredAnnualAtRetirement | -220941.8 |
 | retirementYears | 13 |
 | depletionAge | 63 |
+
+### Required capital для spend-down
+
+Поле `spendDown.requiredCapitalAtRetirement` рассчитывается отдельно от отображаемой `spendDown.series`. Серия продолжает следовать горизонту модели/графика, а required capital использует фиксированный funding period `30` лет.
+
+Формула обратным проходом:
+
+```txt
+required = 0
+for year from 29 down to 0:
+  withdrawal = annualNeed * (1 + inflationPct / 100) ^ year
+  required = (required + withdrawal) / (1 + expectedReturnPct / 100)
+requiredCapitalAtRetirement = required
+```
 
 ## Дополнение из Figma-прототипа
 

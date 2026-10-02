@@ -18,7 +18,7 @@
   -> PostgreSQL / Redis / object storage
 ```
 
-Бэкенд **не хранит пароли** и не владеет формами входа. Keycloak отвечает за идентификацию, учётные данные, MFA и пользовательские сессии. В local demo/H2 режиме `/api/v1/**` может быть открыт без JWT; production-like Kubernetes стенд работает с `FINGUIDE_DEMO_MODE=false`.
+Бэкенд **не хранит пароли** и не владеет формами входа. Keycloak отвечает за идентификацию, учётные данные, MFA и пользовательские сессии. FinGuide API содержит только тонкие public facades для регистрации и запроса сброса пароля, которые вызывают Keycloak admin/client flows. В local demo/H2 режиме `/api/v1/**` может быть открыт без JWT; production-like Kubernetes стенд работает с `FINGUIDE_DEMO_MODE=false`.
 
 ## Kubernetes deployment Keycloak
 
@@ -227,5 +227,6 @@ notification-worker
 - первый authenticated `GET /api/v1/plans/current` транзакционно создаёт ровно один current plan для `user_profiles.id`, клонируя явный persisted seed plan `22222222-2222-4222-8222-222222222222`; повторные запросы возвращают тот же пользовательский план;
 - frontend при восстановлении OIDC-сессии не должен переиспользовать anonymous demo cache и не должен показывать seeded demo/default профиль до ответа authenticated `/plans/current`; на время bootstrap показывается нейтральный loader;
 - доступ к `/api/v1/plans/{planId}/...` проверяется по владельцу `financial_plans.owner_user_id`; роль `admin` может читать план для диагностики; authenticated demo mode больше не даёт cross-plan bypass;
-- операции записи income/expense/goal проходят ту же проверку доступа и пишут audit log без секретов;
+- операции записи plan management, income/expense/goal, budget, tracker, pension и scenario проходят ту же проверку доступа;
+- `POST /api/v1/auth/register` и `POST /api/v1/auth/password/forgot` открыты без Bearer token, валидируют входные данные, rate-limit'ят reset и не раскрывают лишние details наружу;
 - `FINGUIDE_DEMO_MODE=true` сохраняет прежний no-auth demo/H2 режим для локальных тестов и текущего публичного стенда до запуска Keycloak.

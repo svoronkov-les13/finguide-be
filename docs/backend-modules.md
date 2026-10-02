@@ -6,14 +6,14 @@
 
 ```txt
 les13.finguide.backend
-  auth/              интеграция с Keycloak JWT, SecurityConfig, текущий пользователь
+  auth/              интеграция с Keycloak JWT, SecurityConfig, текущий пользователь, registration/password reset facades
   users/             бизнес-профиль пользователя, связанный с Keycloak identity
   plans/             агрегат финансового плана, JDBC persistence, cloning seeded plan for authenticated users, read API, финансовый CRUD и политика доступа
   incomes/           модель источников дохода, сохраняется через financial item CRUD
   expenses/          модель расходов и бюджетная классификация, сохраняется через financial item CRUD
   goals/             финансовые цели, waterfall-приоритет и reorder API
   contributions/     фактические взносы в цели
-  pension/           пенсионные настройки, preserve-capital и spend-down проекции
+  pension/           пенсионные настройки, preserve-capital/spend-down проекции и required capital
   budget/            50/30/20 и бюджетные конверты
   analytics/         предположения из Excel-модели, денежный поток, баланс, сбережения, дашборд, оценка финансового здоровья
   scenarios/         снимки и корректировки сценариев
@@ -36,7 +36,10 @@ analytics/
 pension/
   PensionProjection          варианты preserve-capital и spend-down из листа Пенсия
   PensionSpendDownPoint      годовая строка расходования пенсионного капитала
+  PensionRequiredCapitalCalculator  strategy-specific required capital at retirement
 ```
+
+`auth/` содержит не только resource-server boundary, но и public facades `POST /auth/register` и `POST /auth/password/forgot`. Они не заменяют Keycloak login/refresh/logout flow; backend вызывает Keycloak admin/client APIs и не хранит пароли.
 
 Входные данные должны быть нормализованы и удобны пользователю: расходы и цели передаются положительными исходящий платёж-суммами. Расчётный слой сам переводит знаки внутрь модели и наружу отдаёт положительные исходящий платёж + `netSavings`.
 

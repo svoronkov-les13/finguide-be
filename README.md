@@ -34,9 +34,11 @@ Legacy mock artifacts remain in the repository only for transition checks; they 
 Real backend currently supports:
 
 - `GET /api/v1` API index;
+- public `POST /api/v1/auth/register` and `POST /api/v1/auth/password/forgot` facades backed by Keycloak;
 - `GET /api/v1/me`;
 - `GET /api/v1/plans/current`;
-- plan dashboard, health, cashflow and persisted scenario CRUD/compare;
+- plan list/create/copy/current-switch management;
+- plan dashboard, health, cashflow, monthly cashflow and persisted scenario CRUD/compare;
 - CRUD for incomes, expenses and goals;
 - `POST /plans/{planId}/goals/reorder`;
 - Keycloak JWT validation and audience check;
@@ -45,10 +47,12 @@ Real backend currently supports:
 - plan ownership checks for authenticated users;
 - schema managed by Liquibase, with H2 demo seed data loaded from `data.sql`;
 - persisted analytics assumptions, current balance, yearly projection and pension projection endpoints;
+- required pension capital fields in `GET /plans/{planId}/pension/projection`;
 - persisted pension settings `GET/PATCH /plans/{planId}/pension` with writable-plan guardrails;
 - legacy/deprecated persisted contributions ledger `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}` with `Goal.savedAmount` derived from contribution sums;
 - persisted budget settings `GET/PATCH /plans/{planId}/budget`, envelope autogeneration, monthly tracker `GET/POST /plans/{planId}/calendar/monthly-tracker`, and operation journal `GET/POST/PATCH/DELETE /plans/{planId}/tracker/entries` as the canonical write-path for factual goal outflows;
-- persisted user scenarios `GET/POST /scenarios`, `GET/PATCH/DELETE /scenarios/{scenarioId}`, and `POST /scenarios/compare` with built-in read-only scenarios.
+- persisted user scenarios `GET/POST /scenarios`, `GET/PATCH/DELETE /scenarios/{scenarioId}`, and `POST /scenarios/compare` with built-in read-only scenarios;
+- Actuator health/info/prometheus endpoints under `/finguide-api/actuator/*`.
 
 Completed guardrails and analytics milestones:
 
@@ -97,10 +101,10 @@ mvn spring-boot:run
 Open:
 
 ```txt
-http://127.0.0.1:8080/swagger-ui.html
-http://127.0.0.1:8080/v3/api-docs
-http://127.0.0.1:8080/api/v1
-http://127.0.0.1:8080/api/v1/plans/current
+http://127.0.0.1:8080/finguide-api/swagger-ui.html
+http://127.0.0.1:8080/finguide-api/v3/api-docs
+http://127.0.0.1:8080/finguide-api/api/v1
+http://127.0.0.1:8080/finguide-api/api/v1/plans/current
 ```
 
 Default local mode:
@@ -153,7 +157,7 @@ Relevant test areas:
 - income/expense/goal CRUD;
 - contribution ledger CRUD and derived goal progress;
 - OpenAPI exposure for financial item and scenario endpoints;
-- OpenAPI contract coverage guard: checked-in `openapi/openapi.json` has 58 operations; real Springdoc must cover every implemented operation and must not regress beyond the documented 9-operation gap.
+- OpenAPI contract coverage guard: checked-in `openapi/openapi.json` has 58 operations; real Springdoc must cover every implemented operation and must not regress beyond the documented 8-operation target-only gap.
 
 ## Documentation
 
@@ -177,6 +181,7 @@ Backend runtime deployment is no longer a systemd/JAR install from this reposito
 Important pages:
 
 - `docs/status.md` — actual implementation status;
+- `docs/api-reference.md` — current real backend endpoint map;
 - `docs/roadmap.md` — completed and planned work;
 - `docs/database.md` — Liquibase schema and migration notes;
 - `docs/contract.md` — backend/frontend API contract;

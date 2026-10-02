@@ -6,6 +6,7 @@
 
 - Public API base: <https://finguide.les13.tech/finguide-api/api/v1>
 - Health: <https://finguide.les13.tech/finguide-api/actuator/health>
+- Prometheus metrics: <https://finguide.les13.tech/finguide-api/actuator/prometheus>
 - Swagger UI: <https://finguide.les13.tech/finguide-api/swagger-ui.html>
 - OpenAPI JSON: <https://finguide.les13.tech/finguide-api/v3/api-docs>
 - Kubernetes namespace: `finguide`
@@ -54,12 +55,31 @@ mkdocs build --strict
 https://svoronkov-les13.github.io/finguide-be/
 ```
 
+## Observability
+
+Spring Boot Actuator включён в runtime config. Наружу экспонируются только:
+
+```txt
+health, info, prometheus
+```
+
+Пути учитывают application context path:
+
+```txt
+/finguide-api/actuator/health
+/finguide-api/actuator/info
+/finguide-api/actuator/prometheus
+```
+
+Prometheus endpoint отдаёт Micrometer/JVM metrics в text exposition формате. Регрессионный тест `ActuatorPrometheusMetricsTests` проверяет наличие `jvm_memory_used_bytes` и `jvm_threads_live_threads` на management port.
+
 ## Проверка после деплоя
 
 Минимальный ручной smoke test:
 
 ```bash
 curl -fsS https://finguide.les13.tech/finguide-api/actuator/health
+curl -fsS https://finguide.les13.tech/finguide-api/actuator/prometheus | head
 curl -fsS https://finguide.les13.tech/finguide-api/v3/api-docs >/dev/null
 curl -fsS https://finguide.les13.tech/auth/realms/finguide/.well-known/openid-configuration >/dev/null
 ```
@@ -67,6 +87,7 @@ curl -fsS https://finguide.les13.tech/auth/realms/finguide/.well-known/openid-co
 Ожидаемо:
 
 - health содержит `"status":"UP"`;
+- Prometheus endpoint отдаёт JVM/Micrometer metrics;
 - OpenAPI JSON отдаётся backend'ом под context path `/finguide-api`;
 - Keycloak discovery отвечает с issuer `https://finguide.les13.tech/auth/realms/finguide`.
 

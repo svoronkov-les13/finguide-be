@@ -21,16 +21,20 @@
 Реализовано:
 
 - `GET /api/v1` — индекс API;
+- `POST /api/v1/auth/register` — public registration facade, создаёт пользователя в Keycloak через backend admin client;
+- `POST /api/v1/auth/password/forgot` — public password reset facade, запрашивает Keycloak execute-actions email;
 - `GET /api/v1/me` — профиль текущего пользователя из JWT / demo контекста;
 - `GET /api/v1/plans/current` — текущий план;
+- `GET/POST /plans`, `POST /plans/{planId}/copy`, `PUT /plans/current` — список планов, создание пустого плана, копирование модели и переключение current plan;
 - `GET /plans/{planId}/dashboard`;
 - `GET /plans/{planId}/analytics/health`;
-- `GET /plans/{planId}/analytics/cashflow`;
+- `GET /plans/{planId}/analytics/cashflow?years=...`;
+- `GET /plans/{planId}/analytics/cashflow/monthly`;
 - `GET /plans/{planId}/analytics/assumptions` и `PATCH /plans/{planId}/analytics/assumptions`;
 - `GET /plans/{planId}/analytics/balance/current`;
 - `GET /plans/{planId}/analytics/projection?years=...`;
 - `GET /plans/{planId}/pension` и `PATCH /plans/{planId}/pension`;
-- `GET /plans/{planId}/pension/projection`;
+- `GET /plans/{planId}/pension/projection` с `requiredCapitalAtRetirement` для preserve-capital и spend-down стратегий;
 - legacy/deprecated `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}`;
 - `GET/PATCH /plans/{planId}/budget`, `POST /plans/{planId}/budget/envelopes/autogenerate`;
 - `GET/POST /plans/{planId}/calendar/monthly-tracker`;
@@ -41,9 +45,10 @@
 - Keycloak/OIDC boundary: JWT validation, audience check, lazy local profile mapping, user-owned current plan after first authenticated request, plan ownership checks;
 - frontend/auth bootstrap fixes: authenticated session no longer reuses anonymous demo cache/default profile;
 - schema managed by Liquibase, with H2 demo seed data from `data.sql`;
-- OpenAPI coverage guard [#16](https://github.com/svoronkov-les13/finguide-be/issues/16): checked-in `openapi/openapi.json` содержит 58 операций, real Springdoc покрывает 49 уже реализованных операций, а известный gap в 9 операций зафиксирован тестом и не должен расти случайно.
+- Spring Boot Actuator endpoints: `/finguide-api/actuator/health`, `/finguide-api/actuator/info`, `/finguide-api/actuator/prometheus`;
+- OpenAPI coverage guard [#16](https://github.com/svoronkov-les13/finguide-be/issues/16): checked-in `openapi/openapi.json` содержит 58 операций, а известный target-only gap в 8 операций зафиксирован тестом и не должен расти случайно.
 
-Текущая checked-in OpenAPI спецификация всё ещё шире real Springdoc, но расхождение теперь явно зафиксировано тестом `OpenApiContractCoverageTests`. Следующие задачи должны уменьшать список missing operations по мере реализации endpoints.
+Текущая checked-in OpenAPI спецификация всё ещё шире real Springdoc в части profile/avatar, import/export и notifications. Расхождение явно зафиксировано тестом `OpenApiContractCoverageTests`; следующие задачи должны уменьшать список missing operations по мере реализации endpoints.
 
 ## Demo/H2 режим
 
@@ -103,9 +108,9 @@ Frontend image publishing и Kubernetes rollout также идут через �
 - Done: legacy/deprecated contributions ledger — [#10](https://github.com/svoronkov-les13/finguide-be/issues/10);
 - Done: budget/monthly tracker — [#12](https://github.com/svoronkov-les13/finguide-be/issues/12);
 - Done: scenarios CRUD/compare — [#13](https://github.com/svoronkov-les13/finguide-be/issues/13);
+- Done: multi-plan management — `GET/POST /plans`, `POST /plans/{planId}/copy`, `PUT /plans/current`;
 - Now: frontend design foundation по FinPlan — design tokens, app shell/sidebar/topbar, shared UI primitives, dashboard desktop target;
 - Next: frontend generated client smoke — [finguide-web#2](https://github.com/svoronkov-les13/finguide-web/issues/2);
-- Later: `PUT /plans/current` — [#7](https://github.com/svoronkov-les13/finguide-be/issues/7);
 - Later: profile/avatar/account mutations — [#8](https://github.com/svoronkov-les13/finguide-be/issues/8);
 - Later: import/export — [#14](https://github.com/svoronkov-les13/finguide-be/issues/14);
 - Later: notifications — [#15](https://github.com/svoronkov-les13/finguide-be/issues/15).
