@@ -35,10 +35,10 @@
 - `GET /plans/{planId}/analytics/projection?years=...`;
 - `GET /plans/{planId}/pension` и `PATCH /plans/{planId}/pension`;
 - `GET /plans/{planId}/pension/projection` с `requiredCapitalAtRetirement` для preserve-capital и spend-down стратегий;
-- legacy/deprecated `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}`;
+- legacy/deprecated `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}`; create/update отключены, read/delete оставлены для compatibility cleanup;
 - `GET/PATCH /plans/{planId}/budget`, `POST /plans/{planId}/budget/envelopes/autogenerate`;
 - `GET/POST /plans/{planId}/calendar/monthly-tracker`;
-- `GET/POST /plans/{planId}/tracker/entries`, `PATCH/DELETE /plans/{planId}/tracker/entries/{entryId}` — persisted journal операций страницы `/tracking`, canonical write-path для фактических goal outflows;
+- `GET/POST /plans/{planId}/tracker/entries`, `PATCH/DELETE /plans/{planId}/tracker/entries/{entryId}` — persisted journal операций страницы `/tracking`; `type=goal` сейчас отклоняется, для целей используются `Goal.savedAmount` и monthly tracker;
 - `GET/POST /scenarios`, `GET/PATCH/DELETE /scenarios/{scenarioId}`, `POST /scenarios/compare` — persisted пользовательские сценарии и сравнение;
 - CRUD доходов, расходов и целей;
 - `POST /plans/{planId}/goals/reorder`;

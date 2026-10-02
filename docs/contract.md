@@ -155,7 +155,7 @@ If-Match: "<etag>"
 
 `id`, `name`, `icon`, `currentCost`, `savedAmount`, `currency`, `targetYear`, `targetMonth`, `type: one_time|recurring`, `growthType`, `growthPct`, `growthSchedule[]`, `priority`. `targetYear` должен быть не меньше `2024`; `targetMonth` — `1..12`, при отсутствии в request backend использует декабрь (`12`).
 
-Логика waterfall-распределения: ближайшая цель получает свободные накопления первой; порядок сортировки `targetYear`, `targetMonth`, `priority`, `id`, а `/goals/reorder` управляет priority внутри одинакового срока.
+Логика waterfall-распределения: цель с меньшим `priority` получает свободные накопления первой; порядок сортировки `priority`, `targetYear`, `targetMonth`, `id`, а `/goals/reorder` управляет `priority`.
 
 Для Excel-модели `Goal` также должен поддерживать плановые расходы на цели: `plannedAmount`, `frequency`, `startDate/endDate` или `startYear/endYear`. Это покрывает лист `Цели`: ежемесячные и ежегодные расходы на цели как отдельный денежный поток.
 
@@ -163,9 +163,9 @@ If-Match: "<etag>"
 
 `id`, `goalId`, `amount`, `currency`, `date`, `note`.
 
-`Contribution` ledger оставлен как legacy compatibility API и помечен deprecated в backend/controller/OpenAPI. Текущий UI пишет фактические goal outflows через operation journal (`/plans/{planId}/tracker/entries` с `type=goal`, `status=actual`). Не нужно писать один и тот же факт одновременно в `contributions` и operation journal: analytics учитывает оба источника для совместимости, и это даст double-counting.
+`Contribution` ledger оставлен как legacy compatibility API и помечен deprecated в backend/controller/OpenAPI. В текущем backend create/update отключены и возвращают `goal contribution ledger is disabled; use goal savedAmount and savings tracker instead`. Фактический прогресс цели задаётся через `Goal.savedAmount`, а план-факт накоплений — через monthly tracker.
 
-В legacy path `Goal.savedAmount` — производное значение: после create/update/delete взноса бэкенд пересчитывает его как `sum(Contribution.amount)` по цели. Поле `savedAmount` в goal create/patch не является источником истины.
+В текущем path `Goal.savedAmount` — persisted поле цели и редактируется через goal create/patch. Старые contribution rows остаются доступными для чтения/удаления, но не являются текущим write-path.
 
 ### Пенсионные настройки (`PensionSettings`)
 
@@ -217,11 +217,11 @@ Keycloak владеет входом, refresh/logout, MFA и пользоват�
 - `GET/POST /plans/{planId}/expenses`, `GET/PATCH/DELETE /plans/{planId}/expenses/{id}` — реализовано в real backend.
 - `GET/POST /plans/{planId}/goals`, `GET/PATCH/DELETE /plans/{planId}/goals/{id}` — реализовано в real backend.
 - `POST /plans/{planId}/goals/reorder` — реализовано в real backend; тело `{ "goalIds": ["..."] }` должно содержать все текущие id целей ровно по одному разу.
-- `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}` — legacy/deprecated compatibility endpoints; read требует доступ к плану, write требует writable plan access, общий anonymous seed read-only. `Goal.savedAmount` пересчитывается из суммы взносов по цели. Удаление цели удаляет связанные с ней взносы, чтобы не оставлять orphan ledger records. Текущий canonical source для фактических goal outflows — operation journal; не смешивать оба write-path для одного факта из-за риска double-counting. Текущая H2-реализация возвращает полный список без pagination/idempotency.
+- `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}` — legacy/deprecated compatibility endpoints; read/delete требуют доступ к плану, create/update сейчас отключены и возвращают ошибку `goal contribution ledger is disabled; use goal savedAmount and savings tracker instead`. Удаление цели удаляет связанные с ней старые взносы, чтобы не оставлять orphan ledger records. Текущая H2-реализация возвращает полный список без pagination/idempotency.
 - `GET/PATCH /plans/{planId}/pension` — реализовано в real backend; `PATCH` делает full replace persisted `PensionSettings` и требует writable plan access, поэтому общий anonymous seed read-only.
 - `GET/PATCH /plans/{planId}/budget`, `POST /plans/{planId}/budget/envelopes/autogenerate` — реализовано в real backend.
-- `GET /plans/{planId}/calendar/monthly-tracker?year=2026` и `POST /plans/{planId}/calendar/monthly-tracker` — реализовано в real backend; хранит статус месяца (`completed|partial|missed`).
-- `GET/POST /plans/{planId}/tracker/entries`, `PATCH/DELETE /plans/{planId}/tracker/entries/{entryId}` — реализовано в real backend; хранит журнал операций страницы `/tracking` (`date`, `title`, `amount`, `type`, `status`) и требует writable plan access для mutations. Для фактических расходов на цели это текущий canonical write-path (`type=goal`, `status=actual`).
+- `GET /plans/{planId}/calendar/monthly-tracker?year=2026` и `POST /plans/{planId}/calendar/monthly-tracker` — реализовано в real backend; хранит статус месяца (`completed|partial|missed`) и фактическую сумму накопления. В analytics влияет именно `amount`.
+- `GET/POST /plans/{planId}/tracker/entries`, `PATCH/DELETE /plans/{planId}/tracker/entries/{entryId}` — реализовано в real backend; хранит журнал операций страницы `/tracking` (`date`, `title`, `amount`, `type`, `status`) и требует writable plan access для mutations. `type=goal` сейчас отклоняется backend'ом; использовать `Goal.savedAmount` и monthly tracker.
 
 ### Аналитика и производные данные
 

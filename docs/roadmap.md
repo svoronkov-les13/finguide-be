@@ -79,5 +79,5 @@
 1. Guardrails первыми: OpenAPI coverage уже зафиксирован, seed immutability нужна до дальнейших мутаций demo state.
 2. Persisted analytics остаётся ядром продуктовой ценности: без неё redesign будет красивой оболочкой над неполными расчётами.
 3. FinPlan design foundation запускается параллельно, чтобы не переделывать каждую страницу дважды.
-4. Pension settings и legacy contributions шли до tracker/scenarios; текущий canonical write-path для фактических goal outflows — tracker operation journal.
+4. Pension settings и legacy contributions шли до tracker/scenarios; текущий backend больше не пишет contribution ledger и не принимает goal operation journal entries, поэтому фактический прогресс целей задаётся через `Goal.savedAmount`, а план-факт накоплений — через monthly tracker.
 5. Tracker/scenarios/account/import/export/notifications двигаются после базовой стабилизации домена и UI primitives.

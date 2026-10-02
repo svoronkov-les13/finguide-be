@@ -1,383 +1,427 @@
-# Аналитическая модель FinGuide
+# Аналитика текущего backend
 
-Актуальный эталон: Apple Numbers-файл `Модель_P_3---3c875af3-ffe2-4e95-96e6-0b82f82a7a40.numbers`.<br>
-SHA-256: `b586ff7ecbb78bc2807c797217cb8f787e747403663056947051c64c987cd988`
+Эта страница описывает не исходный Numbers-файл, а расчётную модель, которая сейчас реально работает в Spring Boot backend.
 
-Файл — источник формул для расчётного ядра FinGuide. Фронтенд должен оставаться тонким: он редактирует входные данные и показывает результаты, а backend владеет проекциями доходов, расходов, сбережений, целей, пенсионных сценариев и сводок.
+Главные точки входа:
 
-Текущий backend уже реализует persisted plan state, cashflow/projection/balance/pension endpoints и projected goal progress. Важная договорённость для продукта: **одноразовые цели из UI не являются расходами cashflow**. Они финансируются из свободного денежного потока. Отдельный лист `Цели` в Numbers описывает именно регулярные/плановые расходы на цели; такие строки, если будут заведены как recurring goal expenses, могут входить в cashflow отдельно.
+- код расчёта: `PlanReadService`;
+- HTTP boundary: `PlanReadController`;
+- JSON mapping: `PlanApiMapper`;
+- сценарии: `ScenarioService`;
+- пенсионный required capital: `PensionRequiredCapitalCalculator`.
 
-## Структура Numbers-файла
+Numbers-модель остаётся только историческим источником формул. Runtime source of truth — persisted `PlanState` из backend.
 
-| Лист | Роль | Backend-модуль |
-|---|---|---|
-| `Вводные` | Глобальные параметры и входные строки: годы, возраст, инфляция, инвестиционная доходность, доходы, расходы, расходы на цели, пенсионные настройки. | `plans`, `analytics`, `incomes`, `expenses`, `goals`, `pension` |
-| `Доходы` | Годовые флаги активности доходов, коэффициенты роста, годовые суммы по monthly/yearly income lines. | `incomes`, `analytics` |
-| `Расходы` | Годовые флаги активности расходов, коэффициенты роста, годовые суммы по monthly/yearly expense lines. | `expenses`, `analytics` |
-| `Цели` | Регулярные расходы на цели: monthly/yearly goal expense lines, флаги активности, рост, итоговый поток. | `goals`, `analytics` |
-| `Баланс` | Снимок текущего года: доходы, расходы и итоговый баланс по monthly/yearly/total. | `analytics` |
-| `Сбережения` | Годовые сбережения и накопленный капитал. | `analytics` |
-| `Пенсия` | Два пенсионных сценария: жить на проценты и расходовать капитал. | `pension`, `analytics` |
+## Карта аналитических endpoints
 
-## Базовые предположения файла
-
-Из листа `Вводные`:
-
-- `startYear = 2024`;
-- `birthYear = 1993`;
-- `monthsPerYear = 12`;
-- горизонт в годовых колонках — до `2076`;
-- валюта примера — `USD`;
-- `investmentReturnPct = 10%` (`0.1` в Numbers);
-- инфляция по годам в текущем файле — `0%`;
-- retirement age — `50`;
-- желаемые пенсионные расходы — `-10000 USD / мес.`.
-
-Ставки в файле Numbers хранятся как десятичные значения (`0.1` = 10%). В API поля с суффиксом `Pct` отдаются как процентные пункты (`10` = 10%), а расчётный код переводит их во внутреннюю decimal-ставку.
-
-## Общий паттерн строк
-
-Доходы, расходы и регулярные расходы на цели используют одинаковый паттерн:
+Базовый URL production:
 
 ```txt
-activeFlag(line, year) = year >= line.startYear && year <= line.endYear ? 1 : 0
-factor[line, startYear] = 1 * (1 + growthRate[line, startYear])
-factor[line, year] = factor[line, previousYear] * (1 + growthRate[line, year])
-annualMonthlyLineValue[line, year] = monthlyAmount * monthsPerYear * factor[line, year] * activeFlag(line, year)
-annualYearlyLineValue[line, year] = yearlyAmount * factor[line, year] * activeFlag(line, year)
+https://finguide.les13.tech/finguide-api/api/v1
 ```
 
-В Numbers расходы заведены отрицательными суммами, поэтому итоги расходов и goal expenses тоже отрицательные. В API удобнее принимать положительные `amount` для расходов, а в расчётах нормализовать знак внутри.
+| Endpoint | Что возвращает | Основной расчёт |
+| --- | --- | --- |
+| `GET /plans/{planId}/dashboard` | KPI главного экрана, краткий прогноз, цели, pension estimate | `dashboard()` поверх годового cashflow |
+| `GET /plans/{planId}/analytics/cashflow?years=N` | годовые строки доходов, расходов, целей, net savings и капитала | `cashflow(planId, years)` |
+| `GET /plans/{planId}/analytics/cashflow/monthly` | 12 помесячных строк для tracker/chart | `monthlyCashflow()` |
+| `GET /plans/{planId}/analytics/projection?years=N` | упрощённый yearly projection | wrapper над `cashflow()` |
+| `GET /plans/{planId}/analytics/balance/current` | снимок текущего года | текущие доходы/расходы/цели |
+| `GET /plans/{planId}/analytics/health` | health score и причины | `dashboard()` + количество income sources |
+| `GET /plans/{planId}/pension/projection` | preserve-capital и spend-down pension model | `pensionProjection()` |
+| `POST /scenarios/compare` | base/optimistic/pessimistic/user scenario projections | `ScenarioService.compare()` |
 
-## Доходы
+`/analytics/cashflow` принимает `years`, но backend clamp'ит значение в диапазон `1..80`. `/analytics/projection` принимает `years` в диапазоне `1..60`.
 
-Пример входов:
+## Runtime inputs
 
-- monthly incomes: `Income 1 = 10000`, `Income 2 = 2000`, `Income 3 = 1000` USD/мес.;
-- `Income 2` активен только в `2024`;
-- `Income 1` в `2025` имеет рост `50%`, дальше часть строк следует инфляции;
-- yearly incomes в текущем файле равны `0`.
+Расчёт собирается из persisted state:
 
-Формулы листа `Доходы`:
+- `ModelAssumptions`: `startYear`, `horizonYears`, `birthYear`, `monthsPerYear`, `currency`, `initialCapital`, `investmentReturnPct`, `inflationSchedule`;
+- `PensionSettings`: возраст, пенсионный возраст, желаемые расходы, пенсионная доходность, пенсионная инфляция, стратегия, государственная пенсия;
+- `IncomeSource`: сумма, частота, рост, даты активности, `continueAfterRetirement`;
+- `ExpenseItem`: сумма, частота, рост, budget class, даты активности;
+- `Goal`: стоимость, накопленный факт `savedAmount`, месяц/год цели, рост, priority;
+- `MonthlyTrackerEntry`: фактическая сумма накопления по месяцу.
+
+Legacy `contributions` читаются для совместимости, но write-path отключён. `operation_journal_entries` существует для tracker page, но goal-операции сейчас отклоняются backend'ом. В текущем расчётном ядре фактический прогресс целей задаётся через `Goal.savedAmount`, а месячный план-факт накоплений — через monthly tracker.
+
+## Время и горизонт
+
+Backend не начинает прогноз в прошлом:
 
 ```txt
-totalMonthlyIncome[year] = sum(monthly income annualized lines)
-totalYearlyIncome[year] = sum(yearly income lines)
-totalIncome[year] = totalMonthlyIncome[year] + totalYearlyIncome[year]
+startYear = max(currentCalendarYear, modelAssumptions.startYear)
 ```
 
-Контрольные значения из файла:
-
-| Year | totalIncome |
-|---:|---:|
-| 2024 | 156000 |
-| 2025 | 192360 |
-| 2026 | 198130.8 |
-| 2027 | 204074.7 |
-| 2028 | 210196.0 |
-
-## Расходы
-
-Пример входов:
-
-- monthly expenses: 8 строк по `-1000 USD / мес.` (`Еда`, `Садик`, `Няня`, `Ипотека`, `Аренда`, `Связь`, `Командировки`, `Прочее`);
-- yearly expenses: 7 строк по `-3000 USD / год.`;
-- часть расходов имеет конечные годы: ипотека/страховка по ипотеке до `2050`, детский сад/школа до `2040`, отдельные долги до `2025`/`2028`.
-
-Формулы листа `Расходы`:
+Горизонт по умолчанию:
 
 ```txt
-totalMonthlyExpenses[year] = sum(monthly expense annualized lines)
-totalYearlyExpenses[year] = sum(yearly expense lines)
-totalExpenses[year] = totalMonthlyExpenses[year] + totalYearlyExpenses[year]
-```
-
-Контрольные значения из файла:
-
-| Year | totalExpenses |
-|---:|---:|
-| 2024 | -117000 |
-| 2025 | -119880 |
-| 2026 | -119846.4 |
-| 2027 | -122901.8 |
-| 2028 | -126048.8 |
-
-## Цели: регулярные расходы vs продуктовые цели
-
-Лист `Цели` в Numbers моделирует **регулярные расходы на цели**, а не прогресс одноразовых целей из UI.
-
-Пример в файле:
-
-- monthly goal expense lines сейчас равны `0`;
-- yearly goal expense `Отдых = -20000 USD / год`;
-- активность goal expense lines задана периодом `2020..2060`;
-- рост goal expenses берётся из соответствующего growth schedule.
-
-Формулы листа `Цели`:
-
-```txt
-totalMonthlyGoalExpenses[year] = sum(monthly goal expense annualized lines)
-totalYearlyGoalExpenses[year] = sum(yearly goal expense lines)
-totalGoalExpenses[year] = totalMonthlyGoalExpenses[year] + totalYearlyGoalExpenses[year]
-```
-
-Контрольные значения:
-
-| Year | totalGoalExpenses |
-|---:|---:|
-| 2024 | -20000 |
-| 2025 | -20600 |
-| 2026 | -21218 |
-| 2027 | -21854.5 |
-| 2028 | -22510.2 |
-
-### Продуктовая интерпретация
-
-Для текущих UI-целей backend считает прогнозный прогресс отдельно:
-
-```txt
-freeCashflow[year] = totalIncome[year] - normalizedExpenses[year]
-# если используются signed Numbers values: freeCashflow = totalIncome + totalExpenses
-for month in projectionMonths:
-  pool += freeCashflow[year] / 12
-  for goal in goals sorted by targetYear, targetMonth, priority, id:
-    targetCost = currentCost grown by goal.growthPct until targetYear
-    allocated = min(pool, targetCost - previouslyAllocatedToGoal)
-    projectedSavedAmount += allocated
-    pool -= allocated
-```
-
-Поэтому:
-
-- `totalGoalExpenses` отражает прогнозное финансирование UI-целей в конкретном году;
-- `netSavings` в API уменьшается на `totalGoalExpenses`, потому что цель — это реальный денежный outflow;
-- `capitalEndOfYear`, dashboard balance, health/savings rate и scenario projections строятся поверх этого post-goal cashflow;
-- `Goal.savedAmount` остаётся фактическим/ledger-состоянием, а прогнозные поля — отдельные: `projectedTargetCost`, `projectedSavedAmount`, `projectedProgressPct`, `projectedReachable`, `projectedCompletionYear`.
-
-## Баланс текущего года
-
-Лист `Баланс` берёт текущий год из итогов `Доходы`, `Расходы`, `Цели`:
-
-```txt
-monthlyBalance = monthlyIncome + monthlyExpenses + monthlyGoalExpenses
-yearlyBalance = yearlyIncome + yearlyExpenses + yearlyGoalExpenses
-totalBalance = monthlyBalance + yearlyBalance
-```
-
-Контрольный снимок для `2024`:
-
-| Metric | Income | Expense | Balance |
-|---|---:|---:|---:|
-| Monthly | 156000 | -96000 | 60000 |
-| Yearly | 0 | -41000 | -41000 |
-| Total | 156000 | -137000 | 19000 |
-
-В API это соответствует `GET /plans/{planId}/analytics/balance/current`.
-
-## Сбережения и капитал
-
-Numbers-модель считает сбережения как сумму строк `Доходы`, `Расходы`, `Расходы на цели` с их знаками:
-
-```txt
-annualSavings[year] = totalIncome[year] + totalExpenses[year] + totalGoalExpenses[year]
-returnFactor[startYear] = 1
-returnFactor[year > startYear] = 1 + investmentReturnPct
-capitalEndOfYear[startYear] = annualSavings[startYear]
-capitalEndOfYear[year] = annualSavings[year] + capitalEndOfYear[previousYear] * returnFactor[year]
-```
-
-Контрольные значения:
-
-| Year | annualSavings | capitalEndOfYear |
-|---:|---:|---:|
-| 2024 | 19000 | 19000 |
-| 2025 | 51880 | 70880 |
-| 2026 | 57066.4 | 132199.2 |
-| 2027 | 59318.4 | 199449.5 |
-| 2028 | 61637.9 | 273054.5 |
-| 2043 | 114333.8 | 2614402.2 |
-
-Для текущего продукта одноразовые UI-цели не должны входить в эту формулу как `goalExpenses`; они живут в отдельной projection allocation модели выше.
-
-## Пенсия: вариант «жить на проценты»
-
-Лист `Пенсия`, строки `10..21`.
-
-Входы и формулы:
-
-```txt
-retirementAge = 50
-currentAge = YEAR(TODAY()) - birthYear
-retirementYear = YEAR(TODAY()) + (retirementAge - currentAge)
-capitalAtRetirement = accumulatedCapital[retirementYear]
-averageInflationPct = average(inflationPct from current year to retirementYear)
-realReturnPct = nominalReturnPct - averageInflationPct
-statePensionAnnual = statePensionEnabled ? statePensionMonthly * 12 : 0
-annualSpendableAtRetirement = capitalAtRetirement * (nominalReturnPct / 100) + statePensionAnnual
-annualSpendableCurrentPrices = annualSpendableAtRetirement * discountFactor[retirementYear]
-monthlySpendableCurrentPrices = annualSpendableCurrentPrices / 12
-```
-
-Контрольный результат текущего файла:
-
-| Metric | Value |
-|---|---:|
-| retirementYear | 2043 |
-| capitalAtRetirement | 2614402.2 |
-| nominalReturnPct | 10% |
-| averageInflationPct | 0% |
-| monthlySpendableCurrentPrices | 3328.4 |
-
-### Required capital для preserve-capital
-
-`capitalAtRetirement` отвечает на вопрос «сколько текущий план накопит к пенсии». Отдельное поле `preserveCapital.requiredCapitalAtRetirement` отвечает на другой вопрос: «сколько капитала нужно, чтобы финансировать желаемые пенсионные расходы и не тратить principal».
-
-Формулы runtime-калькулятора:
-
-```txt
-yearsToRetirement = max(0, retirementAge - currentAge)
-inflationFactor = (1 + inflationPct / 100) ^ yearsToRetirement
-desiredAnnualAtRetirement = desiredMonthlyExpensesCurrentPrices * 12 * inflationFactor
-statePensionAnnualAtRetirement =
-  statePensionEnabled ? statePensionMonthly * 12 * inflationFactor : 0
-annualNeed = max(0, desiredAnnualAtRetirement - statePensionAnnualAtRetirement)
-realReturnPct = expectedReturnPct - inflationPct
-
-if annualNeed == 0:
-  requiredCapitalAtRetirement = 0
-  requiredCapitalStatus = calculated
-else if realReturnPct <= 0:
-  requiredCapitalAtRetirement = null
-  requiredCapitalStatus = non_positive_real_return
+if modelAssumptions.horizonYears exists:
+  horizon = max(1, horizonYears)
 else:
-  requiredCapitalAtRetirement = annualNeed / (realReturnPct / 100)
-  requiredCapitalStatus = calculated
+  horizon = max(1, latestGoalYear - startYear + 1)
 ```
 
-## Пенсия: вариант «расходовать капитал»
-
-Лист `Пенсия`, строки `26..45`.
-
-Формулы:
+Пенсионный год:
 
 ```txt
-desiredAnnualCurrentPrices = desiredMonthlyCurrentPrices * 12
-desiredAnnualAtRetirement = desiredAnnualCurrentPrices / discountFactor[retirementYear]
-plannedExpense[retirementYear] = desiredAnnualAtRetirement
-plannedExpense[nextYear] = plannedExpense[previousYear] * (1 + averageInflationPct)
-capitalEndOfYear = (capitalStartOfYear + plannedExpense) * (1 + nominalReturnPct)
-retirementYears = count(years where capitalEndOfYear >= 0)
-depletionAge = retirementAge + retirementYears
+yearsToRetirement = max(0, pension.retirementAge - pension.currentAge)
+retirementYear = startYear + yearsToRetirement
+retired = year >= retirementYear
 ```
 
-`plannedExpense` отрицательный, поэтому в формуле используется сумма `capitalStartOfYear + plannedExpense`.
+## Рост сумм
 
-Контрольный результат:
+Доходы и расходы используют один паттерн growth:
 
-| Metric | Value |
-|---|---:|
-| desiredMonthlyCurrentPrices | -10000 |
-| desiredAnnualAtRetirement | -220941.8 |
-| retirementYears | 13 |
-| depletionAge | 63 |
+```txt
+amountAtOffset = amount * product(1 + rateForYear / 100)
+```
 
-### Required capital для spend-down
+Для строк с `growthType=inflation` backend берёт:
 
-Поле `spendDown.requiredCapitalAtRetirement` рассчитывается отдельно от отображаемой `spendDown.series`. Серия продолжает следовать горизонту модели/графика, а required capital использует фиксированный funding period `30` лет.
+- `item.growthSchedule`, если он задан;
+- иначе `modelAssumptions.inflationSchedule`;
+- fallback — `pension.inflationPct`.
 
-Формула обратным проходом:
+Для строк без inflation-growth используется `item.growthPct`, но годовой `growthSchedule` всё равно может переопределить ставку конкретного года.
+
+Активность строки считается по пересечению `startDate/endDate` с годом или месяцем прогноза.
+
+## Годовой cashflow
+
+`GET /analytics/cashflow` возвращает строки `CashFlowProjectionPoint`.
+
+Ключевые поля:
+
+```txt
+year
+age
+periodNo
+monthlyIncome
+yearlyIncome
+totalIncome
+monthlyExpenses
+yearlyExpenses
+totalExpenses
+monthlyGoalExpenses
+yearlyGoalExpenses
+totalGoalExpenses
+netSavings
+investmentReturnPct
+capitalStartOfYear
+capitalEndOfYear
+```
+
+Для каждого года backend считает:
+
+```txt
+monthlyIncomeTotal = sum(active monthly incomes for each month)
+yearlyIncome = sum(active yearly/one-time incomes)
+totalIncome = monthlyIncomeTotal + yearlyIncome
+
+monthlyExpensesTotal = sum(active monthly expenses for each month)
+yearlyExpenses = sum(active yearly/one-time expenses)
+totalExpenses = monthlyExpensesTotal + yearlyExpenses
+```
+
+Затем считает месячные накопления:
+
+```txt
+plannedMonthlySavings = monthlyIncomeForMonth - monthlyExpensesForMonth
+monthlySavings = trackerAmountForMonth if exists else plannedMonthlySavings
+```
+
+Важно: `MonthlyTrackerEntry.status` сам по себе не участвует в формуле. На расчёт влияет сохранённый `amount`; для `missed` frontend обычно передаёт `0`.
+
+Цели в годовом cashflow сейчас попадают как плановый outflow в месяц/год цели:
+
+```txt
+targetCost = currentCost grown until targetYear
+remaining = max(targetCost - savedAmount, 0)
+plannedGoalExpenses[targetYear-targetMonth] += remaining
+```
+
+Годовая формула:
+
+```txt
+yearlyGoalExpenses = sum(planned goal outflows in this year)
+netSavings = yearlyIncome - yearlyExpenses + sum(monthlySavings) - yearlyGoalExpenses
+capitalEndOfYear =
+  capitalStartOfYear
+  + netSavings
+  + max(capitalStartOfYear, 0) * investmentReturnPctForYear / 100
+```
+
+До пенсионного года `investmentReturnPctForYear = modelAssumptions.investmentReturnPct`. Начиная с пенсионного года — `pension.expectedReturnPct`.
+
+## Помесячный cashflow
+
+`GET /analytics/cashflow/monthly` возвращает 12 месяцев от `startYear`.
+
+Отличия от годового cashflow:
+
+- `income` и `expenses` считаются по месяцу;
+- yearly/one-time income и expenses добавляются в декабре;
+- investment return добавляется в декабре и считается от `capitalStartOfYear`;
+- monthly tracker заменяет только месячную часть savings;
+- goal outflow применяется в конкретном target month.
+
+Строка содержит:
+
+```txt
+month
+year
+monthNumber
+age
+income
+expenses
+goalExpenses
+netSavings
+investmentReturnPct
+capitalStartOfMonth
+capitalEndOfMonth
+```
+
+## Retirement mode внутри cashflow
+
+Начиная с `retirementYear` меняется источник monthly income/expenses.
+
+Доходы после пенсии:
+
+```txt
+income = active incomes with continueAfterRetirement=true
+if statePensionEnabled:
+  income += statePensionMonthly grown by pension.inflationPct
+```
+
+Расходы после пенсии:
+
+```txt
+expenses = active regular expenses
+expenses += desiredMonthlyExpensesCurrentPrices grown by pension.inflationPct
+```
+
+Если `desiredMonthlyExpensesCurrentPrices` отсутствует, используется `pension.monthlyExpenses`.
+
+Поэтому на графике после пенсионного года может оставаться доход: это либо доходная строка с `continueAfterRetirement=true`, либо государственная пенсия, проиндексированная инфляцией.
+
+## Dashboard
+
+`GET /plans/{planId}/dashboard` — это сводка поверх текущего состояния и cashflow.
+
+Основные вычисления:
+
+```txt
+currentYearGoalExpenses = first cashflow row totalGoalExpenses
+
+netMonthlyBalance =
+  monthlyIncome - monthlyExpenses - currentYearGoalExpenses / 12
+
+netYearlyBalance =
+  yearlyIncome - yearlyExpenses - currentYearGoalExpenses
+
+savingsRatePct =
+  yearlyIncome == 0 ? 0 : netYearlyBalance / yearlyIncome * 100
+
+monthlyGoalContribution =
+  max(yearlyIncome - yearlyExpenses, 0) / 12
+
+availableForPension =
+  max(netMonthlyBalance, 0)
+
+projectedPensionCapital =
+  initialCapital + availableForPension * 12 * yearsToRetirement
+```
+
+`dashboard.projectedPensionCapital` — грубая dashboard-оценка накопления, не required capital. Для вопроса «сколько капитала нужно на пенсии» используется `/pension/projection`.
+
+`dashboard.yearlyProjection` — первые 4 строки `cashflow` с полями `year`, `income`, `expenses`, `goalsCost`, `netSavings`.
+
+## Health score
+
+`GET /analytics/health` считается из dashboard:
+
+```txt
+score = min(
+  100,
+  savingsRatePct
+  + emergencyFundPct / 4
+  + incomeSourcesCount * 5
+)
+```
+
+Компоненты:
+
+- `savings_rate`: good от `20%`, warning от `10%`;
+- `emergency_fund`: good от `100%`, warning от `50%`;
+- `diversification`: good при 3+ источниках дохода.
+
+Emergency fund ищется как первая цель, где имя содержит `подушка`. Target — 6 месяцев текущих monthly expenses.
+
+## Goal projections
+
+`GET /plans/current` возвращает цели с дополнительными projected-полями:
+
+```txt
+projectedTargetCost
+projectedSavedAmount
+projectedProgressPct
+projectedReachable
+projectedCompletionYear
+```
+
+Расчёт идёт отдельно от `cashflow` через `goalAllocationPlan()`.
+
+Алгоритм:
+
+```txt
+pool = max(initialCapital, 0)
+goals = sort by priority, targetYear, targetMonth, id
+
+for each projected month:
+  monthlyFreeCashflow =
+    monthlyIncomeForMonth
+    - monthlyExpensesForMonth
+    + yearlyFreeCashflowShare
+
+  monthlyFreeCashflow = trackerAmount if tracker exists else monthlyFreeCashflow
+  pool += monthlyFreeCashflow
+
+  for goal in goals:
+    allocate min(pool, remainingTargetCost)
+```
+
+Для reachability важен target month: сумма, накопленная после дедлайна цели, не помогает выполнить цель вовремя. `projectedProgressPct` считается как `(savedAmount + projected allocation by deadline) / projectedTargetCost`.
+
+## Pension projection
+
+`GET /pension/projection` возвращает две модели: `preserveCapital` и `spendDown`.
+
+Общие поля:
+
+```txt
+currentAge
+retirementAge
+retirementYear
+capitalAtRetirement
+nominalReturnPct
+averageInflationPct
+realReturnPct
+```
+
+`capitalAtRetirement` берётся из `cashflow` на год выхода на пенсию. Если пользователь уже на пенсии, используется `initialCapital`.
+
+`averageInflationPct` — средняя ставка из `modelAssumptions.inflationSchedule`; если schedule пустой, берётся `pension.inflationPct`.
+
+### Preserve capital
+
+Смысл: жить на доходность капитала, не тратя principal.
+
+```txt
+annualSpendableAtRetirement =
+  capitalAtRetirement * pension.expectedReturnPct / 100
+  + statePensionMonthly * 12 if enabled
+
+annualSpendableCurrentPrices =
+  discount(annualSpendableAtRetirement, averageInflationPct, yearsToRetirement)
+
+monthlySpendableCurrentPrices =
+  annualSpendableCurrentPrices / 12
+```
+
+Отдельно считается required capital:
+
+```txt
+desiredAnnualAtRetirement =
+  desiredMonthlyExpensesCurrentPrices * 12
+  * (1 + pension.inflationPct / 100) ^ yearsToRetirement
+
+statePensionAnnualAtRetirement =
+  statePensionEnabled
+    ? statePensionMonthly * 12 * inflationFactor
+    : 0
+
+annualNeed =
+  max(desiredAnnualAtRetirement - statePensionAnnualAtRetirement, 0)
+
+realReturnPct =
+  pension.expectedReturnPct - pension.inflationPct
+
+requiredCapitalAtRetirement =
+  annualNeed / (realReturnPct / 100)
+```
+
+Если `annualNeed > 0`, а `realReturnPct <= 0`, backend возвращает `requiredCapitalAtRetirement = null` и `requiredCapitalStatus = non_positive_real_return`.
+
+### Spend down
+
+Смысл: постепенно расходовать капитал.
+
+Displayed series:
+
+```txt
+desiredAnnualExpensesAtRetirement =
+  desiredMonthlyExpensesCurrentPrices * 12
+  grown by averageInflationPct until retirement
+
+for each retirement year in projection horizon:
+  investmentReturn = max(beginningCapital, 0) * expectedReturnPct / 100
+  plannedExpense = retirement expenses + active one-time/yearly expenses - retirement income
+  endingCapital = beginningCapital + investmentReturn - plannedExpense
+```
+
+`retirementYears` для series берётся из общего горизонта модели:
+
+```txt
+retirementYears = max(1, projectionHorizon - yearsToRetirement)
+```
+
+`spendDown.requiredCapitalAtRetirement` считается отдельно на фиксированные `30` лет обратным проходом:
 
 ```txt
 required = 0
 for year from 29 down to 0:
-  withdrawal = annualNeed * (1 + inflationPct / 100) ^ year
-  required = (required + withdrawal) / (1 + expectedReturnPct / 100)
-requiredCapitalAtRetirement = required
+  withdrawal = annualNeed * (1 + pension.inflationPct / 100) ^ year
+  required = (required + withdrawal) / (1 + pension.expectedReturnPct / 100)
 ```
 
-## Дополнение из Figma-прототипа
+## Scenarios
 
-Источник: опубликованный Figma Make prototype `smooth-try-70453479.figma.site`, разобран по bundled JS. Прототип подтверждает продуктовую модель, где финансовые цели не искажают базовый cashflow, а ведутся отдельным слоем планирования и фактических взносов.
+`POST /scenarios/compare` не мутирует план. Он строит adjusted copy:
 
-### Модули прототипа
+- income amounts умножаются на `incomeAdjPct`;
+- expense amounts и пенсионные расходы умножаются на `expenseAdjPct`;
+- goal currentCost умножается на `goalsCostAdjPct`;
+- investment return и pension expected return сдвигаются на `returnAdjPct`;
+- inflation schedule и pension inflation сдвигаются на `inflationAdjPct`;
+- retirement age сдвигается на `retirementAgeShift`.
 
-В навигации и коде прототипа присутствуют следующие функциональные блоки:
-
-- `dashboard` — финансовый дашборд, health score, прогноз, сценарные подсказки;
-- `foundation` / настройки основы — стартовый капитал, возраст, горизонт, доходность, инфляция;
-- `income` — источники доходов с периодом активности и ростом;
-- `expenses` — категории расходов с периодом активности и ростом;
-- `goals` — финансовые цели с текущей стоимостью, накопленным фактом, целевым годом и индексацией;
-- `goal-tracking` — журнал взносов к целям;
-- `pension` — пенсионный капитал и сценарии расходования;
-- `calendar` / tracker — план-факт финансовых событий;
-- `summary` / `settings` — сводка, импорт/экспорт, параметры профиля.
-
-### Чистый баланс и цели
-
-Прототип считает чистый баланс без целей:
+Затем `ScenarioService` вызывает:
 
 ```txt
-netMonthlyBalance = monthlyIncome - monthlyExpenses
-netYearlyBalance = netMonthlyBalance * 12
+PlanReadService.cashflow(adjusted, 30)
 ```
 
-Финансовые цели учитываются как прогнозный денежный outflow текущего года в yearly cashflow, но dashboard-рекомендация для ежемесячного взноса показывает свободный денежный поток до целей:
+Важное ограничение текущей реализации: scenario compare использует static cashflow без monthly tracker facts. Поэтому tracker влияет на base `/analytics/cashflow`, но не влияет на optimistic/pessimistic/user scenario lines.
 
-```txt
-monthlyGoalContribution = max(monthlyIncome - monthlyExpenses, 0)
-netMonthlyBalance = monthlyIncome - monthlyExpenses
-availableForPension = max(0, netMonthlyBalance)
-```
+## Что сейчас точно не делает backend
 
-Backend отдаёт `projected*` поля по целям отдельно от фактических `currentCost` / `savedAmount`; `projectedReachable` считается по линии накоплений (`capitalEndOfYear`) на `targetYear`: цель недостижима только если капитал к целевому году уходит в минус. Само финансирование целей в yearly analytics уменьшает `netSavings` и капитал.
+- Не считает analytics от Apple Numbers-файла в runtime.
+- Не пишет и не учитывает legacy contribution ledger как текущий write-path: create/update disabled.
+- Не принимает `type=goal` в operation journal: backend возвращает ошибку и просит использовать savings tracker и `Goal.savedAmount`.
+- Не учитывает monthly tracker в `/scenarios/compare`.
+- Не считает `dashboard.projectedPensionCapital` как required pension capital.
 
-### Contribution ledger (legacy)
+## Историческая Numbers-модель
 
-`goal-tracking` и export logic прототипа содержали `contributions` как фактические взносы:
+Apple Numbers-файл `Модель_P_3---3c875af3-ffe2-4e95-96e6-0b82f82a7a40.numbers` был исходным reference для первых формул доходов, расходов, целей, сбережений и пенсии.
 
-```txt
-Contribution = { goalId, amount, date, note }
-goal.savedAmount = sum(contributions.amount where contribution.goalId == goal.id)
-```
+Текущий backend сохранил несколько идей из файла:
 
-Backend сохраняет contribution ledger как legacy compatibility path, но текущий UI пишет фактические расходы на цели через operation journal (`/plans/{planId}/tracker/entries`, `type=goal`, `status=actual`). Analytics учитывает legacy contributions и operation journal, поэтому один и тот же факт нельзя писать в оба источника — это даст double-counting.
+- доходы/расходы имеют период активности и growth;
+- cashflow разделяет income, expenses, goal outflow, net savings и capital;
+- pension projection имеет preserve-capital и spend-down варианты.
 
-### Files / import / export
-
-Прототип содержит файловые сценарии:
-
-- import из `CSV` или `JSON`;
-- export в `CSV`;
-- export в `PDF`;
-- CSV export включает секции `Доходы`, `Расходы`, `Цели`, `Накопления (взносы)`, `Пенсия`, `Баланс`;
-- PDF export включает dashboard summary, цели, pension plan и графики.
-
-Контрактный вывод: будущий import/export должен сохранять раздельность фактических данных (`operation_journal_entries`; legacy `contributions` только для совместимости, `savedAmount`) и прогнозных расчётов (`projected*`, `availableForPension`, scenario summaries).
-
-## Контрактные выводы
-
-1. `analytics/cashflow` должен показывать раздельно `totalIncome`, `totalExpenses`, `totalGoalExpenses`, `netSavings`, `capitalEndOfYear`.
-2. `netSavings = totalIncome - totalExpenses - totalGoalExpenses`; цель считается денежным outflow и уменьшает капитал.
-3. `analytics/balance/current` должен зеркалить лист `Баланс` по текущему году.
-4. `analytics/projection` и `pension/projection` должны строиться из одного расчётного ядра, а `dashboard`, `health`, `scenarios/compare` — быть сводками поверх него.
-5. `Goal` должен разделять фактические поля (`currentCost`, `savedAmount`) и прогнозные поля (`projected*`), чтобы отображение прогресса не портило данные редактирования.
-6. Import/export в будущем должен уметь принимать Numbers/Excel-модель как отдельный тип источника, но backend не должен зашивать конкретные годы/строки из этого файла.
-
-## Заметки по реализации backend
-
-Рекомендуемые доменные блоки:
-
-```txt
-analytics/
-  ModelAssumptions           стартовый год, горизонт, ставки, monthsPerYear
-  YearRatePoint              ставка по году
-  CashFlowProjectionPoint    годовая строка доходов/расходов/сбережений
-  BalanceSnapshot            снимок листа Баланс
-  GoalAllocation             прогнозная аллокация free cashflow в UI-цели
-  ProjectionCalculator       единое расчётное ядро
-  DashboardCalculator        сводки dashboard/health/scenarios
-pension/
-  PensionProjection          результат двух пенсионных вариантов
-  PensionSpendDownPoint      годовая строка расходования капитала
-```
+Но фактическая документация для продукта должна смотреть на текущие endpoints и `PlanReadService`, потому что runtime-модель уже шире и местами отличается от Numbers.

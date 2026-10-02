@@ -114,7 +114,7 @@ Backend не владеет login/refresh/logout flow и не хранит па�
 | `POST` | `/api/v1/plans/{planId}/tracker/entries` | implemented | Создать operation journal entry. |
 | `PATCH/DELETE` | `/api/v1/plans/{planId}/tracker/entries/{entryId}` | implemented | Изменить или удалить entry. |
 
-Operation journal — canonical write-path для фактических расходов на цели (`type=goal`, `status=actual`). Legacy contributions остаются только для совместимости.
+Operation journal хранит фактические/плановые операции tracker page. `type=goal` сейчас отклоняется backend'ом: для прогресса целей используется `Goal.savedAmount`, а для план-факт накоплений — monthly tracker.
 
 ## Legacy contributions
 
@@ -123,7 +123,7 @@ Operation journal — canonical write-path для фактических рас�
 | `GET/POST` | `/api/v1/plans/{planId}/contributions` | implemented, deprecated |
 | `GET/PATCH/DELETE` | `/api/v1/plans/{planId}/contributions/{id}` | implemented, deprecated |
 
-Не записывай один и тот же факт одновременно в `contributions` и operation journal: analytics учитывает оба источника, и это даст double-counting.
+Legacy contributions остаются только для чтения/очистки старых данных. Create/update отключены и возвращают ошибку `goal contribution ledger is disabled; use goal savedAmount and savings tracker instead`.
 
 ## Scenarios
 

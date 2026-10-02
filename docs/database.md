@@ -63,9 +63,9 @@ kubectl -n finguide exec deploy/finguide-api-postgres -- \
 - inflation rates for 2024–2027;
 - 3 incomes;
 - 3 expenses;
-- 3 goals with `saved_amount = 0` because goal progress is derived from contributions.
+- 3 goals with `saved_amount = 0`; current goal progress is stored directly on the goal.
 
-`contributions.goal_id` references `goals(id)`. The repository deletes contributions explicitly before deleting a goal, so goal removal does not produce FK errors or orphan ledger rows. The table is now a legacy compatibility ledger; current UI writes factual goal outflows through `operation_journal_entries` (`type=goal`, `status=actual`), so clients must not write the same fact into both tables.
+`contributions.goal_id` references `goals(id)`. The repository deletes contributions explicitly before deleting a goal, so goal removal does not produce FK errors or orphan ledger rows. The table is now a legacy compatibility ledger: create/update are disabled, while read/delete remain for migration and cleanup. Current goal progress uses `goals.saved_amount`, and monthly plan/fact uses `monthly_tracker_entries`.
 
 `scenarios` хранит пользовательские scenarios как adjustment deltas. Поле `snapshot_json` зарезервировано для будущих snapshot-сценариев; built-in `base`/`optimistic`/`pessimistic` генерируются кодом и не пишутся в таблицу.
 

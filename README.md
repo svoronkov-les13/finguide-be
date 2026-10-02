@@ -49,8 +49,8 @@ Real backend currently supports:
 - persisted analytics assumptions, current balance, yearly projection and pension projection endpoints;
 - required pension capital fields in `GET /plans/{planId}/pension/projection`;
 - persisted pension settings `GET/PATCH /plans/{planId}/pension` with writable-plan guardrails;
-- legacy/deprecated persisted contributions ledger `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}` with `Goal.savedAmount` derived from contribution sums;
-- persisted budget settings `GET/PATCH /plans/{planId}/budget`, envelope autogeneration, monthly tracker `GET/POST /plans/{planId}/calendar/monthly-tracker`, and operation journal `GET/POST/PATCH/DELETE /plans/{planId}/tracker/entries` as the canonical write-path for factual goal outflows;
+- legacy/deprecated persisted contributions ledger `GET/POST /plans/{planId}/contributions`, `GET/PATCH/DELETE /plans/{planId}/contributions/{id}` with create/update disabled; current goal progress uses `Goal.savedAmount`;
+- persisted budget settings `GET/PATCH /plans/{planId}/budget`, envelope autogeneration, monthly tracker `GET/POST /plans/{planId}/calendar/monthly-tracker`, and operation journal `GET/POST/PATCH/DELETE /plans/{planId}/tracker/entries`;
 - persisted user scenarios `GET/POST /scenarios`, `GET/PATCH/DELETE /scenarios/{scenarioId}`, and `POST /scenarios/compare` with built-in read-only scenarios;
 - Actuator health/info/prometheus endpoints under `/finguide-api/actuator/*`.
 
@@ -155,7 +155,7 @@ Relevant test areas:
 - persisted H2 repository;
 - plan read endpoints;
 - income/expense/goal CRUD;
-- contribution ledger CRUD and derived goal progress;
+- legacy contribution ledger compatibility and direct goal saved amount;
 - OpenAPI exposure for financial item and scenario endpoints;
 - OpenAPI contract coverage guard: checked-in `openapi/openapi.json` has 58 operations; real Springdoc must cover every implemented operation and must not regress beyond the documented 8-operation target-only gap.
 
